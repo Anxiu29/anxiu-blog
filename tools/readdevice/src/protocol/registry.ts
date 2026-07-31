@@ -1,13 +1,19 @@
 import { beiyingProfile } from './beiying'
 import { customProfile } from './custom'
+import { hsProfile } from './hs'
+import { jpProfile } from './jp'
 import { kb250718Profile } from './kb250718'
 import { ry5088Profile } from './ry5088'
+import { sparklinkProfile } from './sparklink'
 import type { ProtocolProfile } from './types'
 
 export const PROTOCOL_PROFILES: ProtocolProfile[] = [
   ry5088Profile,
   kb250718Profile,
   beiyingProfile,
+  hsProfile,
+  jpProfile,
+  sparklinkProfile,
   customProfile,
 ]
 
@@ -31,4 +37,4 @@ export function resolveProtocolByVid(vid: string | null | undefined): ProtocolPr
 }
 
 export type { ProtocolProfile, PresetCommand, ChecksumMode } from './types'
-export { toHex, toHexOmitTrailingZeros, stripTrailingZeroOmitNote, parseHexBytes } from './types'
+export { toHex, toDec, toHexOmitTrailingZeros, toDecOmitTrailingZeros, stripTrailingZeroOmitNote, parseHexBytes } from './types'

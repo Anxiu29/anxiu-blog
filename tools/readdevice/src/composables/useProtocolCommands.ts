@@ -2,6 +2,9 @@ import { computed, ref, watch } from 'vue'
 import { getBackend } from '../hid'
 import type { HidChannel } from '../hid/types'
 import { applyCustomChecksum } from '../protocol/custom'
+import { dumpHsKeymapBuffer } from '../protocol/hs'
+import { buildJpGetBufferFrame } from '../protocol/jp'
+import { dumpSlkDefKeyMatrix } from '../protocol/sparklink'
 import {
   addUserPreset,
   loadOverlay,
@@ -13,6 +16,7 @@ import {
   listProtocols,
   resolveProtocolByVid,
   toHexOmitTrailingZeros,
+  toDecOmitTrailingZeros,
 } from '../protocol/registry'
 import type { ChecksumMode, PresetCommand, ProtocolProfile } from '../protocol/types'
 import { applyChecksum as applyRyCs7 } from '../protocol/ryCommon'
@@ -43,6 +47,8 @@ export function useProtocolCommands() {
   const error = ref('')
   const requestHex = ref('')
   const responseHex = ref('')
+  const requestDec = ref('')
+  const responseDec = ref('')
   const parsedText = ref('')
   const log = ref<ExchangeLogItem[]>([])
 
@@ -56,6 +62,8 @@ export function useProtocolCommands() {
 
   /** Bumps when localStorage overlay changes so presets recompute. */
   const overlayTick = ref(0)
+  /** After user picks a protocol in UI, VID auto-match must not override it. */
+  const protocolLocked = ref(false)
 
   const profile = computed<ProtocolProfile>(() => getProtocol(protocolId.value))
 
@@ -90,12 +98,29 @@ export function useProtocolCommands() {
     { immediate: true },
   )
 
+  watch(checksumMode, (mode) => {
+    autoChecksum.value = mode !== 'none'
+  })
+
+  /** Manual protocol selection from UI. */
+  function setProtocol(id: string) {
+    protocolLocked.value = true
+    protocolId.value = id
+  }
+
   /** Auto-select protocol when device VID matches a profile (e.g. 258A → 贝盈). */
   function applyDeviceVid(vid: string | null | undefined) {
+    if (protocolLocked.value) return
     const matched = resolveProtocolByVid(vid)
     if (matched && matched.id !== protocolId.value) {
       protocolId.value = matched.id
     }
+  }
+
+  /** New device: unlock auto-match and apply VID hint. */
+  function onDeviceChanged(vid: string | null | undefined) {
+    protocolLocked.value = false
+    applyDeviceVid(vid)
   }
 
   function pushLog(direction: 'TX' | 'RX', hex: string, note?: string) {
@@ -124,6 +149,23 @@ export function useProtocolCommands() {
     return p.buildFrame(preset.cmd, preset.params)
   }
 
+  function setRequestDisplay(frame: Uint8Array) {
+    requestHex.value = toHexOmitTrailingZeros(frame)
+    requestDec.value = toDecOmitTrailingZeros(frame)
+  }
+
+  function setResponseDisplay(frame: Uint8Array) {
+    responseHex.value = toHexOmitTrailingZeros(frame)
+    responseDec.value = toDecOmitTrailingZeros(frame)
+  }
+
+  function clearResultDisplay() {
+    requestHex.value = ''
+    responseHex.value = ''
+    requestDec.value = ''
+    responseDec.value = ''
+  }
+
   function fillPreset(presetId: string) {
     const frame = buildPresetFrame(presetId)
     rawHex.value = toHexOmitTrailingZeros(frame)
@@ -133,23 +175,27 @@ export function useProtocolCommands() {
     if (!deviceId) throw new Error('请先选择设备')
     busy.value = true
     error.value = ''
-    requestHex.value = ''
-    responseHex.value = ''
+    clearResultDisplay()
     parsedText.value = ''
     try {
-      const tx = toHexOmitTrailingZeros(frame)
-      requestHex.value = tx
-      pushLog('TX', tx)
+      setRequestDisplay(frame)
+      pushLog('TX', requestHex.value)
       const reportId = parseReportId()
+      // 星闪固定 Output，避免界面通道仍为 auto 时双发
+      const ch = protocolId.value === 'sparklink' ? 'output' : channel.value
+      if (protocolId.value === 'sparklink') channel.value = 'output'
       const response = await backend.exchangeReport(deviceId, frame, {
-        timeoutMs: timeoutMs.value,
+        timeoutMs:
+          protocolId.value === 'sparklink'
+            ? Math.max(timeoutMs.value, 1200)
+            : timeoutMs.value,
         reportId,
-        channel: channel.value,
+        channel: ch,
         usagePageHint: profile.value.usagePageHint,
+        assembleSparkLink: protocolId.value === 'sparklink',
       })
-      const rx = toHexOmitTrailingZeros(response)
-      responseHex.value = rx
-      pushLog('RX', rx)
+      setResponseDisplay(response)
+      pushLog('RX', responseHex.value)
       parsedText.value = profile.value.parseResponse(cmdForParse, response)
       return response
     } catch (e) {
@@ -160,7 +206,108 @@ export function useProtocolCommands() {
     }
   }
 
+  /** 底层单次收发（不切换 busy；供多包流程复用）。 */
+  async function exchangeOnce(
+    deviceId: string,
+    frame: Uint8Array,
+    options?: {
+      expectPrefix?: number[]
+      timeoutMs?: number
+      channel?: HidChannel
+      assembleSparkLink?: boolean
+    },
+  ): Promise<Uint8Array> {
+    const reportId = parseReportId()
+    setRequestDisplay(frame)
+    pushLog('TX', requestHex.value)
+    const response = await backend.exchangeReport(deviceId, frame, {
+      timeoutMs: options?.timeoutMs ?? timeoutMs.value,
+      reportId,
+      channel: options?.channel ?? channel.value,
+      usagePageHint: profile.value.usagePageHint,
+      expectPrefix: options?.expectPrefix,
+      assembleSparkLink: options?.assembleSparkLink,
+    })
+    setResponseDisplay(response)
+    pushLog('RX', responseHex.value)
+    return response
+  }
+
+  /** 航晟/巨朋：按矩阵尺寸自组 get_buffer 分包，过滤 82 01 回包后拼表。 */
+  async function readHsKeymap(deviceId: string) {
+    if (!deviceId) throw new Error('请先选择设备')
+    const id = protocolId.value
+    if (id !== 'hs' && id !== 'jp') throw new Error('请先切换到航晟 HS 或巨朋 JP 协议')
+    busy.value = true
+    error.value = ''
+    parsedText.value = ''
+    try {
+      const result = await dumpHsKeymapBuffer(
+        (frame) =>
+          exchangeOnce(deviceId, frame, {
+            expectPrefix: [0x82, 0x01],
+            timeoutMs: Math.max(timeoutMs.value, 800),
+          }),
+        {
+          gapMs: 20,
+          buildGetBuffer: id === 'jp' ? buildJpGetBufferFrame : undefined,
+          onProgress: ({ packageIndex, packageCount, addr, readLen }) => {
+            parsedText.value = `读取按键矩阵… ${packageIndex + 1}/${packageCount}（addr=0x${addr.toString(16)} len=${readLen}）`
+          },
+        },
+      )
+      parsedText.value = result.text
+      return result
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
+  /** 星闪：三次 DEFKEY 读完 6×21 默认键值，格式同航晟可复制数组（十六进制）。 */
+  async function readSlkDefKey(deviceId: string) {
+    if (!deviceId) throw new Error('请先选择设备')
+    if (protocolId.value !== 'sparklink') throw new Error('请先切换到星闪悦动 SparkLink 协议')
+    // 忽略界面上可能残留的 auto，避免 Feature+Output 双发
+    channel.value = 'output'
+    busy.value = true
+    error.value = ''
+    parsedText.value = ''
+    try {
+      const result = await dumpSlkDefKeyMatrix(
+        (frame) =>
+          exchangeOnce(deviceId, frame, {
+            expectPrefix: [0x5c, 0x2d, 0xab],
+            timeoutMs: Math.max(timeoutMs.value, 800),
+            channel: 'output',
+            assembleSparkLink: true,
+          }),
+        {
+          gapMs: 20,
+          onProgress: ({ packageIndex, packageCount, row1, row2 }) => {
+            parsedText.value = `读取默认键值… ${packageIndex + 1}/${packageCount}（row ${row1}+${row2}）`
+          },
+        },
+      )
+      parsedText.value = result.text
+      return result
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
   async function sendPreset(deviceId: string, presetId: string) {
+    if (presetId === 'keymap_dump_all') {
+      return readHsKeymap(deviceId)
+    }
+    if (presetId === 'defkey_dump_all') {
+      return readSlkDefKey(deviceId)
+    }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')
     let frame = buildPresetFrame(presetId)
@@ -187,8 +334,7 @@ export function useProtocolCommands() {
 
   function clearLog() {
     log.value = []
-    requestHex.value = ''
-    responseHex.value = ''
+    clearResultDisplay()
     parsedText.value = ''
     error.value = ''
   }
@@ -231,6 +377,8 @@ export function useProtocolCommands() {
     error,
     requestHex,
     responseHex,
+    requestDec,
+    responseDec,
     parsedText,
     log,
     reportIdText,
@@ -243,9 +391,13 @@ export function useProtocolCommands() {
     fillPreset,
     sendPreset,
     sendRaw,
+    readHsKeymap,
+    readSlkDefKey,
     clearLog,
     buildPresetFrame,
+    setProtocol,
     applyDeviceVid,
+    onDeviceChanged,
     addPresetFromHex,
     deletePreset,
   }

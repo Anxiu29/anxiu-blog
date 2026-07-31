@@ -39,9 +39,27 @@ export function toHex(bytes: ArrayLike<number>, sep = ' '): string {
   return parts.join(sep)
 }
 
+/** 字节转十进制空格分隔（星闪协议文档常用）。 */
+export function toDec(bytes: ArrayLike<number>, sep = ' '): string {
+  const parts: string[] = []
+  for (let i = 0; i < bytes.length; i++) {
+    parts.push(String((bytes[i] ?? 0) & 0xff))
+  }
+  return parts.join(sep)
+}
+
 /** Strip UI suffix like `… (省略 511 个 00)` before parsing. */
 export function stripTrailingZeroOmitNote(text: string): string {
   return text.replace(/\s*[…\.。]{1,3}\s*\(省略\s*\d+\s*个\s*0{1,2}\)\s*$/i, '').trim()
+}
+
+function omitTrailingZerosEnd(bytes: ArrayLike<number>, keepHead: number): { end: number; omitted: number } {
+  const len = bytes.length
+  let end = len
+  while (end > keepHead && (bytes[end - 1] ?? 0) === 0) {
+    end -= 1
+  }
+  return { end, omitted: len - end }
 }
 
 /**
@@ -57,17 +75,34 @@ export function toHexOmitTrailingZeros(
   const len = bytes.length
   if (len === 0) return ''
 
-  let end = len
-  while (end > keepHead && (bytes[end - 1] ?? 0) === 0) {
-    end -= 1
-  }
-  const omitted = len - end
+  const { end, omitted } = omitTrailingZerosEnd(bytes, keepHead)
   const shown = toHex(
     Array.from({ length: end }, (_, i) => bytes[i] ?? 0),
     sep,
   )
   if (omitted <= 0) return shown
   return `${shown} … (省略 ${omitted} 个 00)`
+}
+
+/**
+ * 十进制显示，规则同 toHexOmitTrailingZeros（省略末尾 0）。
+ */
+export function toDecOmitTrailingZeros(
+  bytes: ArrayLike<number>,
+  options?: { keepHead?: number; sep?: string },
+): string {
+  const keepHead = options?.keepHead ?? 8
+  const sep = options?.sep ?? ' '
+  const len = bytes.length
+  if (len === 0) return ''
+
+  const { end, omitted } = omitTrailingZerosEnd(bytes, keepHead)
+  const shown = toDec(
+    Array.from({ length: end }, (_, i) => bytes[i] ?? 0),
+    sep,
+  )
+  if (omitted <= 0) return shown
+  return `${shown} … (省略 ${omitted} 个 0)`
 }
 
 export function parseHexBytes(text: string): number[] {

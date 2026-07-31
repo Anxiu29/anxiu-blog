@@ -20,6 +20,8 @@ const {
   error,
   requestHex,
   responseHex,
+  requestDec,
+  responseDec,
   parsedText,
   log,
   reportIdText,
@@ -32,9 +34,13 @@ const {
   fillPreset,
   sendPreset,
   sendRaw,
+  readHsKeymap,
+  readSlkDefKey,
   clearLog,
   buildPresetFrame,
+  setProtocol,
   applyDeviceVid,
+  onDeviceChanged,
   addPresetFromHex,
   deletePreset,
 } = useProtocolCommands()
@@ -44,6 +50,7 @@ const presetId = ref('')
 const showAddForm = ref(false)
 const newPresetLabel = ref('')
 const presetMsg = ref('')
+const copyMsg = ref('')
 
 watch(
   presets,
@@ -57,7 +64,11 @@ watch(
 
 watch(
   () => props.deviceId,
-  () => clearLog(),
+  (id, prev) => {
+    clearLog()
+    // Device switched (or first select): allow VID auto-match again.
+    if (id !== prev) onDeviceChanged(props.deviceVid)
+  },
 )
 
 watch(
@@ -65,6 +76,11 @@ watch(
   (vid) => applyDeviceVid(vid),
   { immediate: true },
 )
+
+function onProtocolSelect(ev: Event) {
+  const el = ev.target as HTMLSelectElement
+  setProtocol(el.value)
+}
 
 const previewHex = computed(() => {
   if (!presetId.value) return ''
@@ -98,6 +114,31 @@ async function onSendPreset() {
     await sendPreset(props.deviceId, presetId.value)
   } catch {
     /* error ref set */
+  }
+}
+
+async function onReadHsKeymap() {
+  if (!canSend.value) return
+  copyMsg.value = ''
+  try {
+    if (protocolId.value === 'sparklink') {
+      await readSlkDefKey(props.deviceId)
+    } else {
+      await readHsKeymap(props.deviceId)
+    }
+  } catch {
+    /* error ref set */
+  }
+}
+
+async function onCopyParsed() {
+  const text = parsedText.value
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    copyMsg.value = '已复制到剪贴板'
+  } catch {
+    copyMsg.value = '复制失败，请手动全选解析区'
   }
 }
 
@@ -191,7 +232,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
     <div class="transport">
       <label>
         协议
-        <select v-model="protocolId" :disabled="busy">
+        <select :value="protocolId" :disabled="busy" @change="onProtocolSelect">
           <option v-for="p in protocols" :key="p.id" :value="p.id">{{ p.label }}</option>
         </select>
       </label>
@@ -219,9 +260,17 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
       </label>
       <label>
         帧长
-        <input v-model.number="bodyLen" type="number" min="1" max="4096" :disabled="busy" class="narrow" />
+        <input
+          v-model.number="bodyLen"
+          type="number"
+          :min="profile.id === 'custom' ? 0 : 1"
+          max="4096"
+          :disabled="busy"
+          class="narrow"
+          :title="profile.id === 'custom' ? '0 = 不定长，不补齐' : undefined"
+        />
       </label>
-      <label v-if="profile.checksum !== 'none'">
+      <label>
         校验
         <select v-model="checksumMode" :disabled="busy">
           <option v-for="c in checksumOptions" :key="c.value" :value="c.value">
@@ -240,6 +289,20 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
           填入编辑区
         </button>
         <button type="button" @click="onSendPreset" :disabled="!canSend || !presetId">发送</button>
+        <button
+          v-if="protocolId === 'hs' || protocolId === 'jp' || protocolId === 'sparklink'"
+          type="button"
+          class="secondary"
+          @click="onReadHsKeymap"
+          :disabled="!canSend"
+          :title="
+            protocolId === 'sparklink'
+              ? '三次 DEFKEY 读 6×21 默认键值，输出可复制数组'
+              : '分包发送 82 01 get_buffer，解析为每层可复制数组'
+          "
+        >
+          读取全盘按键
+        </button>
         <button type="button" class="secondary" @click="onToggleAddForm" :disabled="busy">
           {{ showAddForm ? '取消添加' : '添加预设' }}
         </button>
@@ -317,8 +380,28 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
         <span class="label">RX Hex（末尾 00 已省略）</span>
         <code class="mono scroll">{{ responseHex }}</code>
       </div>
+      <div
+        class="field"
+        v-if="protocolId === 'sparklink' && (requestDec || responseDec)"
+      >
+        <span class="label">十进制（末尾 0 已省略）</span>
+        <div class="dec-block">
+          <div v-if="requestDec" class="dec-row">
+            <span class="dec-tag">TX</span>
+            <code class="mono">{{ requestDec }}</code>
+          </div>
+          <div v-if="responseDec" class="dec-row">
+            <span class="dec-tag">RX</span>
+            <code class="mono scroll">{{ responseDec }}</code>
+          </div>
+        </div>
+      </div>
       <div class="field" v-if="parsedText">
-        <span class="label">解析</span>
+        <div class="label-row">
+          <span class="label">解析</span>
+          <button type="button" class="link" @click="onCopyParsed">复制</button>
+          <span v-if="copyMsg" class="hint-inline">{{ copyMsg }}</span>
+        </div>
         <pre class="parsed">{{ parsedText }}</pre>
       </div>
     </div>
@@ -537,6 +620,38 @@ button.link {
   overflow: auto;
 }
 
+.dec-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  background: #f4f6f8;
+  border-radius: 8px;
+}
+
+.dec-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.dec-tag {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  min-width: 1.6rem;
+}
+
+.dec-block .mono {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
 textarea {
   width: 100%;
   box-sizing: border-box;
@@ -593,6 +708,17 @@ textarea {
   color: #6b7280;
 }
 
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hint-inline {
+  font-size: 0.75rem;
+  color: #0f766e;
+}
+
 .parsed {
   margin: 0;
   padding: 0.55rem 0.7rem;
@@ -603,7 +729,10 @@ textarea {
   line-height: 1.45;
   white-space: pre;
   overflow-x: auto;
+  max-height: 420px;
+  overflow-y: auto;
   font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  user-select: text;
 }
 
 .log {

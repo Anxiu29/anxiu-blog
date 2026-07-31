@@ -28,6 +28,15 @@ export interface ExchangeOptions {
   channel?: HidChannel
   /** Prefer matching Usage Page when selecting vendor interface. */
   usagePageHint?: number
+  /**
+   * Output/Input：忽略不匹配的 Input 报告，直到前缀一致或超时。
+   * 例：航晟 get_buffer 期望 [0x82, 0x01]。
+   */
+  expectPrefix?: number[]
+  /**
+   * 星闪多包应答：首包 0x5C 后按 len 继续读 Input，拼满 4+len 再返回。
+   */
+  assembleSparkLink?: boolean
 }
 
 export interface DeviceBackend {

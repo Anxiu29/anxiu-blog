@@ -22,6 +22,8 @@ export const tauriBackend: DeviceBackend = {
       reportId: opts.reportId,
       channel: opts.channel ?? 'auto',
       usagePageHint: opts.usagePageHint,
+      expectPrefix: opts.expectPrefix,
+      assembleSparklink: opts.assembleSparkLink ?? false,
     })
     return new Uint8Array(response)
   },

@@ -1,5 +1,6 @@
 import type { DeviceBackend, DeviceDetail, DeviceSummary, ExchangeOptions } from './types'
 import { normalizeExchangeOptions } from './types'
+import { slkAssembleTargetBytes } from '../protocol/sparklink'
 
 function hex4(n: number): string {
   return n.toString(16).toUpperCase().padStart(4, '0')
@@ -91,6 +92,15 @@ function vendorScore(device: HIDDevice, opts?: { usagePageHint?: number; bodyLen
       score += 80
     } else if (fl >= bodyLen) {
       score += 30
+    }
+    for (const c of device.collections ?? []) {
+      for (const r of c.outputReports ?? []) {
+        const items = (r.items ?? []) as Array<{ reportSize?: number; reportCount?: number }>
+        let bits = 0
+        for (const it of items) bits += (it.reportSize ?? 0) * (it.reportCount ?? 0)
+        const ol = Math.ceil(bits / 8)
+        if (ol === bodyLen || ol === bodyLen + 1) score += 60
+      }
     }
   }
   return score
@@ -202,27 +212,89 @@ async function exchangeOutputInput(
   report: Uint8Array,
   timeoutMs: number,
   reportId: number,
+  expectPrefix?: number[],
+  assembleSparkLink?: boolean,
 ): Promise<Uint8Array> {
-  const response = await new Promise<Uint8Array>((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      device.removeEventListener('inputreport', onReport)
-      reject(new Error(`等待 Input Report 超时（${timeoutMs}ms）`))
-    }, timeoutMs)
+  const prefix = (expectPrefix ?? []).map((b) => b & 0xff)
+  const deadline = Date.now() + Math.max(timeoutMs, 50)
+  let activeHandler: ((ev: HIDInputReportEvent) => void) | null = null
+  let activeTimer: number | null = null
 
-    function onReport(ev: HIDInputReportEvent) {
-      window.clearTimeout(timer)
-      device.removeEventListener('inputreport', onReport)
-      resolve(normalizeRx(ev.data, report.length))
+  const clearWait = () => {
+    if (activeTimer != null) {
+      window.clearTimeout(activeTimer)
+      activeTimer = null
     }
+    if (activeHandler) {
+      device.removeEventListener('inputreport', activeHandler)
+      activeHandler = null
+    }
+  }
 
-    device.addEventListener('inputreport', onReport)
-    device.sendReport(reportId, report).catch((err) => {
-      window.clearTimeout(timer)
-      device.removeEventListener('inputreport', onReport)
-      reject(err)
+  const waitInput = (opts: {
+    matchPrefix: boolean
+    errorMessage: string
+  }): Promise<Uint8Array> =>
+    new Promise((resolve, reject) => {
+      clearWait()
+      const remain = Math.max(1, deadline - Date.now())
+      activeTimer = window.setTimeout(() => {
+        clearWait()
+        reject(new Error(opts.errorMessage))
+      }, remain)
+
+      activeHandler = (ev: HIDInputReportEvent) => {
+        const data = normalizeRx(ev.data, report.length)
+        if (opts.matchPrefix && prefix.length > 0) {
+          const ok = prefix.every((b, i) => (data[i] ?? 0) === b)
+          if (!ok) return
+        }
+        clearWait()
+        resolve(data)
+      }
+      device.addEventListener('inputreport', activeHandler)
     })
+
+  const firstWait = waitInput({
+    matchPrefix: true,
+    errorMessage: prefix.length
+      ? `等待匹配回包超时（期望 ${prefix.map((b) => b.toString(16).padStart(2, '0')).join(' ')}，${timeoutMs}ms）`
+      : `等待 Input Report 超时（${timeoutMs}ms）`,
   })
-  return response
+
+  try {
+    await device.sendReport(reportId, report)
+  } catch (err) {
+    clearWait()
+    throw err
+  }
+
+  let acc = await firstWait
+
+  if (assembleSparkLink) {
+    const need = slkAssembleTargetBytes(acc)
+    if (need != null && acc.length < need) {
+      const chunks: Uint8Array[] = [acc]
+      let total = acc.length
+      while (total < need) {
+        const more = await waitInput({
+          matchPrefix: false,
+          errorMessage: `星闪多包收齐超时（已收 ${total}/${need}，${timeoutMs}ms）`,
+        })
+        chunks.push(more)
+        total += more.length
+      }
+      const merged = new Uint8Array(total)
+      let off = 0
+      for (const c of chunks) {
+        merged.set(c, off)
+        off += c.length
+      }
+      acc = merged.slice(0, need)
+    }
+  }
+
+  return acc
 }
 
 function dedupeByVidPid(devices: HIDDevice[]): HIDDevice[] {
@@ -277,11 +349,16 @@ export const webhidBackend: DeviceBackend = {
     const picked = await navigator.hid.requestDevice({
       filters: [
         { vendorId: 0x258a },
+        { vendorId: 0x342d },
+        { vendorId: 0x0603 },
+        { vendorId: 0x1ca2 },
         { usagePage: RONGYUAN_USAGE_PAGE, usage: RONGYUAN_USAGE },
         { usagePage: RONGYUAN_USAGE_PAGE },
         { usagePage: BEIYING_USAGE_PAGE },
         { usagePage: 0xff00 },
         { usagePage: 0xff01 },
+        { usagePage: 0xffb0, usage: 0x01 },
+        { usagePage: 0xffb0 },
         { usagePage: 0x01, usage: 0x06 },
         { usagePage: 0x01, usage: 0x07 },
         { usagePage: 0x01, usage: 0x02 },
@@ -289,11 +366,16 @@ export const webhidBackend: DeviceBackend = {
       ],
       optionalFilters: [
         { vendorId: 0x258a },
+        { vendorId: 0x342d },
+        { vendorId: 0x0603 },
+        { vendorId: 0x1ca2 },
         { usagePage: RONGYUAN_USAGE_PAGE, usage: RONGYUAN_USAGE },
         { usagePage: RONGYUAN_USAGE_PAGE },
         { usagePage: BEIYING_USAGE_PAGE },
         { usagePage: 0xff00 },
         { usagePage: 0xff01 },
+        { usagePage: 0xffb0, usage: 0x01 },
+        { usagePage: 0xffb0 },
       ],
     })
     return dedupeByVidPid(picked)
@@ -323,12 +405,26 @@ export const webhidBackend: DeviceBackend = {
         } catch (featureErr) {
           if (channel === 'feature' || !hasOutput(device)) throw featureErr
           const outId = outputReportId(device, opts.reportId)
-          return await exchangeOutputInput(device, report, Math.max(timeoutMs, 300), outId)
+          return await exchangeOutputInput(
+            device,
+            report,
+            Math.max(timeoutMs, 300),
+            outId,
+            opts.expectPrefix,
+            opts.assembleSparkLink,
+          )
         }
       }
       if (hasOutput(device)) {
         const outId = outputReportId(device, opts.reportId)
-        return await exchangeOutputInput(device, report, Math.max(timeoutMs, 300), outId)
+        return await exchangeOutputInput(
+          device,
+          report,
+          Math.max(timeoutMs, 300),
+          outId,
+          opts.expectPrefix,
+          opts.assembleSparkLink,
+        )
       }
       throw new Error('设备无可用的 Feature/Output 报告')
     } catch (e) {
