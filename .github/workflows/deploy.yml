@@ -1,8 +1,8 @@
 name: Deploy to GitHub Pages
 
+# 站点已部署在 Vercel；未启用 GitHub Pages，故默认不随 push 运行。
+# 若日后开启 Pages，可恢复 push 触发或手动 workflow_dispatch。
 on:
-  push:
-    branches: [ master ]
   workflow_dispatch:
 
 # Pages 部署需要的权限

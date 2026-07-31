@@ -15,17 +15,11 @@ export const siteConfig: SiteConfig = {
 	site_url: "https://example.com",
 
 	// 站点描述
-	description: "安秀的个人博客，记录技术与生活，并提供 HID 设备查询等在线工具。",
+	description:
+		"安秀的个人博客，记录技术与生活，并提供 HID 设备查询等在线工具。",
 
 	// 站点关键词
-	keywords: [
-		"安秀",
-		"博客",
-		"技术博客",
-		"静态博客",
-		"HID",
-		"WebHID",
-	],
+	keywords: ["安秀", "博客", "技术博客", "静态博客", "HID", "WebHID"],
 
 	// 主题色
 	themeColor: {
