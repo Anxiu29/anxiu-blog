@@ -1,12 +1,13 @@
 {
-  "name": "firefly",
+  "name": "anxiu-blog",
   "type": "module",
   "version": "6.12.3",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
     "check": "astro check",
-    "build": "node scripts/generate-icons.js && npx tsx scripts/generate-lqips.ts && astro build && npx tsx scripts/subset-fonts.ts && pagefind --site dist",
+    "build:hid": "pnpm --dir tools/readdevice install && pnpm --dir tools/readdevice run build",
+    "build": "pnpm run build:hid && node scripts/generate-icons.js && npx tsx scripts/generate-lqips.ts && astro build && npx tsx scripts/subset-fonts.ts && pagefind --site dist",
     "preview": "astro preview",
     "astro": "astro",
     "type-check": "tsc --noEmit --isolatedDeclarations",

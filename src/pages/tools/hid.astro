@@ -1,0 +1,26 @@
+---
+/**
+ * HID 工具入口页。
+ * Astro trailingSlash=always 下，public 目录的 /tools/hid/ 在开发服务器上不稳定，
+ * 因此用此页面做入口，再跳转到已构建的 SPA（index.html）。
+ */
+const spaUrl = "/tools/hid/index.html";
+---
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="refresh" content={`0;url=${spaUrl}`} />
+		<title>HID查询工具 - 安秀</title>
+		<script is:inline define:vars={{ spaUrl }}>
+			location.replace(spaUrl);
+		</script>
+	</head>
+	<body>
+		<p>
+			正在打开 HID 查询工具… 若未自动跳转，请
+			<a href={spaUrl}>点击这里</a>。
+		</p>
+	</body>
+</html>
