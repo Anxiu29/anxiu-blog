@@ -10,10 +10,10 @@ export const fontConfig: FontConfig = {
 	selected: ["system"],
 
 	// 各区域独立字体设置（填写下方 fonts 中的字体 ID，留空则使用全局 selected 字体）
-	// 横幅标题字体
-	bannerTitleFont: "zen-maru-gothic",
-	// 横幅副标题字体
-	bannerSubtitleFont: "inter",
+	// 横幅标题字体（国内访问避免 Google Fonts）
+	bannerTitleFont: "system",
+	// 横幅副标题字体（国内访问避免 Google Fonts）
+	bannerSubtitleFont: "system",
 	// 导航栏标题字体
 	navbarTitleFont: "",
 
