@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useProtocolCommands } from '../composables/useProtocolCommands'
-import { toHexOmitTrailingZeros } from '../protocol/registry'
+import { toHexOmitTrailingZeros, parseHexBytes } from '../protocol/registry'
 import type { ChecksumMode } from '../protocol/types'
 import type { HidChannel } from '../hid/types'
 
@@ -32,6 +32,7 @@ const {
   autoChecksum,
   rawHex,
   fillPreset,
+  applyPresetWire,
   sendPreset,
   sendRaw,
   readHsKeymap,
@@ -61,6 +62,15 @@ watch(
   },
   { immediate: true },
 )
+
+watch(presetId, (id) => {
+  if (!id || tab.value === 'raw') return
+  applyPresetWire(id)
+})
+
+watch(tab, (t) => {
+  if (t === 'preset' && presetId.value) applyPresetWire(presetId.value)
+})
 
 watch(
   () => props.deviceId,
@@ -94,13 +104,15 @@ const previewHex = computed(() => {
 const canSend = computed(() => !!props.deviceId && !props.disabled && !busy.value)
 
 const lenWarn = computed(() => {
-  if (profile.value.id === 'custom') return ''
+  if (!rawHex.value.trim()) return ''
   const expected = bodyLen.value
-  if (!expected || !rawHex.value.trim()) return ''
   try {
-    const frame = profile.value.parseHex(rawHex.value, expected)
-    if (frame.length !== expected) {
-      return `当前长度 ${frame.length}，档案默认 ${expected}`
+    const n = parseHexBytes(rawHex.value).length
+    if (expected > 0 && n > expected) {
+      return `已解析 ${n} 字节，超过帧长 ${expected}，请改帧长或删多余字节`
+    }
+    if (expected > 0 && n !== expected) {
+      return `已解析 ${n} 字节，发送时按帧长 ${expected} 末尾补 00`
     }
   } catch {
     /* ignore while typing */
@@ -241,9 +253,10 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
         <input
           v-model="reportIdText"
           type="text"
-          placeholder="自动"
+          placeholder="自动 / 0x0A"
           :disabled="busy"
           class="narrow"
+          title="发送时以当前值为准。可填 10、0x0A、0A"
         />
       </label>
       <label>
@@ -334,7 +347,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
 
     <div v-else class="body">
       <label class="hex-label">
-        报文体 Hex（不含 Report ID；空格/逗号分隔）
+        报文体 Hex（不含 Report ID；按上方 Report ID / 帧长 / 通道原样发送）
         <textarea
           v-model="rawHex"
           rows="5"
@@ -415,6 +428,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
         <li v-for="(item, i) in log" :key="i">
           <span class="time">{{ item.time }}</span>
           <span class="dir" :class="item.direction.toLowerCase()">{{ item.direction }}</span>
+          <span class="note">{{ item.note || '' }}</span>
           <code>{{ item.hex }}</code>
         </li>
       </ul>
@@ -759,10 +773,16 @@ textarea {
 
 .log li {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto auto 1fr;
   gap: 0.45rem;
   align-items: start;
   font-size: 0.75rem;
+}
+
+.note {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .time {

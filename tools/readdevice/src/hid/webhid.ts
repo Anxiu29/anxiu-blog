@@ -157,7 +157,7 @@ function hasOutput(device: HIDDevice): boolean {
 function pickFeatureReportId(device: HIDDevice, requested?: number): number {
   if (requested != null) return requested & 0xff
   const ids = collectFeatureReportIds(device)
-  for (const prefer of [0x06, 0x09]) {
+  for (const prefer of [0x06, 0x09, 0x0a]) {
     if (ids.includes(prefer)) return prefer
   }
   const nonzero = ids.find((id) => id !== 0)
@@ -186,9 +186,14 @@ async function ensureOpen(device: HIDDevice): Promise<void> {
   }
 }
 
-function normalizeRx(view: DataView, bodyLen: number): Uint8Array {
+function normalizeRx(view: DataView, bodyLen: number, reportId?: number): Uint8Array {
   const raw = new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
   if (bodyLen <= 0) return raw
+  const rid = (reportId ?? 0) & 0xff
+  // Feature 回包有时带 Report ID 前缀（含 0），正文从下一字节才是 0x83 等命令
+  if (raw.length >= bodyLen + 1 && (raw[0] ?? 0) === rid) {
+    return raw.slice(1, 1 + bodyLen)
+  }
   if (raw.length >= bodyLen) return raw.slice(0, bodyLen)
   const out = new Uint8Array(bodyLen)
   out.set(raw)
@@ -204,7 +209,7 @@ async function exchangeFeature(
   await device.sendFeatureReport(reportId, report)
   await sleep(timeoutMs)
   const view = await device.receiveFeatureReport(reportId)
-  return normalizeRx(view, report.length)
+  return normalizeRx(view, report.length, reportId)
 }
 
 async function exchangeOutputInput(
@@ -244,7 +249,7 @@ async function exchangeOutputInput(
       }, remain)
 
       activeHandler = (ev: HIDInputReportEvent) => {
-        const data = normalizeRx(ev.data, report.length)
+        const data = normalizeRx(ev.data, report.length, reportId)
         if (opts.matchPrefix && prefix.length > 0) {
           const ok = prefix.every((b, i) => (data[i] ?? 0) === b)
           if (!ok) return

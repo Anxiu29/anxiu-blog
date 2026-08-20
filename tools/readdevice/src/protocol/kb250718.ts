@@ -10,12 +10,7 @@ import {
 } from './ryCommon'
 
 /** 键盘回报率/睡眠与磁轴填包略有差异，替换共用里的对应项。 */
-const KB_REPLACE_IDS = new Set([
-  'set_report_1000',
-  'set_report_500',
-  'set_sleep_default',
-  'set_profile_0',
-])
+const KB_REPLACE_IDS = new Set(['set_report', 'set_sleep_default', 'set_profile_0'])
 
 export const kb250718Profile: ProtocolProfile = {
   id: 'kb250718',
@@ -29,17 +24,11 @@ export const kb250718Profile: ProtocolProfile = {
   presets: [
     ...RY_COMMON_PRESETS.filter((p) => !KB_REPLACE_IDS.has(p.id)),
     {
-      id: 'set_report_1000',
-      label: '设置回报率 1000Hz/1ms (0x03)',
+      id: 'set_report',
+      label: '设置1K回报率 (0x03) 改第3字节：0=1K/1=500/2=250/3=125',
       cmd: 0x03,
-      // 键盘：1/2/4/8ms → 索引 0/1/2/3
+      // 键盘：第3字节（Byte2）索引 0/1/2/3 → 1/2/4/8ms → 1000/500/250/125；默认 0=1000Hz
       params: [0, 0],
-    },
-    {
-      id: 'set_report_500',
-      label: '设置回报率 500Hz/2ms (0x03)',
-      cmd: 0x03,
-      params: [0, 1],
     },
     {
       id: 'set_profile_0',

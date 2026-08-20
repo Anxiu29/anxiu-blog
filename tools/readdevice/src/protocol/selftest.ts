@@ -1,4 +1,4 @@
-import { toHexOmitTrailingZeros, toDecOmitTrailingZeros } from './types'
+import { parseHexBytes, parseReportIdText, formatReportIdText, toHexOmitTrailingZeros, toDecOmitTrailingZeros } from './types'
 import { buildBeiYingFrame, parseBeiYingResponse, BODY_LEN } from './beiying'
 import {
   buildHsFrame,
@@ -41,13 +41,27 @@ import {
   SLK_ORDER,
 } from './sparklink'
 import {
+  buildRk9007Frame,
+  buildRk9007OaFrame,
+  buildRk9007OaLightBrightnessFrame,
+  parseRk9007Response,
+  RK9007_CMD,
+  RK9007_CONFIG_LEN,
+  RK9007_MATRIX_LEN,
+  RK9007_OA_BODY_LEN,
+  RK9007_OA_CMD,
+} from './rk9007'
+import {
   buildFrame,
   buildLedParamFrame,
+  buildRyGetReportRateFrame,
   checksum,
   defaultSleepPayload,
   parseKb250718Response,
   parseRy5088Response,
+  parseRyReportRateHz,
 } from './ryCommon'
+import { shouldProbeRyReportRate } from './ryReportRate'
 import { getProtocol, listProtocols } from './registry'
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -73,6 +87,28 @@ function testOmitTrailingZeros() {
   })
   assert(d.startsWith('92 4 18 166 0 0 255 255'), d)
   assert(d.includes('省略 2 个 0'), d)
+
+  const tail = new Uint8Array(16)
+  tail[0] = 0x01
+  tail[1] = 0x02
+  tail[15] = 0x70
+  const ts = toHexOmitTrailingZeros(tail, { keepHead: 8 })
+  assert(ts.includes('省略'), ts)
+  assert(ts.endsWith('70'), ts)
+  assert(!ts.includes(' 48 '), ts)
+
+  const parsed = parseHexBytes('01 01 02 29 02 01 05 05 FF 00 01 02 00 00 … (省略 48 个 00) 70')
+  assert(parsed.length === 63, `omit expand len ${parsed.length}`)
+  assert(parsed[parsed.length - 1] === 0x70, 'omit keeps tail 70')
+  assert(!parsed.includes(0x48), 'omit must not parse 48 as hex')
+  assert(parsed[0] === 0x01 && parsed[3] === 0x29, 'omit prefix')
+
+  assert(parseReportIdText('') === undefined, 'empty RID auto')
+  assert(parseReportIdText('10') === 0x0a, 'RID decimal 10')
+  assert(parseReportIdText('0x0A') === 0x0a, 'RID 0x0A')
+  assert(parseReportIdText('0A') === 0x0a, 'RID 0A')
+  assert(parseReportIdText('9') === 9, 'RID 9')
+  assert(formatReportIdText(10) === '0x0A', 'format RID')
 }
 
 function testRyCs() {
@@ -122,6 +158,43 @@ function testRyPresets() {
   assert(rySleep.includes('1800s'), rySleep)
   const kbSleep = parseKb250718Response(0x91, sample)
   assert(kbSleep.includes('300s'), kbSleep)
+}
+
+function testRyReportRate() {
+  const req = buildRyGetReportRateFrame()
+  assert(req[0] === 0x83 && req.length === 64, '0x83 request frame')
+  assert(req[7] === checksum(req.subarray(0, 7)), '0x83 CS')
+
+  // 磁轴：Byte0=0x83, Byte2=3 → 1000Hz
+  const he = new Uint8Array(64)
+  he[0] = 0x83
+  he[2] = 3
+  assert(parseRyReportRateHz(he, 'he') === 1000, 'HE 1000')
+  assert(parseRyReportRateHz(he, 'auto') === 1000, 'auto HE 1000')
+  he[2] = 0
+  assert(parseRyReportRateHz(he, 'auto') === 8000, 'auto HE 8000')
+  assert(parseRy5088Response(0x83, he).includes('8000 Hz'), 'HE text')
+
+  // 键盘：Byte0=00, Byte1=1 → 500Hz
+  const kb = new Uint8Array(64)
+  kb[1] = 1
+  assert(parseRyReportRateHz(kb, 'std') === 500, 'STD 500')
+  assert(parseRyReportRateHz(kb, 'auto') === 500, 'auto STD 500')
+  assert(parseKb250718Response(0x83, kb).includes('500 Hz'), 'STD text')
+
+  // 首字节是 Report ID 0，真正的 0x83 从 Byte1 开始
+  const prefixed = new Uint8Array(64)
+  prefixed[0] = 0
+  prefixed[1] = 0x83
+  prefixed[2] = 0
+  prefixed[3] = 3
+  assert(parseRyReportRateHz(prefixed, 'he') === 1000, 'prefixed HE 1000')
+  assert(parseRyReportRateHz(prefixed, 'auto') === 1000, 'prefixed auto 1000')
+  assert(parseRy5088Response(0x83, prefixed).includes('1000 Hz'), 'prefixed HE text')
+
+  assert(shouldProbeRyReportRate('2E3C'), 'probe RY VID')
+  assert(!shouldProbeRyReportRate('258A'), 'skip BeiYing VID')
+  assert(!shouldProbeRyReportRate('1CA2'), 'skip SparkLink VID')
 }
 
 function testGetInforOffsets() {
@@ -212,6 +285,86 @@ function testBeiYing() {
   assert(ids.includes('read_battery'), 'has battery')
   assert(ids.includes('read_board'), 'has board')
   assert(ids.includes('read_light_colors'), 'has light colors')
+}
+
+function testRk9007() {
+  const matrix = buildRk9007Frame({
+    cmd: RK9007_CMD.GET_MATRIX,
+    param: 0,
+    dataLen: RK9007_MATRIX_LEN,
+  })
+  assert(matrix.length === 519, '9007 body 519')
+  assert(matrix[0] === 0x81, 'matrix cmd 0x81')
+  assert(matrix[1] === 0x00, 'win layer')
+  assert(matrix[2] === 0x00, 'reserved 0')
+  assert(matrix[3] === 1 && matrix[4] === 0, 'packs/seq')
+  assert(matrix[5] === 0xf8 && matrix[6] === 0x01, 'len 504')
+
+  const cfg = buildRk9007Frame({
+    cmd: RK9007_CMD.GET_CONFIG,
+    dataLen: RK9007_CONFIG_LEN,
+  })
+  assert(cfg[0] === 0x83 && cfg[5] === 0x29 && cfg[6] === 0, 'config len 41')
+
+  const factory = buildRk9007Frame({ cmd: RK9007_CMD.FACTORY, dataLen: 1 })
+  assert(factory[0] === 0x05 && factory[5] === 1, 'factory')
+
+  const payload = new Uint8Array(RK9007_CONFIG_LEN)
+  payload[0] = 1
+  payload[1] = 3
+  payload[35] = 1
+  payload[36] = 25
+  const rx = new Uint8Array(7 + RK9007_CONFIG_LEN)
+  rx[0] = 0x83
+  rx[3] = 1
+  rx[5] = RK9007_CONFIG_LEN
+  rx.set(payload, 7)
+  const text = parseRk9007Response(0x83, rx)
+  assert(text.includes('键模式=Mac'), text)
+  assert(text.includes('版本=1.25'), text)
+
+  const rk = getProtocol('rk9007')
+  assert(rk.reportId === 0x09, '9007 report 0x09')
+  assert(rk.bodyLen === 519, '9007 bodyLen')
+  assert(rk.usagePageHint === 0xff00, '9007 FF00')
+  const ids = rk.presets.map((p) => p.id)
+  assert(ids.includes('read_matrix_win'), '9007 matrix')
+  assert(ids.includes('read_config'), '9007 config')
+  assert(ids.includes('read_led_colors'), '9007 led')
+  assert(ids.includes('factory_reset'), '9007 factory')
+  assert(ids.includes('write_config_default'), '9007 write cfg')
+  assert(ids.includes('oa_light_cfg_pkt1'), '9007 oa light')
+  assert(ids.includes('oa_set_brightness'), '9007 oa brightness')
+  assert(ids.includes('oa_keys_pkt1'), '9007 oa keys')
+
+  const oaPreset = rk.presets.find((p) => p.id === 'oa_light_cfg_pkt1')!
+  assert(oaPreset.reportId === 0x0a && oaPreset.bodyLen === 64, 'oa wire override')
+
+  const bri = buildRk9007OaLightBrightnessFrame(5)
+  assert(bri.length === RK9007_OA_BODY_LEN, 'oa bri 64')
+  assert(bri[0] === 0x01 && bri[1] === 1 && bri[2] === 2 && bri[3] === 0x29, 'oa bri hdr')
+  assert(bri[4] === 0x02 && bri[6] === 5 && bri[7] === 5 && bri[8] === 0xff, 'oa bri payload')
+  assert(bri[63] === 0x70, 'oa bri tail')
+  const briText = parseRk9007Response(0x01, bri)
+  assert(briText.includes('亮度=5'), briText)
+
+  const dumped = toHexOmitTrailingZeros(bri, { keepHead: 8 })
+  const round = parseHexBytes(dumped)
+  assert(round.length === 64 && round[63] === 0x70, 'oa bri omit roundtrip')
+  assert(round[7] === 5, 'oa bri byte7')
+
+  const oa = buildRk9007OaFrame({
+    cmd: RK9007_OA_CMD.LIGHT,
+    seq: 1,
+    packs: 2,
+    dataLen: 0x29,
+    data: new Uint8Array([1, 1, 5, 5]),
+  })
+  assert(oa.length === RK9007_OA_BODY_LEN, 'oa 64')
+  assert(oa[0] === 0x01 && oa[1] === 1 && oa[2] === 2 && oa[3] === 0x29, 'oa light hdr')
+  const oaText = parseRk9007Response(0x01, oa)
+  assert(oaText.includes('通道=0x0A/64'), oaText)
+  assert(oaText.includes('CMD=0x01'), oaText)
 }
 
 async function testHs() {
@@ -464,6 +617,8 @@ function testRegistry() {
   assert(ids.includes('ry5088'), 'has ry5088')
   assert(ids.includes('kb250718'), 'has kb250718')
   assert(ids.includes('beiying'), 'has beiying')
+  assert(ids.includes('rk9007'), 'has rk9007')
+  assert(!ids.includes('rk9007oa'), 'no separate rk9007oa')
   assert(ids.includes('hs'), 'has hs')
   assert(ids.includes('jp'), 'has jp')
   assert(ids.includes('sparklink'), 'has sparklink')
@@ -471,6 +626,8 @@ function testRegistry() {
   assert(getProtocol('beiying').reportId === 0x09, 'BY report id default')
   assert(getProtocol('beiying').bodyLen === 519, 'BY body len')
   assert(getProtocol('beiying').vids?.includes('258A'), 'BY VID 258A')
+  assert(getProtocol('rk9007').label.includes('9007'), '9007 label')
+  assert(getProtocol('rk9007').presets.some((p) => p.id.startsWith('oa_')), '9007 has oa presets')
   assert(getProtocol('hs').label.includes('航晟'), 'HS label')
   assert(getProtocol('jp').label.includes('巨朋'), 'JP label')
   assert(getProtocol('jp').vids?.includes('0603'), 'JP VID in registry')
@@ -489,9 +646,11 @@ function testRegistry() {
 async function main() {
   testOmitTrailingZeros()
   testRyCs()
+  testRyReportRate()
   testGetInforOffsets()
   testRyPresets()
   testBeiYing()
+  testRk9007()
   await testHs()
   await testJp()
   await testSparklink()

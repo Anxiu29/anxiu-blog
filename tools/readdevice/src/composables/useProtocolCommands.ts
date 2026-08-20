@@ -15,10 +15,14 @@ import {
   getProtocol,
   listProtocols,
   resolveProtocolByVid,
+  toHex,
   toHexOmitTrailingZeros,
   toDecOmitTrailingZeros,
+  formatReportIdText,
+  parseReportIdText,
 } from '../protocol/registry'
 import type { ChecksumMode, PresetCommand, ProtocolProfile } from '../protocol/types'
+import { padToLength, parseHexBytes } from '../protocol/types'
 import { applyChecksum as applyRyCs7 } from '../protocol/ryCommon'
 
 export interface ExchangeLogItem {
@@ -74,7 +78,7 @@ export function useProtocolCommands() {
 
   function loadProfileDefaults(p: ProtocolProfile) {
     bodyLen.value = p.bodyLen
-    reportIdText.value = p.reportId == null ? '' : String(p.reportId)
+    reportIdText.value = p.reportId == null ? '' : formatReportIdText(p.reportId)
     channel.value = p.channel
     timeoutMs.value = p.timeoutMs
     checksumMode.value = p.checksum
@@ -83,7 +87,7 @@ export function useProtocolCommands() {
     const first = merged[0]
     if (first) {
       const frame = first.build ? first.build() : p.buildFrame(first.cmd, first.params)
-      rawHex.value = toHexOmitTrailingZeros(frame)
+      rawHex.value = toHex(frame)
     } else {
       rawHex.value = ''
     }
@@ -128,17 +132,27 @@ export function useProtocolCommands() {
   }
 
   function parseReportId(): number | undefined {
-    const t = reportIdText.value.trim()
-    if (t === '') return undefined
-    const n = Number.parseInt(t, t.toLowerCase().startsWith('0x') ? 16 : 10)
-    if (Number.isNaN(n) || n < 0 || n > 255) {
-      throw new Error('Report ID 须为 0–255')
-    }
-    return n
+    return parseReportIdText(reportIdText.value)
   }
 
   function findPreset(presetId: string): PresetCommand | undefined {
     return presets.value.find((x) => x.id === presetId)
+  }
+
+  /** Apply per-preset reportId / bodyLen (e.g. RK9007 0x0A 小包). */
+  function applyPresetWire(presetId: string) {
+    const preset = findPreset(presetId)
+    if (!preset) return
+    if (preset.reportId != null) {
+      reportIdText.value = formatReportIdText(preset.reportId)
+    } else if (profile.value.reportId != null) {
+      reportIdText.value = formatReportIdText(profile.value.reportId)
+    }
+    if (preset.bodyLen != null) {
+      bodyLen.value = preset.bodyLen
+    } else {
+      bodyLen.value = profile.value.bodyLen
+    }
   }
 
   function buildPresetFrame(presetId: string): Uint8Array {
@@ -167,11 +181,17 @@ export function useProtocolCommands() {
   }
 
   function fillPreset(presetId: string) {
+    applyPresetWire(presetId)
     const frame = buildPresetFrame(presetId)
-    rawHex.value = toHexOmitTrailingZeros(frame)
+    rawHex.value = toHex(frame)
   }
 
-  async function exchange(deviceId: string, frame: Uint8Array, cmdForParse: number) {
+  async function exchange(
+    deviceId: string,
+    frame: Uint8Array,
+    cmdForParse: number,
+    options?: { honorUi?: boolean },
+  ) {
     if (!deviceId) throw new Error('请先选择设备')
     busy.value = true
     error.value = ''
@@ -179,11 +199,17 @@ export function useProtocolCommands() {
     parsedText.value = ''
     try {
       setRequestDisplay(frame)
-      pushLog('TX', requestHex.value)
       const reportId = parseReportId()
-      // 星闪固定 Output，避免界面通道仍为 auto 时双发
-      const ch = protocolId.value === 'sparklink' ? 'output' : channel.value
-      if (protocolId.value === 'sparklink') channel.value = 'output'
+      const honorUi = options?.honorUi === true
+      const ch = honorUi
+        ? channel.value
+        : protocolId.value === 'sparklink'
+          ? 'output'
+          : channel.value
+      if (!honorUi && protocolId.value === 'sparklink') channel.value = 'output'
+      const ridNote =
+        reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
+      pushLog('TX', requestHex.value, `${ridNote} ${ch} ${frame.length}B`)
       const response = await backend.exchangeReport(deviceId, frame, {
         timeoutMs:
           protocolId.value === 'sparklink'
@@ -310,26 +336,34 @@ export function useProtocolCommands() {
     }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')
+    applyPresetWire(presetId)
     let frame = buildPresetFrame(presetId)
     if (autoChecksum.value) {
       frame = applyChecksum(frame, checksumMode.value)
     }
-    rawHex.value = toHexOmitTrailingZeros(frame)
+    rawHex.value = toHex(frame)
     return exchange(deviceId, frame, preset.cmd)
   }
 
-  async function sendRaw(deviceId: string) {
-    const p = profile.value
-    let frame = p.parseHex(rawHex.value, bodyLen.value > 0 ? bodyLen.value : undefined)
-    if (bodyLen.value > 0 && frame.length !== bodyLen.value) {
-      // parseHex already pads; for custom with bodyLen 0 keep as-is
+  /** Parse editor hex as-is. Report ID / 帧长 / 通道以界面当前值为准，不按协议改写. */
+  function parseRawEditorBytes(text: string): { bytes: number[]; len: number } {
+    const bytes = parseHexBytes(text)
+    const len = bodyLen.value
+    if (len > 0 && bytes.length > len) {
+      throw new Error(`最多 ${len} 字节，当前 ${bytes.length}。请改「帧长」或删掉多余字节。`)
     }
+    return { bytes, len }
+  }
+
+  async function sendRaw(deviceId: string) {
+    const { bytes, len } = parseRawEditorBytes(rawHex.value)
+    let frame = len > 0 ? padToLength(bytes, len) : Uint8Array.from(bytes)
     if (autoChecksum.value && checksumMode.value !== 'none') {
       frame = applyChecksum(frame, checksumMode.value)
-      rawHex.value = toHexOmitTrailingZeros(frame)
+      rawHex.value = toHex(frame)
     }
     const cmd = frame[0] ?? 0
-    return exchange(deviceId, frame, cmd)
+    return exchange(deviceId, frame, cmd, { honorUi: true })
   }
 
   function clearLog() {
@@ -344,11 +378,12 @@ export function useProtocolCommands() {
     const text = (hexSource ?? rawHex.value).trim()
     if (!text) throw new Error('请先在编辑区填入 Hex，再添加预设')
     const p = profile.value
-    const frame = p.parseHex(text, bodyLen.value > 0 ? bodyLen.value : undefined)
+    const { bytes, len } = parseRawEditorBytes(text)
+    const frame = len > 0 ? padToLength(bytes, len) : Uint8Array.from(bytes)
     const stored = addUserPreset(p.id, {
       label,
       frame,
-      bodyLen: bodyLen.value,
+      bodyLen: len,
     })
     overlayTick.value += 1
     return {
@@ -389,6 +424,7 @@ export function useProtocolCommands() {
     autoChecksum,
     rawHex,
     fillPreset,
+    applyPresetWire,
     sendPreset,
     sendRaw,
     readHsKeymap,

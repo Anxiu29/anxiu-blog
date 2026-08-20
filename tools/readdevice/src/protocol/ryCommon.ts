@@ -109,13 +109,68 @@ export function parseHex(text: string, bodyLen = FRAME_LEN): Uint8Array {
 }
 
 const LINK_MODES = ['BT1', 'BT2', 'BT3', 'BT4', 'BT5', '2.4G', 'USB'] as const
-const REPORT_RATES_HE = [8000, 4000, 2000, 1000, 500, 250, 125] as const
-const REPORT_RATES_STD = [1000, 500, 250, 125] as const
+/** 磁轴 RY5088：Report 索引 0~6 */
+export const REPORT_RATES_HE = [8000, 4000, 2000, 1000, 500, 250, 125] as const
+/** 键盘 250718：Report 索引 0~3 → 1/2/4/8ms */
+export const REPORT_RATES_STD = [1000, 500, 250, 125] as const
 const CHARGE_STATES = ['未充电', '充电中', '充满'] as const
 const KB_SYSTEMS = ['WIN', 'MAC', 'IOS', 'ANR'] as const
 const RT_STAB = ['0%', '25%', '50%', '75%', '100%'] as const
 
 export { toHex }
+
+export type RyReportRateVariant = 'he' | 'std' | 'auto'
+
+/**
+ * WebHID/部分固件会在 Feature 回包前面多带 Report ID。
+ * 容圆 Report ID=0 时表现为首字节 0，真正的 0x83/0x8F 从 Byte1 开始。
+ */
+export function ryResponseOffset(data: ArrayLike<number>, cmd: number): number {
+  const c = cmd & 0xff
+  if (data.length >= 2 && (data[0] ?? 0) === 0 && (data[1] ?? 0) === c) return 1
+  return 0
+}
+
+function ryAt(data: ArrayLike<number>, off: number, i: number): number {
+  return (data[off + i] ?? 0) & 0xff
+}
+
+/** 解析容圆 0x83 回包中的回报率（Hz）。auto：按 Byte0 是否回显 0x83 区分磁轴/键盘布局。 */
+export function parseRyReportRateHz(
+  data: ArrayLike<number>,
+  variant: RyReportRateVariant = 'auto',
+): number | null {
+  if (data.length < 2) return null
+
+  const off = ryResponseOffset(data, 0x83)
+  const b0 = ryAt(data, off, 0)
+  const b1 = ryAt(data, off, 1)
+  const b2 = ryAt(data, off, 2)
+
+  if (variant === 'he') {
+    // 磁轴：Byte0=0x83, Byte1=00, Byte2=Report
+    return REPORT_RATES_HE[b2] ?? null
+  }
+
+  if (variant === 'std') {
+    // 键盘：Byte0=00, Byte1=Report（索引 0~3）
+    const idx = b0 === 0x83 ? b2 : b1
+    return REPORT_RATES_STD[idx] ?? REPORT_RATES_HE[idx] ?? null
+  }
+
+  if (b0 === 0x83) {
+    return REPORT_RATES_HE[b2] ?? null
+  }
+  if (b0 === 0) {
+    return REPORT_RATES_STD[b1] ?? REPORT_RATES_HE[b1] ?? null
+  }
+  return null
+}
+
+/** 读取回报率请求帧（CMD 0x83）。 */
+export function buildRyGetReportRateFrame(): Uint8Array {
+  return buildFrame(0x83)
+}
 
 /** Version bytes are stored L then H; display as raw hex H then L (no radix convert). */
 function formatRyVersion(lo: number, hi: number): string {
@@ -159,16 +214,18 @@ function formatSleep(data: ArrayLike<number>, off = 8): string {
 /** Magnetic RY5088 GET_INFOR layout: Byte0=cmd echo, ID at 1..4. */
 export function parseRy5088Response(cmd: number, data: ArrayLike<number>): string {
   if (data.length === 0) return '（空响应）'
+  const off = ryResponseOffset(data, cmd)
+  const at = (i: number) => ryAt(data, off, i)
 
   switch (cmd & 0xff) {
     case 0x8f: {
-      const id = toHex([data[1], data[2], data[3], data[4]], '')
-      const link = LINK_MODES[data[5] ?? 0xff] ?? `未知(${data[5]})`
-      const kind = (data[6] ?? 0) === 1 ? '鼠标' : '键盘'
-      const ver = formatRyVersion(data[7] ?? 0, data[8] ?? 0)
-      const panRf = (data[9] ?? 0) === 1 ? '是' : '否'
+      const id = toHex([at(1), at(2), at(3), at(4)], '')
+      const link = LINK_MODES[at(5)] ?? `未知(${at(5)})`
+      const kind = at(6) === 1 ? '鼠标' : '键盘'
+      const ver = formatRyVersion(at(7), at(8))
+      const panRf = at(9) === 1 ? '是' : '否'
       return [
-        `Cmd=0x${(data[0] ?? 0).toString(16).toUpperCase()}`,
+        `Cmd=0x${at(0).toString(16).toUpperCase()}`,
         `设备ID=${id}`,
         `连接=${link}`,
         `类型=${kind}`,
@@ -177,52 +234,52 @@ export function parseRy5088Response(cmd: number, data: ArrayLike<number>): strin
       ].join('\n')
     }
     case 0x82: {
-      // Byte0 is cmd echo 0x82; payload starts at Byte1.
-      const pct = data[1] ?? 0
-      const state = CHARGE_STATES[data[2] ?? 0xff] ?? `未知(${data[2]})`
-      const low = data[3] ?? 0
+      const pct = at(1)
+      const state = CHARGE_STATES[at(2)] ?? `未知(${at(2)})`
+      const low = at(3)
       return `电量=${pct}%\n状态=${state}\n低电阈值=${low}`
     }
     case 0x83: {
-      const idx = data[2] ?? data[1] ?? 0
-      const hz = REPORT_RATES_HE[idx] ?? null
+      const b0 = at(0)
+      const idx = b0 === 0x83 ? at(2) : at(1)
+      const hz = parseRyReportRateHz(data, 'he')
       return hz != null ? `回报率索引=${idx} → ${hz} Hz` : `回报率索引=${idx}`
     }
     case 0x84:
-      return `配置层 Profile=${data[1] ?? data[0] ?? 0}`
+      return `配置层 Profile=${at(1)}`
     case 0x85: {
-      const spot = (data[1] ?? 0) === 1 ? '关' : '开'
-      const light = (data[2] ?? 0) === 1 ? '关' : '开'
+      const spot = at(1) === 1 ? '关' : '开'
+      const light = at(2) === 1 ? '关' : '开'
       return `主背光=${spot === '关' ? '关' : '开'}\n侧灯=${light === '关' ? '关' : '开'}`
     }
     case 0x86:
-      return `去抖 Debounce=${data[1] ?? data[0] ?? 0}`
+      return `去抖 Debounce=${at(1)}`
     case 0x87:
-      return `主背光\n${formatLedParam(data, (data[0] ?? 0) === 0x87 ? 1 : 0)}`
+      return `主背光\n${formatLedParam(data, off + (at(0) === 0x87 ? 1 : 0))}`
     case 0x88:
-      return `侧灯\n${formatLedParam(data, (data[0] ?? 0) === 0x88 ? 1 : 0)}`
+      return `侧灯\n${formatLedParam(data, off + (at(0) === 0x88 ? 1 : 0))}`
     case 0x89:
-      return formatKbOption(data, (data[0] ?? 0) === 0x89 ? 1 : 0)
+      return formatKbOption(data, off + (at(0) === 0x89 ? 1 : 0))
     case 0x8a:
-      return `键矩阵原始头: ${toHex(Array.from({ length: Math.min(16, data.length) }, (_, i) => data[i] ?? 0))}`
+      return `键矩阵原始头: ${toHex(Array.from({ length: Math.min(16, data.length - off) }, (_, i) => at(i)))}`
     case 0x8b:
-      return `宏原始头: ${toHex(Array.from({ length: Math.min(16, data.length) }, (_, i) => data[i] ?? 0))}`
+      return `宏原始头: ${toHex(Array.from({ length: Math.min(16, data.length - off) }, (_, i) => at(i)))}`
     case 0x91:
-      return formatSleep(data, 8)
+      return formatSleep(data, off + 8)
     case 0x9d: {
-      const off = (data[0] ?? 0) === 0x9d ? 1 : 0
-      const mode = data[off] ?? 0
+      const modeOff = at(0) === 0x9d ? 1 : 0
+      const mode = at(modeOff)
       return `手柄模式=${mode === 1 ? '手柄' : '正常'} (${mode})`
     }
     case 0xd0:
-      return `SKU 原始: ${toHex(Array.from({ length: Math.min(16, data.length) }, (_, i) => data[i] ?? 0))}`
+      return `SKU 原始: ${toHex(Array.from({ length: Math.min(16, data.length - off) }, (_, i) => at(i)))}`
     case 0xe5:
-      return `磁轴行程原始头: ${toHex(Array.from({ length: Math.min(16, data.length) }, (_, i) => data[i] ?? 0))}`
+      return `磁轴行程原始头: ${toHex(Array.from({ length: Math.min(16, data.length - off) }, (_, i) => at(i)))}`
     case 0xe6: {
-      const off = (data[0] ?? 0) === 0xe6 ? 1 : 0
-      const ok = data[off] ?? 0
-      const prec = data[off + 1] ?? 0
-      const pad = data[off + 2] ?? 0
+      const inner = at(0) === 0xe6 ? 1 : 0
+      const ok = at(inner)
+      const prec = at(inner + 1)
+      const pad = at(inner + 2)
       const precLabel = ['0.01mm', '0.005mm', '0.001mm'][prec] ?? `未知(${prec})`
       return [
         `有效标记=${ok === 0xaa ? '是 (0xAA)' : `否 (0x${ok.toString(16)})`}`,
@@ -260,9 +317,11 @@ export function parseKb250718Response(cmd: number, data: ArrayLike<number>): str
       return `电量=${pct}%\n状态=${state}`
     }
     case 0x83: {
-      // 250718 often uses Byte1 as index into 1/2/4/8 ms → 1000/500/250/125
-      const idx = data[1] ?? data[0] ?? 0
-      const hz = REPORT_RATES_STD[idx] ?? REPORT_RATES_HE[idx] ?? null
+      // 250718：Byte0=00, Byte1=Report 索引 → 1000/500/250/125
+      // 若前面多了 Report ID 0 且下一字节是 0x83，先跳过再按磁轴/键盘布局解析
+      const base = ryResponseOffset(data, 0x83)
+      const idx = ryAt(data, base, 0) === 0x83 ? ryAt(data, base, 2) : ryAt(data, base, 1)
+      const hz = parseRyReportRateHz(data, 'std')
       return hz != null ? `回报率索引=${idx} → ${hz} Hz` : `回报率索引=${idx}`
     }
     case 0x84:
@@ -328,17 +387,11 @@ export const RY_COMMON_PRESETS: PresetCommand[] = [
     params: [30],
   },
   {
-    id: 'set_report_1000',
-    label: '设置回报率 1000Hz (0x03)',
+    id: 'set_report',
+    label: '设置1K回报率 (0x03) 改第3字节：0=8K/1=4K/2=2K/3=1K/4=500/5=250/6=125',
     cmd: 0x03,
-    // | 0x03 | 00 | Report | … |；磁轴 Report=3→1000Hz
+    // | 0x03 | 00 | Report | … |；Report 在第3字节（Byte2），0~6 → 8000…125；默认 3=1000Hz
     params: [0, 3],
-  },
-  {
-    id: 'set_report_500',
-    label: '设置回报率 500Hz (0x03)',
-    cmd: 0x03,
-    params: [0, 4],
   },
   {
     id: 'set_profile_0',

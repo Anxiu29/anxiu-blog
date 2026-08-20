@@ -1,5 +1,6 @@
 import { onMounted, ref, watch } from 'vue'
 import { getBackend, type DeviceDetail, type DeviceSummary, type RuntimeMode } from '../hid'
+import { enrichDetailWithRyReportRate } from '../protocol/ryReportRate'
 
 export type { DeviceDetail, DeviceSummary }
 
@@ -11,6 +12,12 @@ export function useDevices() {
   const detail = ref<DeviceDetail | null>(null)
   const loading = ref(false)
   const error = ref('')
+
+  async function fetchDetail(id: string): Promise<DeviceDetail> {
+    const base = await backend.getDeviceDetail(id)
+    // 容圆：用厂商命令 0x83 读固件回报率，覆盖 USB bInterval 推算值
+    return enrichDetailWithRyReportRate(backend, base)
+  }
 
   async function refresh(preferId?: string) {
     loading.value = true
@@ -25,7 +32,7 @@ export function useDevices() {
         ''
       if (nextId === selectedId.value) {
         if (nextId) {
-          detail.value = await backend.getDeviceDetail(nextId)
+          detail.value = await fetchDetail(nextId)
         } else {
           detail.value = null
         }
@@ -88,7 +95,7 @@ export function useDevices() {
     loading.value = true
     error.value = ''
     try {
-      detail.value = await backend.getDeviceDetail(id)
+      detail.value = await fetchDetail(id)
     } catch (e) {
       error.value = String(e)
       detail.value = null

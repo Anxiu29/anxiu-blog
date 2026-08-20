@@ -8,7 +8,8 @@ defineProps<{
 
 function formatRate(hz: number | null | undefined) {
   if (hz == null) return '无法读取'
-  return `${hz.toFixed(1)} Hz`
+  // 协议档位多为整数；USB bInterval 推算可能带小数
+  return Number.isInteger(hz) ? `${hz} Hz` : `${hz.toFixed(1)} Hz`
 }
 
 function fallback(text: string | null | undefined, empty = '—') {
@@ -40,7 +41,7 @@ function fallback(text: string | null | undefined, empty = '—') {
         <span class="label">产品描述符</span>
         <span class="value">{{ detail.product || '—' }}</span>
       </div>
-      <div v-if="!webLimited" class="field">
+      <div v-if="!webLimited || detail.pollingRateHz != null" class="field">
         <span class="label">回报率</span>
         <span class="value" :class="detail.pollingRateHz == null ? 'muted' : 'accent'">
           {{ formatRate(detail.pollingRateHz) }}

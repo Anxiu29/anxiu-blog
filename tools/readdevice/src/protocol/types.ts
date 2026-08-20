@@ -10,6 +10,10 @@ export interface PresetCommand {
   /** Optional builder; if omitted, profile.buildFrame(cmd) is used. */
   build?: () => Uint8Array
   params?: number[]
+  /** Override profile reportId when this preset is selected / sent. */
+  reportId?: number
+  /** Override profile bodyLen when this preset is selected / sent. */
+  bodyLen?: number
 }
 
 export interface ProtocolProfile {
@@ -31,6 +35,28 @@ export interface ProtocolProfile {
   parseResponse: (cmd: number, data: ArrayLike<number>) => string
 }
 
+/** Display Report ID as `0x0A` so the editor field is obviously hex-editable. */
+export function formatReportIdText(n: number): string {
+  return `0x${(n & 0xff).toString(16).toUpperCase().padStart(2, '0')}`
+}
+
+/**
+ * Parse Report ID from the editor: `10`, `0x0A`, `0A` all mean 10.
+ * Empty string → undefined (backend auto).
+ */
+export function parseReportIdText(text: string): number | undefined {
+  const t = text.trim()
+  if (t === '') return undefined
+  const hexish = /^0x/i.test(t) || /[a-f]/i.test(t)
+  const n = hexish
+    ? Number.parseInt(t.replace(/^0x/i, ''), 16)
+    : Number.parseInt(t, 10)
+  if (Number.isNaN(n) || n < 0 || n > 255) {
+    throw new Error('Report ID 须为 0–255（十进制或 0x 十六进制）')
+  }
+  return n
+}
+
 export function toHex(bytes: ArrayLike<number>, sep = ' '): string {
   const parts: string[] = []
   for (let i = 0; i < bytes.length; i++) {
@@ -48,23 +74,68 @@ export function toDec(bytes: ArrayLike<number>, sep = ' '): string {
   return parts.join(sep)
 }
 
-/** Strip UI suffix like `… (省略 511 个 00)` before parsing. */
-export function stripTrailingZeroOmitNote(text: string): string {
-  return text.replace(/\s*[…\.。]{1,3}\s*\(省略\s*\d+\s*个\s*0{1,2}\)\s*$/i, '').trim()
+/** UI omit note, e.g. `… (省略 48 个 00)` or `… (省略 2 个 0)`. May appear mid-string before a tail checksum. */
+const OMIT_NOTE_SRC =
+  '(?:[…\u2026.。]{1,3}\\s*)?[\\(（]\\s*省略\\s*(\\d+)\\s*个\\s*0{1,2}\\s*[\\)）]'
+
+function omitNoteRe(): RegExp {
+  return new RegExp(OMIT_NOTE_SRC, 'gi')
 }
 
-function omitTrailingZerosEnd(bytes: ArrayLike<number>, keepHead: number): { end: number; omitted: number } {
-  const len = bytes.length
-  let end = len
-  while (end > keepHead && (bytes[end - 1] ?? 0) === 0) {
-    end -= 1
-  }
-  return { end, omitted: len - end }
+/** Strip omit notes (does not re-insert zeros). Prefer expandOmittedZeroNotes when parsing. */
+export function stripTrailingZeroOmitNote(text: string): string {
+  return text.replace(omitNoteRe(), ' ').replace(/\s+/g, ' ').trim()
+}
+
+/** Turn `… (省略 N 个 00)` into N zero bytes so a trailing checksum stays at the correct offset. */
+export function expandOmittedZeroNotes(text: string): string {
+  return text.replace(omitNoteRe(), (_m, n) => {
+    const count = Number.parseInt(n, 10)
+    if (!Number.isFinite(count) || count <= 0) return ' '
+    return ` ${Array.from({ length: count }, () => '00').join(' ')} `
+  })
+}
+
+function sliceBytes(bytes: ArrayLike<number>, start: number, end: number): number[] {
+  const n = Math.max(0, end - start)
+  return Array.from({ length: n }, (_, i) => (bytes[start + i] ?? 0) & 0xff)
 }
 
 /**
- * Hex display that omits trailing 0x00 bytes.
+ * Omit a run of 0x00 after keepHead.
+ * If the last byte is non-zero (checksum), keep it as a suffix: `AA … (省略 N 个 00) 70`.
+ */
+function omitZeroRun(
+  bytes: ArrayLike<number>,
+  keepHead: number,
+): { prefixLen: number; omitted: number; suffixStart: number } {
+  const len = bytes.length
+  if (len === 0) return { prefixLen: 0, omitted: 0, suffixStart: 0 }
+
+  const last = (bytes[len - 1] ?? 0) & 0xff
+  if (last === 0) {
+    let end = len
+    while (end > keepHead && ((bytes[end - 1] ?? 0) & 0xff) === 0) end -= 1
+    return { prefixLen: end, omitted: len - end, suffixStart: len }
+  }
+
+  let suffixStart = len
+  while (suffixStart > keepHead && ((bytes[suffixStart - 1] ?? 0) & 0xff) !== 0) {
+    suffixStart -= 1
+  }
+  let zeroStart = suffixStart
+  while (zeroStart > keepHead && ((bytes[zeroStart - 1] ?? 0) & 0xff) === 0) {
+    zeroStart -= 1
+  }
+  const omitted = suffixStart - zeroStart
+  if (omitted <= 0) return { prefixLen: len, omitted: 0, suffixStart: len }
+  return { prefixLen: zeroStart, omitted, suffixStart }
+}
+
+/**
+ * Hex display that omits interior/trailing 0x00 bytes.
  * The first `keepHead` bytes are always kept (default 8 = protocol header).
+ * A non-zero last byte (checksum) is preserved after the omit note.
  */
 export function toHexOmitTrailingZeros(
   bytes: ArrayLike<number>,
@@ -75,17 +146,16 @@ export function toHexOmitTrailingZeros(
   const len = bytes.length
   if (len === 0) return ''
 
-  const { end, omitted } = omitTrailingZerosEnd(bytes, keepHead)
-  const shown = toHex(
-    Array.from({ length: end }, (_, i) => bytes[i] ?? 0),
-    sep,
-  )
-  if (omitted <= 0) return shown
-  return `${shown} … (省略 ${omitted} 个 00)`
+  const { prefixLen, omitted, suffixStart } = omitZeroRun(bytes, keepHead)
+  const prefix = toHex(sliceBytes(bytes, 0, prefixLen), sep)
+  if (omitted <= 0) return prefix
+  if (suffixStart >= len) return `${prefix} … (省略 ${omitted} 个 00)`
+  const suffix = toHex(sliceBytes(bytes, suffixStart, len), sep)
+  return `${prefix} … (省略 ${omitted} 个 00) ${suffix}`
 }
 
 /**
- * 十进制显示，规则同 toHexOmitTrailingZeros（省略末尾 0）。
+ * 十进制显示，规则同 toHexOmitTrailingZeros（省略中间/末尾 0）。
  */
 export function toDecOmitTrailingZeros(
   bytes: ArrayLike<number>,
@@ -96,17 +166,16 @@ export function toDecOmitTrailingZeros(
   const len = bytes.length
   if (len === 0) return ''
 
-  const { end, omitted } = omitTrailingZerosEnd(bytes, keepHead)
-  const shown = toDec(
-    Array.from({ length: end }, (_, i) => bytes[i] ?? 0),
-    sep,
-  )
-  if (omitted <= 0) return shown
-  return `${shown} … (省略 ${omitted} 个 0)`
+  const { prefixLen, omitted, suffixStart } = omitZeroRun(bytes, keepHead)
+  const prefix = toDec(sliceBytes(bytes, 0, prefixLen), sep)
+  if (omitted <= 0) return prefix
+  if (suffixStart >= len) return `${prefix} … (省略 ${omitted} 个 0)`
+  const suffix = toDec(sliceBytes(bytes, suffixStart, len), sep)
+  return `${prefix} … (省略 ${omitted} 个 0) ${suffix}`
 }
 
 export function parseHexBytes(text: string): number[] {
-  const cleaned = stripTrailingZeroOmitNote(text)
+  const cleaned = expandOmittedZeroNotes(text)
     .replace(/0x/gi, '')
     .replace(/[^0-9a-fA-F]/g, ' ')
     .trim()
