@@ -220,11 +220,24 @@ export function extractTlwData(report: ArrayLike<number>, expectCmd?: number): U
 }
 
 export function tlwExpectPrefix(frame: ArrayLike<number>): number[] | undefined {
+  return tlwExpectPrefixes(frame)?.[0]
+}
+
+/** 当前固件 A3、旧固件 03、接收器拒绝 FF 都算合法回包，避免误丢后超时。 */
+export function tlwExpectPrefixes(frame: ArrayLike<number>): number[][] | undefined {
   const cmd = u8(frame, 2)
-  if (u8(frame, 0) === 0 && u8(frame, 1) === 0 && cmd !== 0) {
-    return [0, 0, cmd]
+  if (u8(frame, 0) !== 0 || u8(frame, 1) !== 0 || cmd === 0) return undefined
+  const logical = tlwLogicalCmd(cmd)
+  const current = tlwWireCmd(logical, 'current')
+  const seen = new Set<string>()
+  const out: number[][] = []
+  for (const c of [cmd, logical, current, 0xff]) {
+    const key = `00-00-${c & 0xff}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push([0, 0, c & 0xff])
   }
-  return undefined
+  return out
 }
 
 export interface TlwBasicInfo {
@@ -444,8 +457,16 @@ export async function dumpTlwSnapshot(
   exchange: (frame: Uint8Array, expectPrefix?: number[]) => Promise<Uint8Array>,
   options?: TlwDumpOptions,
 ): Promise<{ text: string }> {
+  if (options?.family == null) {
+    try {
+      return await dumpTlwSnapshot(exchange, { ...options, family: 'current' })
+    } catch (error) {
+      if (!/超时|timeout/i.test(String(error))) throw error
+      return dumpTlwSnapshot(exchange, { ...options, family: 'legacy' })
+    }
+  }
   const gapMs = options?.gapMs ?? 20
-  const family: TlwCommandFamily = options?.family ?? 'current'
+  const family: TlwCommandFamily = options.family
   const mode: TlwLinkMode = options?.mode ?? 'wired'
   const dataSize = mode === 'wireless' ? TLW_WIRELESS_DATA : TLW_WIRED_DATA
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))

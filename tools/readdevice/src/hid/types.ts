@@ -33,6 +33,8 @@ export interface ExchangeOptions {
    * 例：航晟 get_buffer 期望 [0x82, 0x01]。
    */
   expectPrefix?: number[]
+  /** 任一前缀匹配即可（TLW 当前/旧固件命令族）。 */
+  expectPrefixAlts?: number[][]
   /**
    * 星闪多包应答：首包 0x5C 后按 len 继续读 Input，拼满 4+len 再返回。
    */

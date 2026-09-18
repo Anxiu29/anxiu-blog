@@ -75,6 +75,7 @@ import {
   parseTlwPacket,
   parseTlwResponse,
   tlwExpectPrefix,
+  tlwExpectPrefixes,
   tlwWireCmd,
   applyTlwWirelessRoute,
   tlwLogicalCmd,
@@ -660,6 +661,12 @@ async function testTlw() {
   assert(tlwLogicalCmd(0xa3) === 0x03 && tlwWireCmd(0x03) === 0xa3, 'TLW family map')
   const routed = applyTlwWirelessRoute(fw)
   assert(routed[TLW_WIRELESS_ROUTE_INDEX] === TLW_WIRELESS_ROUTE, 'TLW wireless route')
+  const curNoCs = buildTlwFrame({ cmd: TLW_CMD.BASIC, len: 0x22, checksum: false })
+  const alts = tlwExpectPrefixes(curNoCs) ?? []
+  assert(
+    alts.some((p) => p[2] === 0xa3) && alts.some((p) => p[2] === 0x03) && alts.some((p) => p[2] === 0xff),
+    'TLW expect alts',
+  )
 
   const summed = applyTlwChecksum(new Uint8Array(fw))
   assert(summed[0] === (0x03 + 0x22) && summed[1] === 0, 'TLW apply Cs')

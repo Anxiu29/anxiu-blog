@@ -219,8 +219,17 @@ async function exchangeOutputInput(
   reportId: number,
   expectPrefix?: number[],
   assembleSparkLink?: boolean,
+  expectPrefixAlts?: number[][],
 ): Promise<Uint8Array> {
-  const prefix = (expectPrefix ?? []).map((b) => b & 0xff)
+  const prefixLists: number[][] = []
+  if (expectPrefix && expectPrefix.length) prefixLists.push(expectPrefix.map((b) => b & 0xff))
+  for (const alt of expectPrefixAlts ?? []) {
+    if (alt.length) prefixLists.push(alt.map((b) => b & 0xff))
+  }
+  const prefixes = prefixLists.filter((p, i, arr) => {
+    const key = p.join(',')
+    return arr.findIndex((x) => x.join(',') === key) === i
+  })
   const deadline = Date.now() + Math.max(timeoutMs, 50)
   let activeHandler: ((ev: HIDInputReportEvent) => void) | null = null
   let activeTimer: number | null = null
@@ -249,9 +258,10 @@ async function exchangeOutputInput(
       }, remain)
 
       activeHandler = (ev: HIDInputReportEvent) => {
+        if (reportId !== 0 && ev.reportId !== reportId) return
         const data = normalizeRx(ev.data, report.length, reportId)
-        if (opts.matchPrefix && prefix.length > 0) {
-          const ok = prefix.every((b, i) => (data[i] ?? 0) === b)
+        if (opts.matchPrefix && prefixes.length > 0) {
+          const ok = prefixes.some((prefix) => prefix.every((b, i) => (data[i] ?? 0) === b))
           if (!ok) return
         }
         clearWait()
@@ -262,8 +272,8 @@ async function exchangeOutputInput(
 
   const firstWait = waitInput({
     matchPrefix: true,
-    errorMessage: prefix.length
-      ? `等待匹配回包超时（期望 ${prefix.map((b) => b.toString(16).padStart(2, '0')).join(' ')}，${timeoutMs}ms）`
+    errorMessage: prefixes.length
+      ? `等待匹配回包超时（期望 ${prefixes.map((p) => p.map((b) => b.toString(16).padStart(2, '0')).join(' ')).join(' / ')}，${timeoutMs}ms）`
       : `等待 Input Report 超时（${timeoutMs}ms）`,
   })
 
@@ -423,6 +433,7 @@ export const webhidBackend: DeviceBackend = {
             outId,
             opts.expectPrefix,
             opts.assembleSparkLink,
+            opts.expectPrefixAlts,
           )
         }
       }
@@ -435,6 +446,7 @@ export const webhidBackend: DeviceBackend = {
           outId,
           opts.expectPrefix,
           opts.assembleSparkLink,
+          opts.expectPrefixAlts,
         )
       }
       throw new Error('设备无可用的 Feature/Output 报告')

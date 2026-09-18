@@ -7,9 +7,12 @@ import { buildJpGetBufferFrame } from '../protocol/jp'
 import { dumpSlkDefKeyMatrix } from '../protocol/sparklink'
 import {
   applyTlwChecksum,
+  applyTlwWirelessRoute,
   dumpTlwSnapshot,
-  tlwExpectPrefix,
+  tlwExpectPrefixes,
+  TLW_PID_WIRELESS,
   type TlwDumpOptions,
+  type TlwLinkMode,
 } from '../protocol/tlw'
 import {
   addUserPreset,
@@ -52,6 +55,18 @@ function applyChecksum(frame: Uint8Array, mode: ChecksumMode): Uint8Array {
 
 function forceOutputProtocol(id: string): boolean {
   return id === 'sparklink' || id === 'tlw'
+}
+
+function hidPidFromId(id: string): string {
+  return (id.split(':')[2] ?? '').toUpperCase()
+}
+
+function tlwLinkMode(deviceId: string): TlwLinkMode {
+  return hidPidFromId(deviceId) === TLW_PID_WIRELESS.toString(16).toUpperCase() ? 'wireless' : 'wired'
+}
+
+function prepareTlwFrame(deviceId: string, frame: Uint8Array): Uint8Array {
+  return tlwLinkMode(deviceId) === 'wireless' ? applyTlwWirelessRoute(frame) : frame
 }
 
 export function useProtocolCommands() {
@@ -222,7 +237,9 @@ export function useProtocolCommands() {
     clearResultDisplay()
     parsedText.value = ''
     try {
-      setRequestDisplay(frame)
+      const tx =
+        protocolId.value === 'tlw' ? prepareTlwFrame(deviceId, frame) : frame
+      setRequestDisplay(tx)
       const reportId = parseReportId()
       const honorUi = options?.honorUi === true
       const ch = honorUi
@@ -233,8 +250,9 @@ export function useProtocolCommands() {
       if (!honorUi && forceOutputProtocol(protocolId.value)) channel.value = 'output'
       const ridNote =
         reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
-      pushLog('TX', requestHex.value, `${ridNote} ${ch} ${frame.length}B`)
-      const response = await backend.exchangeReport(deviceId, frame, {
+      const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
+      pushLog('TX', requestHex.value, `${ridNote} ${ch} ${tx.length}B`)
+      const response = await backend.exchangeReport(deviceId, tx, {
         timeoutMs:
           forceOutputProtocol(protocolId.value)
             ? Math.max(timeoutMs.value, 1200)
@@ -242,7 +260,8 @@ export function useProtocolCommands() {
         reportId,
         channel: ch,
         usagePageHint: profile.value.usagePageHint,
-        expectPrefix: protocolId.value === 'tlw' ? tlwExpectPrefix(frame) : undefined,
+        expectPrefix: tlwPrefixes ? tlwPrefixes[0] : undefined,
+        expectPrefixAlts: tlwPrefixes,
         assembleSparkLink: protocolId.value === 'sparklink',
       })
       setResponseDisplay(response)
@@ -269,14 +288,17 @@ export function useProtocolCommands() {
     },
   ): Promise<Uint8Array> {
     const reportId = parseReportId()
-    setRequestDisplay(frame)
+    const tx = protocolId.value === 'tlw' ? prepareTlwFrame(deviceId, frame) : frame
+    const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
+    setRequestDisplay(tx)
     pushLog('TX', requestHex.value)
-    const response = await backend.exchangeReport(deviceId, frame, {
+    const response = await backend.exchangeReport(deviceId, tx, {
       timeoutMs: options?.timeoutMs ?? timeoutMs.value,
       reportId,
       channel: options?.channel ?? channel.value,
       usagePageHint: profile.value.usagePageHint,
-      expectPrefix: options?.expectPrefix,
+      expectPrefix: tlwPrefixes ? tlwPrefixes[0] : options?.expectPrefix,
+      expectPrefixAlts: tlwPrefixes,
       assembleSparkLink: options?.assembleSparkLink,
     })
     setResponseDisplay(response)
@@ -333,13 +355,13 @@ export function useProtocolCommands() {
         (frame, expectPrefix) =>
           exchangeOnce(deviceId, frame, {
             expectPrefix,
-            timeoutMs: Math.max(timeoutMs.value, dumpOptions?.mode === 'wireless' ? 2000 : 800),
+            timeoutMs: Math.max(timeoutMs.value, dumpOptions?.mode === 'wireless' ? 2000 : 1200),
             channel: 'output',
           }),
         {
           gapMs: 20,
-          family: dumpOptions?.family ?? 'current',
-          mode: dumpOptions?.mode ?? 'wired',
+          family: dumpOptions?.family,
+          mode: dumpOptions?.mode ?? tlwLinkMode(deviceId),
           onProgress: ({ step, index, total }) => {
             parsedText.value = `读取 TLW… ${index + 1}/${total}（${step}）`
           },
@@ -398,10 +420,10 @@ export function useProtocolCommands() {
       return readSlkDefKey(deviceId)
     }
     if (presetId === 'tlw_dump_all') {
-      return readTlwSnapshot(deviceId, { family: 'current', mode: 'wired' })
+      return readTlwSnapshot(deviceId)
     }
     if (presetId === 'tlw_dump_wireless') {
-      return readTlwSnapshot(deviceId, { family: 'current', mode: 'wireless' })
+      return readTlwSnapshot(deviceId, { mode: 'wireless' })
     }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')
