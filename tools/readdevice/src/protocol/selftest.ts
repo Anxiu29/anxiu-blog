@@ -69,15 +69,21 @@ import {
   dumpTlwSnapshot,
   extractTlwData,
   formatTlwKeys,
+  formatTlwFunctions,
   parseTlwBasicInfo,
   parseTlwBattery,
   parseTlwPacket,
   parseTlwResponse,
   tlwExpectPrefix,
+  tlwWireCmd,
+  applyTlwWirelessRoute,
+  tlwLogicalCmd,
   TLW_BODY_LEN,
   TLW_CMD,
   TLW_FW_CMD,
   TLW_REPORT_ID,
+  TLW_WIRELESS_ROUTE_INDEX,
+  TLW_WIRELESS_ROUTE,
 } from './tlw'
 import { getProtocol, listProtocols } from './registry'
 
@@ -651,6 +657,10 @@ async function testTlw() {
   assert(!!prefix && prefix[2] === 0x03, 'TLW fw expectPrefix')
   assert(tlwExpectPrefix(basic) == null, 'TLW doc no zero prefix')
 
+  assert(tlwLogicalCmd(0xa3) === 0x03 && tlwWireCmd(0x03) === 0xa3, 'TLW family map')
+  const routed = applyTlwWirelessRoute(fw)
+  assert(routed[TLW_WIRELESS_ROUTE_INDEX] === TLW_WIRELESS_ROUTE, 'TLW wireless route')
+
   const summed = applyTlwChecksum(new Uint8Array(fw))
   assert(summed[0] === (0x03 + 0x22) && summed[1] === 0, 'TLW apply Cs')
 
@@ -688,6 +698,23 @@ async function testTlw() {
   const pkt = parseTlwPacket(rx)
   assert(pkt.cmd === 0x03 && pkt.len === 34 && pkt.ack === 0, 'TLW parse pkt')
   assert(extractTlwData(rx, 0x03)[0] === 0xaa, 'TLW extract AA')
+  assert(extractTlwData(rx, 0xa3)[0] === 0xaa, 'TLW extract family match')
+  const ff = new Uint8Array(TLW_BODY_LEN)
+  ff[2] = 0xff
+  ff[3] = 34
+  let ffMsg = ''
+  try {
+    extractTlwData(ff, 0xa3)
+  } catch (e) {
+    ffMsg = String(e)
+  }
+  assert(ffMsg.includes('FF'), `TLW FF reject: ${ffMsg}`)
+
+  const dpiBlk = new Uint8Array(23)
+  dpiBlk[11] = 3
+  dpiBlk[14] = 1
+  dpiBlk.fill(0x3b, 16, 20)
+  assert(formatTlwFunctions(dpiBlk, 1).includes('rank=59'), formatTlwFunctions(dpiBlk, 1))
 
   const tlw = getProtocol('tlw')
   assert(tlw.bodyLen === 63, 'TLW bodyLen')
@@ -698,39 +725,48 @@ async function testTlw() {
   assert(tlw.checksum === 'none', 'TLW checksum none')
   const ids = tlw.presets.map((p) => p.id)
   assert(ids.includes('fw_basic'), 'TLW fw basic')
+  assert(ids.includes('cur_basic'), 'TLW current basic')
   assert(ids.includes('tlw_dump_all'), 'TLW dump')
+  assert(ids.includes('tlw_dump_wireless'), 'TLW wireless dump')
   assert(ids.includes('doc_basic'), 'TLW doc basic')
   assert(ids.includes('doc_wireless'), 'TLW wireless')
 
   const docBasic = tlw.presets.find((p) => p.id === 'doc_basic')!.build!()
   assert(docBasic[2] === 0xa3 && docBasic[0] === 0xc5, 'TLW doc preset Cs')
+  const curBasic = tlw.presets.find((p) => p.id === 'cur_basic')!.build!()
+  assert(curBasic[2] === 0xa3 && curBasic[0] === 0 && curBasic[1] === 0, 'TLW current Cs zero')
+
+  const replyFor = (frame: Uint8Array) => {
+    const cmd = frame[2]!
+    const logical = tlwLogicalCmd(cmd)
+    const addr = frame[4]! | (frame[5]! << 8)
+    const len = frame[3]!
+    const reply = new Uint8Array(TLW_BODY_LEN)
+    reply[2] = cmd
+    reply[3] = len
+    reply[4] = addr & 0xff
+    reply[5] = (addr >> 8) & 0xff
+    if (logical === TLW_FW_CMD.BASIC) {
+      reply.set(infoData.subarray(addr, addr + len), 7)
+    } else if (logical === TLW_FW_CMD.BATTERY) {
+      reply[7] = 77
+      reply[8] = 0
+    } else if (logical === TLW_FW_CMD.GET_FUNC && addr === 0) {
+      reply[7] = 1
+      reply[7 + 11] = 3
+      reply[7 + 12] = 2
+    } else if (logical === TLW_FW_CMD.GET_KEY || logical === TLW_FW_CMD.GET_DEFKEY) {
+      reply[7] = 0x10
+      reply[8] = 1
+    }
+    return reply
+  }
 
   let calls = 0
   const dump = await dumpTlwSnapshot(
     async (frame) => {
       calls += 1
-      const cmd = frame[2]!
-      const addr = frame[4]! | (frame[5]! << 8)
-      const len = frame[3]!
-      const reply = new Uint8Array(TLW_BODY_LEN)
-      reply[2] = cmd
-      reply[3] = len
-      reply[4] = addr & 0xff
-      reply[5] = (addr >> 8) & 0xff
-      if (cmd === TLW_FW_CMD.BASIC) {
-        reply.set(infoData, 7)
-      } else if (cmd === TLW_FW_CMD.BATTERY) {
-        reply[7] = 77
-        reply[8] = 0
-      } else if (cmd === TLW_FW_CMD.GET_FUNC && addr === 0) {
-        reply[7] = 1
-        reply[7 + 11] = 3
-        reply[7 + 12] = 2
-      } else if (cmd === TLW_FW_CMD.GET_KEY || cmd === TLW_FW_CMD.GET_DEFKEY) {
-        reply[7] = 0x10
-        reply[8] = 1
-      }
-      return reply
+      return replyFor(frame)
     },
     { gapMs: 0 },
   )
@@ -738,6 +774,21 @@ async function testTlw() {
   assert(dump.text.includes('77%'), dump.text)
   assert(dump.text.includes('左键'), dump.text)
   assert(dump.text.includes('1000 Hz'), dump.text)
+  assert(dump.text.includes('当前固件'), dump.text)
+
+  let wlCalls = 0
+  let sawRoute = false
+  const wl = await dumpTlwSnapshot(
+    async (frame) => {
+      wlCalls += 1
+      if (frame[TLW_WIRELESS_ROUTE_INDEX] === TLW_WIRELESS_ROUTE) sawRoute = true
+      return replyFor(frame)
+    },
+    { gapMs: 0, mode: 'wireless' },
+  )
+  assert(sawRoute, 'TLW wireless route on tx')
+  assert(wlCalls > 7, `TLW wireless dump calls ${wlCalls}`)
+  assert(wl.text.includes('无线 24B'), wl.text)
 }
 
 function testRegistry() {

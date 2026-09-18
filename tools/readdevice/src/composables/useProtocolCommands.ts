@@ -5,7 +5,12 @@ import { applyCustomChecksum } from '../protocol/custom'
 import { dumpHsKeymapBuffer } from '../protocol/hs'
 import { buildJpGetBufferFrame } from '../protocol/jp'
 import { dumpSlkDefKeyMatrix } from '../protocol/sparklink'
-import { applyTlwChecksum, dumpTlwSnapshot, tlwExpectPrefix } from '../protocol/tlw'
+import {
+  applyTlwChecksum,
+  dumpTlwSnapshot,
+  tlwExpectPrefix,
+  type TlwDumpOptions,
+} from '../protocol/tlw'
 import {
   addUserPreset,
   loadOverlay,
@@ -312,8 +317,11 @@ export function useProtocolCommands() {
     }
   }
 
-  /** TLW：实机命令分包读基本信息 / 功能区 / 按键 / 电量。 */
-  async function readTlwSnapshot(deviceId: string) {
+  /** TLW：当前固件分包读基本信息 / 功能区 / 按键 / 电量。 */
+  async function readTlwSnapshot(
+    deviceId: string,
+    dumpOptions?: Pick<TlwDumpOptions, 'family' | 'mode'>,
+  ) {
     if (!deviceId) throw new Error('请先选择设备')
     if (protocolId.value !== 'tlw') throw new Error('请先切换到 TLW 网页AP 协议')
     channel.value = 'output'
@@ -325,11 +333,13 @@ export function useProtocolCommands() {
         (frame, expectPrefix) =>
           exchangeOnce(deviceId, frame, {
             expectPrefix,
-            timeoutMs: Math.max(timeoutMs.value, 800),
+            timeoutMs: Math.max(timeoutMs.value, dumpOptions?.mode === 'wireless' ? 2000 : 800),
             channel: 'output',
           }),
         {
           gapMs: 20,
+          family: dumpOptions?.family ?? 'current',
+          mode: dumpOptions?.mode ?? 'wired',
           onProgress: ({ step, index, total }) => {
             parsedText.value = `读取 TLW… ${index + 1}/${total}（${step}）`
           },
@@ -388,7 +398,10 @@ export function useProtocolCommands() {
       return readSlkDefKey(deviceId)
     }
     if (presetId === 'tlw_dump_all') {
-      return readTlwSnapshot(deviceId)
+      return readTlwSnapshot(deviceId, { family: 'current', mode: 'wired' })
+    }
+    if (presetId === 'tlw_dump_wireless') {
+      return readTlwSnapshot(deviceId, { family: 'current', mode: 'wireless' })
     }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')

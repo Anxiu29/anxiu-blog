@@ -320,7 +320,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
             protocolId === 'sparklink'
               ? '三次 DEFKEY 读 6×21 默认键值，输出可复制数组'
               : protocolId === 'tlw'
-                ? '实机命令分包读基本信息 / 功能区 / 按键 / 电量'
+                ? '当前固件（A3/A5/A7/A8/BA，Cs=00）分包读基本信息 / 功能区 / 按键 / 电量'
                 : '分包发送 82 01 get_buffer，解析为每层可复制数组'
           "
         >

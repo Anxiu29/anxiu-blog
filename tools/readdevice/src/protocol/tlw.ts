@@ -2,19 +2,36 @@ import type { ProtocolProfile, PresetCommand } from './types'
 import { padToLength, parseHexBytes, toHex, u16le } from './types'
 
 /**
- * TLW / RK 网页 AP 通讯协议（2026-09-10）。
+ * TLW / RK 网页 AP 通讯协议（2026-09-10 PDF + Anxiu/CB75 抓包）。
  * PDF：64 字节 Output Report（含 Report ID）；本工具 Report ID 单独发送，body=63。
  *
  *   [0]=Cs_L [1]=Cs_H [2]=CMD [3]=LEN [4]=ADDR_L [5]=ADDR_H [6]=ACK [7..62]=DATA
  *
- * Cs：从 CMD 加到帧末，16 位小端。文档命令为 0xA1…；CB75 实机为低 8 位且 Cs=00 00。
+ * 命令族：
+ * - current：线命令 = 逻辑号 + 0xA0（A1…BA），Cs=00。9/16 有线抓包。
+ * - legacy：线命令 = 逻辑号（01…1A），Cs=00。早期有线/部分无线抓包。
+ * - 文档 PDF：A1…C2 且填写 Cs。
+ *
+ * 有线分包 56B；无线分包 24B，且 payload[31]=2（接收器鼠标路由）。
  */
 export const TLW_BODY_LEN = 63
 export const TLW_DATA_MAX = 56
+export const TLW_WIRED_DATA = 56
+export const TLW_WIRELESS_DATA = 24
+export const TLW_WIRELESS_ROUTE_INDEX = 31
+export const TLW_WIRELESS_ROUTE = 2
+export const TLW_CMD_FAMILY = 0xa0
 export const TLW_REPORT_ID = 4
 export const TLW_USAGE_PAGE = 0xff1c
+export const TLW_USAGE = 0x0092
 export const TLW_FUNC_BYTES = 128
 export const TLW_KEYS_BYTES = 128
+export const TLW_VID = 0x320f
+export const TLW_PID_WIRED = 0x22f2
+export const TLW_PID_WIRELESS = 0x22f3
+
+export type TlwCommandFamily = 'current' | 'legacy'
+export type TlwLinkMode = 'wired' | 'wireless'
 
 export const TLW_CMD = {
   START: 0xa1,
@@ -42,6 +59,7 @@ export const TLW_FW_CMD = {
   GET_DEFKEY: 0x07,
   GET_KEY: 0x08,
   SET_KEY: 0x09,
+  FACTORY: 0x0d,
   SET_MACRO: 0x15,
   BATTERY: 0x1a,
 } as const
@@ -74,23 +92,40 @@ function hex2(n: number): string {
   return (n & 0xff).toString(16).toUpperCase().padStart(2, '0')
 }
 
+/** 去掉 0xA0 族偏移后的逻辑命令。0xFF 是接收器拒绝，原样返回。 */
+export function tlwLogicalCmd(cmd: number): number {
+  const c = cmd & 0xff
+  if (c === 0xff) return c
+  return c >= TLW_CMD_FAMILY ? c - TLW_CMD_FAMILY : c
+}
+
+export function tlwWireCmd(logical: number, family: TlwCommandFamily = 'current'): number {
+  const base = tlwLogicalCmd(logical)
+  return family === 'current' ? (base + TLW_CMD_FAMILY) & 0xff : base
+}
+
+export function tlwCmdsMatch(got: number, expect: number): boolean {
+  return (got & 0xff) === (expect & 0xff) || tlwLogicalCmd(got) === tlwLogicalCmd(expect)
+}
+
+export function applyTlwWirelessRoute(frame: Uint8Array): Uint8Array {
+  const out = new Uint8Array(frame)
+  out[TLW_WIRELESS_ROUTE_INDEX] = TLW_WIRELESS_ROUTE
+  return out
+}
+
 function defaultDataLen(cmd: number): number {
-  switch (cmd & 0xff) {
-    case TLW_CMD.START:
-    case TLW_CMD.END:
+  switch (tlwLogicalCmd(cmd)) {
     case TLW_FW_CMD.START:
     case TLW_FW_CMD.END:
+    case TLW_FW_CMD.FACTORY:
       return 24
-    case TLW_CMD.BASIC:
     case TLW_FW_CMD.BASIC:
       return 0x22
-    case TLW_CMD.BATTERY:
     case TLW_FW_CMD.BATTERY:
       return 6
-    case TLW_CMD.WIRELESS:
+    case tlwLogicalCmd(TLW_CMD.WIRELESS):
       return 1
-    case TLW_CMD.FACTORY:
-      return 0
     default:
       return TLW_DATA_MAX
   }
@@ -172,7 +207,10 @@ export function parseTlwPacket(data: ArrayLike<number>): TlwPacket {
 
 export function extractTlwData(report: ArrayLike<number>, expectCmd?: number): Uint8Array {
   const pkt = parseTlwPacket(report)
-  if (expectCmd != null && pkt.cmd !== (expectCmd & 0xff)) {
+  if (pkt.cmd === 0xff) {
+    throw new Error('接收器拒绝请求（CMD=FF）；检查鼠标连接或无线距离')
+  }
+  if (expectCmd != null && !tlwCmdsMatch(pkt.cmd, expectCmd)) {
     throw new Error(`TLW 回包 CMD=0x${hex2(pkt.cmd)}，期望 0x${hex2(expectCmd)}`)
   }
   if (pkt.ack !== 0) {
@@ -287,10 +325,16 @@ export function formatTlwFunctions(data: ArrayLike<number>, stageCount?: number)
   for (let i = 0; i < stages; i++) {
     const o = 14 + i * 9
     if (o + 8 >= data.length) break
-    const x = u16le(data, o + 2)
-    const y = u16le(data, o + 4)
+    const r0 = u8(data, o + 2)
+    const r1 = u8(data, o + 3)
+    const r2 = u8(data, o + 4)
+    const r3 = u8(data, o + 5)
+    const rankStyle = r0 === r1 && r1 === r2 && r2 === r3
+    const dpiField = rankStyle
+      ? `rank=${r0}`
+      : `X=${u16le(data, o + 2)} Y=${u16le(data, o + 4)}`
     lines.push(
-      `  DPI${i} en=${u8(data, o)} xy=${u8(data, o + 1)} X=${x} Y=${y} RGB=${u8(data, o + 6)},${u8(data, o + 7)},${u8(data, o + 8)}`,
+      `  DPI${i} en=${u8(data, o)} xy=${u8(data, o + 1)} ${dpiField} RGB=${u8(data, o + 6)},${u8(data, o + 7)},${u8(data, o + 8)}`,
     )
   }
   return lines.join('\n')
@@ -320,36 +364,35 @@ export function parseTlwResponse(_cmd: number, data: ArrayLike<number>): string 
     `CMD=0x${hex2(pkt.cmd)} LEN=${pkt.len} ADDR=${pkt.addr} ACK=0x${hex2(pkt.ack)}`,
     `Cs=0x${pkt.checksum.toString(16).toUpperCase().padStart(4, '0')}${pkt.checksum === 0 ? '（实机/未校验）' : pkt.checksumOk ? ' OK' : ' 不匹配'}`,
   ]
-  if (pkt.ack !== 0) lines.push('设备拒绝（ACK≠0）。文档 0xA* 命令在 CB75 上常回 ACK=FF。')
+  if (pkt.ack !== 0) lines.push('设备拒绝（ACK≠0）。')
+  if (pkt.cmd === 0xff) lines.push('接收器拒绝（CMD=FF）；检查鼠标是否在无线范围内。')
 
   const cmd = pkt.cmd
-  if (cmd === TLW_CMD.BASIC || cmd === TLW_FW_CMD.BASIC) {
+  const logical = tlwLogicalCmd(cmd)
+  if (logical === TLW_FW_CMD.BASIC) {
     lines.push(formatBasic(parseTlwBasicInfo(pkt.data)))
-  } else if (cmd === TLW_CMD.GET_FUNC || cmd === TLW_CMD.SET_FUNC || cmd === TLW_FW_CMD.GET_FUNC || cmd === TLW_FW_CMD.SET_FUNC) {
+  } else if (logical === TLW_FW_CMD.GET_FUNC || logical === TLW_FW_CMD.SET_FUNC) {
     lines.push(`功能区 ADDR=${pkt.addr}`)
     lines.push(formatTlwFunctions(pkt.data))
   } else if (
-    cmd === TLW_CMD.GET_DEFKEY ||
-    cmd === TLW_CMD.GET_KEY ||
-    cmd === TLW_CMD.SET_KEY ||
-    cmd === TLW_FW_CMD.GET_DEFKEY ||
-    cmd === TLW_FW_CMD.GET_KEY ||
-    cmd === TLW_FW_CMD.SET_KEY
+    logical === TLW_FW_CMD.GET_DEFKEY ||
+    logical === TLW_FW_CMD.GET_KEY ||
+    logical === TLW_FW_CMD.SET_KEY
   ) {
     lines.push(`按键 ADDR=${pkt.addr}`)
     lines.push(formatTlwKeys(pkt.data))
-  } else if (cmd === TLW_CMD.BATTERY || cmd === TLW_FW_CMD.BATTERY) {
+  } else if (logical === TLW_FW_CMD.BATTERY) {
     const bat = parseTlwBattery(pkt.data)
     lines.push(`电量=${bat.percent}% ${chargeLabel(bat.charging)}`)
-  } else if (cmd === TLW_CMD.WIRELESS) {
+  } else if (cmd === TLW_CMD.WIRELESS || logical === tlwLogicalCmd(TLW_CMD.WIRELESS)) {
     lines.push(`2.4G=${parseTlwWireless(pkt.data) ? '已连接' : '断连'}`)
-  } else if (cmd === TLW_CMD.START || cmd === TLW_FW_CMD.START) {
+  } else if (logical === TLW_FW_CMD.START) {
     lines.push('快速通讯开始')
-  } else if (cmd === TLW_CMD.END || cmd === TLW_FW_CMD.END) {
+  } else if (logical === TLW_FW_CMD.END) {
     lines.push('快速通讯结束')
-  } else if (cmd === TLW_CMD.FACTORY) {
+  } else if (logical === TLW_FW_CMD.FACTORY) {
     lines.push('恢复出厂（处理约 2s，期间勿再发）')
-  } else if (cmd === TLW_CMD.GET_MACRO || cmd === TLW_CMD.SET_MACRO || cmd === TLW_FW_CMD.SET_MACRO) {
+  } else if (logical === tlwLogicalCmd(TLW_CMD.GET_MACRO) || logical === TLW_FW_CMD.SET_MACRO) {
     lines.push(`宏 ADDR=${pkt.addr} 预览: ${toHex(pkt.data.slice(0, Math.min(16, pkt.data.length)))}`)
   }
   if (pkt.data.length > 0) {
@@ -381,131 +424,235 @@ export interface TlwDumpProgress {
   total: number
 }
 
+export interface TlwDumpOptions {
+  gapMs?: number
+  onProgress?: (p: TlwDumpProgress) => void
+  family?: TlwCommandFamily
+  mode?: TlwLinkMode
+}
+
+function packetCount(totalBytes: number, dataSize: number): number {
+  return Math.max(1, Math.ceil(totalBytes / dataSize))
+}
+
 /**
- * 按 CB75 实机命令分包读取：基本信息 + 功能区 128B + 默认/当前按键 + 电量。
+ * 按 Anxiu/CB75 抓包分包读取：基本信息 + 功能区 128B + 默认/当前按键 + 电量。
+ * 默认 current 族（A3/A5/A7/A8/BA，Cs=00）+ 有线 56B。
+ * 无线：24B 分包、payload[31]=2，整段读写包在 START/END 之间。
  */
 export async function dumpTlwSnapshot(
   exchange: (frame: Uint8Array, expectPrefix?: number[]) => Promise<Uint8Array>,
-  options?: { gapMs?: number; onProgress?: (p: TlwDumpProgress) => void },
+  options?: TlwDumpOptions,
 ): Promise<{ text: string }> {
   const gapMs = options?.gapMs ?? 20
+  const family: TlwCommandFamily = options?.family ?? 'current'
+  const mode: TlwLinkMode = options?.mode ?? 'wired'
+  const dataSize = mode === 'wireless' ? TLW_WIRELESS_DATA : TLW_WIRED_DATA
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
   const send = async (frame: Uint8Array, step: string, index: number, total: number) => {
+    const tx = mode === 'wireless' ? applyTlwWirelessRoute(frame) : frame
     options?.onProgress?.({ step, index, total })
-    const rx = await exchange(frame, tlwExpectPrefix(frame))
+    const rx = await exchange(tx, tlwExpectPrefix(tx))
     if (gapMs > 0) await sleep(gapMs)
     return rx
   }
 
+  const cmd = (logical: number) => tlwWireCmd(logical, family)
   let step = 0
-  const totalSteps = 1 + 3 + 3 + 3 + 1
+  const keyGuess = 24
+  const totalSteps =
+    (mode === 'wireless' ? 2 : 0) +
+    packetCount(34, dataSize) +
+    packetCount(TLW_FUNC_BYTES, dataSize) +
+    packetCount(keyGuess, dataSize) * 2 +
+    1
 
-  const basicRx = await send(fwRead(TLW_FW_CMD.BASIC), '基本信息', step++, totalSteps)
-  const basicData = extractTlwData(basicRx, TLW_FW_CMD.BASIC)
-  const basic = parseTlwBasicInfo(basicData)
-
-  const readRange = async (cmd: number, totalBytes: number, label: string) => {
-    const out = new Uint8Array(totalBytes)
-    for (let addr = 0; addr < totalBytes; addr += TLW_DATA_MAX) {
-      const len = Math.min(TLW_DATA_MAX, totalBytes - addr)
-      const rx = await send(fwRead(cmd, addr, len), `${label} ADDR=${addr}`, step++, totalSteps)
-      const part = extractTlwData(rx, cmd)
-      out.set(part.subarray(0, len), addr)
+  const session = async <T>(work: () => Promise<T>): Promise<T> => {
+    if (mode !== 'wireless') return work()
+    await send(fwRead(cmd(TLW_FW_CMD.START), 0, 24), '无线通讯开始', step++, totalSteps)
+    try {
+      return await work()
+    } finally {
+      await send(fwRead(cmd(TLW_FW_CMD.END), 0, 24), '无线通讯结束', step++, totalSteps)
     }
-    return out
   }
 
-  const functions = await readRange(TLW_FW_CMD.GET_FUNC, TLW_FUNC_BYTES, '功能区')
-  const keyBytes = basic.valid && basic.keyBytes > 0 ? basic.keyBytes : TLW_KEYS_BYTES
-  const defKeys = await readRange(TLW_FW_CMD.GET_DEFKEY, keyBytes, '默认按键')
-  const keys = await readRange(TLW_FW_CMD.GET_KEY, keyBytes, '当前按键')
-  const batRx = await send(fwRead(TLW_FW_CMD.BATTERY), '电量', step++, totalSteps)
-  const battery = parseTlwBattery(extractTlwData(batRx, TLW_FW_CMD.BATTERY))
+  return session(async () => {
+    const readRange = async (logical: number, totalBytes: number, label: string) => {
+      const wire = cmd(logical)
+      const out = new Uint8Array(totalBytes)
+      for (let addr = 0; addr < totalBytes; addr += dataSize) {
+        const len = Math.min(dataSize, totalBytes - addr)
+        const rx = await send(fwRead(wire, addr, len), `${label} ADDR=${addr}`, step++, totalSteps)
+        const part = extractTlwData(rx, wire)
+        out.set(part.subarray(0, len), addr)
+      }
+      return out
+    }
 
-  const keyCount = basic.valid && basic.keyCount > 0 ? basic.keyCount : Math.floor(keyBytes / 3)
-  const text = [
-    'TLW 设备快照（实机命令 03/05/07/08/1A）',
-    '',
-    '—— 基本信息 ——',
-    formatBasic(basic),
-    '',
-    '—— 功能区 ——',
-    formatTlwFunctions(functions, basic.valid ? basic.dpiStageCount : undefined),
-    '',
-    '—— 默认按键 ——',
-    formatTlwKeys(defKeys, keyCount),
-    '',
-    '—— 当前按键 ——',
-    formatTlwKeys(keys, keyCount),
-    '',
-    `—— 电量 ——\n${battery.percent}% ${chargeLabel(battery.charging)}`,
-  ].join('\n')
-  return { text }
+    const basicRaw = await readRange(TLW_FW_CMD.BASIC, 34, '基本信息')
+    const basic = parseTlwBasicInfo(basicRaw)
+    const functions = await readRange(TLW_FW_CMD.GET_FUNC, TLW_FUNC_BYTES, '功能区')
+    const keyBytes = basic.valid && basic.keyBytes > 0 ? basic.keyBytes : TLW_KEYS_BYTES
+    const defKeys = await readRange(TLW_FW_CMD.GET_DEFKEY, keyBytes, '默认按键')
+    const keys = await readRange(TLW_FW_CMD.GET_KEY, keyBytes, '当前按键')
+    const batCmd = cmd(TLW_FW_CMD.BATTERY)
+    const batRx = await send(fwRead(batCmd), '电量', step++, totalSteps)
+    const battery = parseTlwBattery(extractTlwData(batRx, batCmd))
+
+    const keyCount = basic.valid && basic.keyCount > 0 ? basic.keyCount : Math.floor(keyBytes / 3)
+    const familyNote = family === 'current' ? '当前固件 A3/A5/A7/A8/BA' : '旧固件 03/05/07/08/1A'
+    const text = [
+      `TLW 设备快照（${familyNote}，${mode === 'wireless' ? '无线 24B' : '有线 56B'}）`,
+      '',
+      '—— 基本信息 ——',
+      formatBasic(basic),
+      '',
+      '—— 功能区 ——',
+      formatTlwFunctions(functions, basic.valid ? basic.dpiStageCount : undefined),
+      '',
+      '—— 默认按键 ——',
+      formatTlwKeys(defKeys, keyCount),
+      '',
+      '—— 当前按键 ——',
+      formatTlwKeys(keys, keyCount),
+      '',
+      `—— 电量 ——\n${battery.percent}% ${chargeLabel(battery.charging)}`,
+    ].join('\n')
+    return { text }
+  })
 }
 
 const PRESETS: PresetCommand[] = [
-  // —— 实机 CB75（Cs=00，命令为文档低 8 位）——
+  // —— 当前固件（Cs=00，CMD = 逻辑号 + 0xA0；Anxiu 9/16 有线抓包）——
+  {
+    id: 'cur_basic',
+    label: '当前固件 读基本信息 (0xA3)',
+    cmd: TLW_CMD.BASIC,
+    build: () => fwRead(TLW_CMD.BASIC),
+  },
+  {
+    id: 'cur_func_p0',
+    label: '当前固件 读功能区 ADDR=0 (0xA5)',
+    cmd: TLW_CMD.GET_FUNC,
+    build: () => fwRead(TLW_CMD.GET_FUNC, 0, 56),
+  },
+  {
+    id: 'cur_func_p1',
+    label: '当前固件 读功能区 ADDR=56 (0xA5)',
+    cmd: TLW_CMD.GET_FUNC,
+    build: () => fwRead(TLW_CMD.GET_FUNC, 56, 56),
+  },
+  {
+    id: 'cur_func_p2',
+    label: '当前固件 读功能区 ADDR=112 (0xA5)',
+    cmd: TLW_CMD.GET_FUNC,
+    build: () => fwRead(TLW_CMD.GET_FUNC, 112, 16),
+  },
+  {
+    id: 'cur_defkey_p0',
+    label: '当前固件 读默认按键 ADDR=0 (0xA7)',
+    cmd: TLW_CMD.GET_DEFKEY,
+    build: () => fwRead(TLW_CMD.GET_DEFKEY, 0, 56),
+  },
+  {
+    id: 'cur_key_p0',
+    label: '当前固件 读当前按键 ADDR=0 (0xA8)',
+    cmd: TLW_CMD.GET_KEY,
+    build: () => fwRead(TLW_CMD.GET_KEY, 0, 56),
+  },
+  {
+    id: 'cur_battery',
+    label: '当前固件 读电量 (0xBA)',
+    cmd: TLW_CMD.BATTERY,
+    build: () => fwRead(TLW_CMD.BATTERY),
+  },
+  {
+    id: 'tlw_dump_all',
+    label: '当前固件 读取有线快照（多包）',
+    cmd: TLW_CMD.BASIC,
+    build: () => fwRead(TLW_CMD.BASIC),
+  },
+  {
+    id: 'tlw_dump_wireless',
+    label: '当前固件 读取无线快照（24B+路由）',
+    cmd: TLW_CMD.BASIC,
+    build: () => applyTlwWirelessRoute(fwRead(TLW_CMD.BASIC, 0, 24)),
+  },
+  {
+    id: 'cur_start',
+    label: '当前固件 快速通讯开始 (0xA1)',
+    cmd: TLW_CMD.START,
+    build: () => fwRead(TLW_CMD.START, 0, 24),
+  },
+  {
+    id: 'cur_end',
+    label: '当前固件 快速通讯结束 (0xA2)',
+    cmd: TLW_CMD.END,
+    build: () => fwRead(TLW_CMD.END, 0, 24),
+  },
+  {
+    id: 'cur_factory',
+    label: '当前固件 恢复出厂 (0xAD，约 2s)',
+    cmd: TLW_CMD.FACTORY,
+    build: () => fwRead(TLW_CMD.FACTORY, 0, 24),
+  },
+  // —— 旧固件低命令族（Cs=00）——
   {
     id: 'fw_basic',
-    label: '实机 读基本信息 (0x03)',
+    label: '旧固件 读基本信息 (0x03)',
     cmd: TLW_FW_CMD.BASIC,
     build: () => fwRead(TLW_FW_CMD.BASIC),
   },
   {
     id: 'fw_func_p0',
-    label: '实机 读功能区 ADDR=0 (0x05)',
+    label: '旧固件 读功能区 ADDR=0 (0x05)',
     cmd: TLW_FW_CMD.GET_FUNC,
     build: () => fwRead(TLW_FW_CMD.GET_FUNC, 0, 56),
   },
   {
     id: 'fw_func_p1',
-    label: '实机 读功能区 ADDR=56 (0x05)',
+    label: '旧固件 读功能区 ADDR=56 (0x05)',
     cmd: TLW_FW_CMD.GET_FUNC,
     build: () => fwRead(TLW_FW_CMD.GET_FUNC, 56, 56),
   },
   {
     id: 'fw_func_p2',
-    label: '实机 读功能区 ADDR=112 (0x05)',
+    label: '旧固件 读功能区 ADDR=112 (0x05)',
     cmd: TLW_FW_CMD.GET_FUNC,
     build: () => fwRead(TLW_FW_CMD.GET_FUNC, 112, 16),
   },
   {
     id: 'fw_defkey_p0',
-    label: '实机 读默认按键 ADDR=0 (0x07)',
+    label: '旧固件 读默认按键 ADDR=0 (0x07)',
     cmd: TLW_FW_CMD.GET_DEFKEY,
     build: () => fwRead(TLW_FW_CMD.GET_DEFKEY, 0, 56),
   },
   {
     id: 'fw_key_p0',
-    label: '实机 读当前按键 ADDR=0 (0x08)',
+    label: '旧固件 读当前按键 ADDR=0 (0x08)',
     cmd: TLW_FW_CMD.GET_KEY,
     build: () => fwRead(TLW_FW_CMD.GET_KEY, 0, 56),
   },
   {
     id: 'fw_battery',
-    label: '实机 读电量 (0x1A)',
+    label: '旧固件 读电量 (0x1A)',
     cmd: TLW_FW_CMD.BATTERY,
     build: () => fwRead(TLW_FW_CMD.BATTERY),
   },
   {
-    id: 'tlw_dump_all',
-    label: '实机 读取设备快照（多包）',
-    cmd: TLW_FW_CMD.BASIC,
-    build: () => fwRead(TLW_FW_CMD.BASIC),
-  },
-  {
     id: 'fw_start',
-    label: '实机 快速通讯开始 (0x01)',
+    label: '旧固件 快速通讯开始 (0x01)',
     cmd: TLW_FW_CMD.START,
     build: () => fwRead(TLW_FW_CMD.START, 0, 24),
   },
   {
     id: 'fw_end',
-    label: '实机 快速通讯结束 (0x02)',
+    label: '旧固件 快速通讯结束 (0x02)',
     cmd: TLW_FW_CMD.END,
     build: () => fwRead(TLW_FW_CMD.END, 0, 24),
   },
-  // —— 文档 PDF ——
+  // —— 文档 PDF（带 Cs）——
   {
     id: 'doc_start',
     label: '文档 快速通讯开始 (0xA1)',
