@@ -33,10 +33,13 @@ const {
   rawHex,
   fillPreset,
   applyPresetWire,
+  markReportIdUserEdited,
+  markBodyLenUserEdited,
   sendPreset,
   sendRaw,
   readHsKeymap,
   readSlkDefKey,
+  readTlwSnapshot,
   clearLog,
   buildPresetFrame,
   setProtocol,
@@ -135,6 +138,8 @@ async function onReadHsKeymap() {
   try {
     if (protocolId.value === 'sparklink') {
       await readSlkDefKey(props.deviceId)
+    } else if (protocolId.value === 'tlw') {
+      await readTlwSnapshot(props.deviceId)
     } else {
       await readHsKeymap(props.deviceId)
     }
@@ -214,6 +219,7 @@ const channelOptions: { value: HidChannel; label: string }[] = [
 const checksumOptions: { value: ChecksumMode; label: string }[] = [
   { value: 'none', label: '无' },
   { value: 'ry_cs7', label: 'RY CS@7' },
+  { value: 'tlw_cs', label: 'TLW Cs' },
 ]
 </script>
 
@@ -256,7 +262,8 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
           placeholder="自动 / 0x0A"
           :disabled="busy"
           class="narrow"
-          title="发送时以当前值为准。可填 10、0x0A、0A"
+          title="发送时以当前值为准。可填 10、0x0A、0A。手改后不会被协议默认值覆盖"
+          @input="markReportIdUserEdited"
         />
       </label>
       <label>
@@ -281,6 +288,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
           :disabled="busy"
           class="narrow"
           :title="profile.id === 'custom' ? '0 = 不定长，不补齐' : undefined"
+          @input="markBodyLenUserEdited"
         />
       </label>
       <label>
@@ -303,7 +311,7 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
         </button>
         <button type="button" @click="onSendPreset" :disabled="!canSend || !presetId">发送</button>
         <button
-          v-if="protocolId === 'hs' || protocolId === 'jp' || protocolId === 'sparklink'"
+          v-if="protocolId === 'hs' || protocolId === 'jp' || protocolId === 'sparklink' || protocolId === 'tlw'"
           type="button"
           class="secondary"
           @click="onReadHsKeymap"
@@ -311,10 +319,12 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
           :title="
             protocolId === 'sparklink'
               ? '三次 DEFKEY 读 6×21 默认键值，输出可复制数组'
-              : '分包发送 82 01 get_buffer，解析为每层可复制数组'
+              : protocolId === 'tlw'
+                ? '实机命令分包读基本信息 / 功能区 / 按键 / 电量'
+                : '分包发送 82 01 get_buffer，解析为每层可复制数组'
           "
         >
-          读取全盘按键
+          {{ protocolId === 'tlw' ? '读取设备快照' : '读取全盘按键' }}
         </button>
         <button type="button" class="secondary" @click="onToggleAddForm" :disabled="busy">
           {{ showAddForm ? '取消添加' : '添加预设' }}

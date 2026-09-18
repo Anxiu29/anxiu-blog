@@ -6,6 +6,7 @@ import { kb250718Profile } from './kb250718'
 import { rk9007Profile } from './rk9007'
 import { ry5088Profile } from './ry5088'
 import { sparklinkProfile } from './sparklink'
+import { tlwProfile } from './tlw'
 import type { ProtocolProfile } from './types'
 
 export const PROTOCOL_PROFILES: ProtocolProfile[] = [
@@ -16,6 +17,7 @@ export const PROTOCOL_PROFILES: ProtocolProfile[] = [
   hsProfile,
   jpProfile,
   sparklinkProfile,
+  tlwProfile,
   customProfile,
 ]
 
@@ -50,4 +52,5 @@ export {
   padToLength,
   formatReportIdText,
   parseReportIdText,
+  resolveWireField,
 } from './types'

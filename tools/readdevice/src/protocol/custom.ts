@@ -50,7 +50,7 @@ export const customProfile: ProtocolProfile = {
 
 export function applyCustomChecksum(
   frame: Uint8Array,
-  mode: 'none' | 'ry_cs7',
+  mode: 'none' | 'ry_cs7' | 'tlw_cs',
 ): Uint8Array {
   if (mode === 'ry_cs7') return applyRyCs7(frame)
   return new Uint8Array(frame)

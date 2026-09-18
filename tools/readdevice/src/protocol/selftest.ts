@@ -1,4 +1,4 @@
-import { parseHexBytes, parseReportIdText, formatReportIdText, toHexOmitTrailingZeros, toDecOmitTrailingZeros } from './types'
+import { parseHexBytes, parseReportIdText, formatReportIdText, resolveWireField, toHexOmitTrailingZeros, toDecOmitTrailingZeros } from './types'
 import { buildBeiYingFrame, parseBeiYingResponse, BODY_LEN } from './beiying'
 import {
   buildHsFrame,
@@ -62,6 +62,23 @@ import {
   parseRyReportRateHz,
 } from './ryCommon'
 import { shouldProbeRyReportRate } from './ryReportRate'
+import {
+  applyTlwChecksum,
+  buildTlwFrame,
+  computeTlwChecksum,
+  dumpTlwSnapshot,
+  extractTlwData,
+  formatTlwKeys,
+  parseTlwBasicInfo,
+  parseTlwBattery,
+  parseTlwPacket,
+  parseTlwResponse,
+  tlwExpectPrefix,
+  TLW_BODY_LEN,
+  TLW_CMD,
+  TLW_FW_CMD,
+  TLW_REPORT_ID,
+} from './tlw'
 import { getProtocol, listProtocols } from './registry'
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -109,6 +126,13 @@ function testOmitTrailingZeros() {
   assert(parseReportIdText('0A') === 0x0a, 'RID 0A')
   assert(parseReportIdText('9') === 9, 'RID 9')
   assert(formatReportIdText(10) === '0x0A', 'format RID')
+
+  const keepBy = resolveWireField<number>(undefined, 9, true)
+  assert(!keepBy.apply, 'BY dirty RID keeps UI 0x06')
+  const defBy = resolveWireField<number>(undefined, 9, false)
+  assert(defBy.apply && defBy.value === 9, 'BY clean RID uses profile 0x09')
+  const oa = resolveWireField<number>(0x0a, 9, true)
+  assert(oa.apply && oa.value === 0x0a, 'preset RID override wins even if dirty')
 }
 
 function testRyCs() {
@@ -195,6 +219,7 @@ function testRyReportRate() {
   assert(shouldProbeRyReportRate('2E3C'), 'probe RY VID')
   assert(!shouldProbeRyReportRate('258A'), 'skip BeiYing VID')
   assert(!shouldProbeRyReportRate('1CA2'), 'skip SparkLink VID')
+  assert(!shouldProbeRyReportRate('320F'), 'skip TLW VID')
 }
 
 function testGetInforOffsets() {
@@ -612,6 +637,109 @@ async function testSparklink() {
   assert(fmt.includes('29,3A,'), fmt)
 }
 
+async function testTlw() {
+  const basic = buildTlwFrame({ cmd: TLW_CMD.BASIC, len: 0x22, checksum: true })
+  assert(basic.length === TLW_BODY_LEN, 'TLW body 63')
+  assert(basic[2] === 0xa3 && basic[3] === 0x22, 'TLW A3 len')
+  // 0xA3+0x22 + ADDR/ACK/DATA 全 0 → 0xC5
+  assert(basic[0] === 0xc5 && basic[1] === 0, `TLW A3 Cs got ${basic[0].toString(16)}`)
+  assert(computeTlwChecksum(basic) === 0xc5, 'TLW checksum fn')
+
+  const fw = buildTlwFrame({ cmd: TLW_FW_CMD.BASIC, len: 0x22, checksum: false })
+  assert(fw[0] === 0 && fw[1] === 0 && fw[2] === 0x03, 'TLW fw CS zero')
+  const prefix = tlwExpectPrefix(fw)
+  assert(!!prefix && prefix[2] === 0x03, 'TLW fw expectPrefix')
+  assert(tlwExpectPrefix(basic) == null, 'TLW doc no zero prefix')
+
+  const summed = applyTlwChecksum(new Uint8Array(fw))
+  assert(summed[0] === (0x03 + 0x22) && summed[1] === 0, 'TLW apply Cs')
+
+  const infoData = new Uint8Array(34)
+  infoData[0] = 0xaa
+  infoData[1] = 0x55
+  infoData[5] = 8
+  infoData[6] = 2
+  infoData[11] = 50
+  infoData[12] = 60
+  infoData[14] = 0x2c
+  infoData[15] = 0x01
+  infoData[17] = 6
+  infoData[21] = 0x0f
+  infoData[22] = 0x32
+  infoData[23] = 0xf2
+  infoData[24] = 0x22
+  const info = parseTlwBasicInfo(infoData)
+  assert(info.valid && info.keyCount === 8 && info.keyBytes === 24, 'TLW basic keys')
+  assert(info.macroBytes === 256 && info.dpiStageCount === 6, 'TLW basic dpi/macro')
+  assert(info.vendorId === 0x320f && info.productId === 0x22f2, 'TLW VID PID')
+
+  const rx = buildTlwFrame({ cmd: TLW_FW_CMD.BASIC, len: 34, data: infoData, checksum: false })
+  const text = parseTlwResponse(0x03, rx)
+  assert(text.includes('320F:22F2'), text)
+  assert(text.includes('按键=8'), text)
+
+  const keys = Uint8Array.from([0x10, 1, 0, 0x13, 1, 0, 0x70, 0, 0])
+  const keyText = formatTlwKeys(keys, 3)
+  assert(keyText.includes('左键') && keyText.includes('DPI+') && keyText.includes('宏#0'), keyText)
+
+  const bat = parseTlwBattery(Uint8Array.from([80, 1]))
+  assert(bat.percent === 80 && bat.charging === 1, 'TLW battery')
+
+  const pkt = parseTlwPacket(rx)
+  assert(pkt.cmd === 0x03 && pkt.len === 34 && pkt.ack === 0, 'TLW parse pkt')
+  assert(extractTlwData(rx, 0x03)[0] === 0xaa, 'TLW extract AA')
+
+  const tlw = getProtocol('tlw')
+  assert(tlw.bodyLen === 63, 'TLW bodyLen')
+  assert(tlw.reportId === TLW_REPORT_ID, 'TLW RID 4')
+  assert(tlw.channel === 'output', 'TLW output')
+  assert(tlw.usagePageHint === 0xff1c, 'TLW FF1C')
+  assert(tlw.vids?.includes('320F'), 'TLW VID 320F')
+  assert(tlw.checksum === 'none', 'TLW checksum none')
+  const ids = tlw.presets.map((p) => p.id)
+  assert(ids.includes('fw_basic'), 'TLW fw basic')
+  assert(ids.includes('tlw_dump_all'), 'TLW dump')
+  assert(ids.includes('doc_basic'), 'TLW doc basic')
+  assert(ids.includes('doc_wireless'), 'TLW wireless')
+
+  const docBasic = tlw.presets.find((p) => p.id === 'doc_basic')!.build!()
+  assert(docBasic[2] === 0xa3 && docBasic[0] === 0xc5, 'TLW doc preset Cs')
+
+  let calls = 0
+  const dump = await dumpTlwSnapshot(
+    async (frame) => {
+      calls += 1
+      const cmd = frame[2]!
+      const addr = frame[4]! | (frame[5]! << 8)
+      const len = frame[3]!
+      const reply = new Uint8Array(TLW_BODY_LEN)
+      reply[2] = cmd
+      reply[3] = len
+      reply[4] = addr & 0xff
+      reply[5] = (addr >> 8) & 0xff
+      if (cmd === TLW_FW_CMD.BASIC) {
+        reply.set(infoData, 7)
+      } else if (cmd === TLW_FW_CMD.BATTERY) {
+        reply[7] = 77
+        reply[8] = 0
+      } else if (cmd === TLW_FW_CMD.GET_FUNC && addr === 0) {
+        reply[7] = 1
+        reply[7 + 11] = 3
+        reply[7 + 12] = 2
+      } else if (cmd === TLW_FW_CMD.GET_KEY || cmd === TLW_FW_CMD.GET_DEFKEY) {
+        reply[7] = 0x10
+        reply[8] = 1
+      }
+      return reply
+    },
+    { gapMs: 0 },
+  )
+  assert(calls === 7, `TLW dump calls ${calls}`)
+  assert(dump.text.includes('77%'), dump.text)
+  assert(dump.text.includes('左键'), dump.text)
+  assert(dump.text.includes('1000 Hz'), dump.text)
+}
+
 function testRegistry() {
   const ids = listProtocols().map((p) => p.id)
   assert(ids.includes('ry5088'), 'has ry5088')
@@ -622,6 +750,7 @@ function testRegistry() {
   assert(ids.includes('hs'), 'has hs')
   assert(ids.includes('jp'), 'has jp')
   assert(ids.includes('sparklink'), 'has sparklink')
+  assert(ids.includes('tlw'), 'has tlw')
   assert(ids.includes('custom'), 'has custom')
   assert(getProtocol('beiying').reportId === 0x09, 'BY report id default')
   assert(getProtocol('beiying').bodyLen === 519, 'BY body len')
@@ -634,6 +763,9 @@ function testRegistry() {
   assert(getProtocol('sparklink').label.includes('星闪'), 'SLK label')
   assert(getProtocol('sparklink').usagePageHint === 0xffb0, 'SLK FFB0 in registry')
   assert(getProtocol('sparklink').vids?.includes('1CA2'), 'SLK VID in registry')
+  assert(getProtocol('tlw').label.includes('TLW'), 'TLW label')
+  assert(getProtocol('tlw').reportId === 4, 'TLW RID in registry')
+  assert(getProtocol('tlw').vids?.includes('320F'), 'TLW VID in registry')
 
   const custom = getProtocol('custom')
   assert(custom.reportId === 0, 'custom default report id 0')
@@ -654,6 +786,7 @@ async function main() {
   await testHs()
   await testJp()
   await testSparklink()
+  await testTlw()
   testRegistry()
   console.log('protocol selftest OK')
 }

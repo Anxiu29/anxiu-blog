@@ -26,6 +26,12 @@ export default defineConfig({
     },
   },
   envPrefix: ['VITE_', 'TAURI_'],
+  // 避免向上读到博客根目录的 postcss.config.mjs
+  css: {
+    postcss: {
+      plugins: [],
+    },
+  },
   build: {
     outDir: path.resolve(__dirname, '../../public/tools/hid'),
     emptyOutDir: true,

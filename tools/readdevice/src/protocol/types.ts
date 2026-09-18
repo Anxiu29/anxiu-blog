@@ -1,6 +1,6 @@
 import type { HidChannel } from '../hid/types'
 
-export type ChecksumMode = 'none' | 'ry_cs7'
+export type ChecksumMode = 'none' | 'ry_cs7' | 'tlw_cs'
 
 export interface PresetCommand {
   id: string
@@ -38,6 +38,21 @@ export interface ProtocolProfile {
 /** Display Report ID as `0x0A` so the editor field is obviously hex-editable. */
 export function formatReportIdText(n: number): string {
   return `0x${(n & 0xff).toString(16).toUpperCase().padStart(2, '0')}`
+}
+
+/**
+ * Preset reportId/bodyLen override wins.
+ * Otherwise keep the current UI value if the user edited it (贝盈等默认 0x09 但仍可改 0x06).
+ * Else use the protocol default.
+ */
+export function resolveWireField<T>(
+  presetOverride: T | null | undefined,
+  profileDefault: T,
+  userDirty: boolean,
+): { apply: true; value: T } | { apply: false } {
+  if (presetOverride != null) return { apply: true, value: presetOverride }
+  if (userDirty) return { apply: false }
+  return { apply: true, value: profileDefault }
 }
 
 /**

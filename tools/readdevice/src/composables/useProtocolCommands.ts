@@ -5,6 +5,7 @@ import { applyCustomChecksum } from '../protocol/custom'
 import { dumpHsKeymapBuffer } from '../protocol/hs'
 import { buildJpGetBufferFrame } from '../protocol/jp'
 import { dumpSlkDefKeyMatrix } from '../protocol/sparklink'
+import { applyTlwChecksum, dumpTlwSnapshot, tlwExpectPrefix } from '../protocol/tlw'
 import {
   addUserPreset,
   loadOverlay,
@@ -20,6 +21,7 @@ import {
   toDecOmitTrailingZeros,
   formatReportIdText,
   parseReportIdText,
+  resolveWireField,
 } from '../protocol/registry'
 import type { ChecksumMode, PresetCommand, ProtocolProfile } from '../protocol/types'
 import { padToLength, parseHexBytes } from '../protocol/types'
@@ -38,8 +40,13 @@ function nowLabel(): string {
 
 function applyChecksum(frame: Uint8Array, mode: ChecksumMode): Uint8Array {
   if (mode === 'ry_cs7') return applyRyCs7(frame)
+  if (mode === 'tlw_cs') return applyTlwChecksum(frame)
   if (mode === 'none') return new Uint8Array(frame)
   return applyCustomChecksum(frame, mode)
+}
+
+function forceOutputProtocol(id: string): boolean {
+  return id === 'sparklink' || id === 'tlw'
 }
 
 export function useProtocolCommands() {
@@ -57,6 +64,10 @@ export function useProtocolCommands() {
   const log = ref<ExchangeLogItem[]>([])
 
   const reportIdText = ref('0')
+  /** User typed Report ID; do not reset to protocol default on preset send/select. */
+  const reportIdDirty = ref(false)
+  /** User typed 帧长; same as reportIdDirty. */
+  const bodyLenDirty = ref(false)
   const channel = ref<HidChannel>('auto')
   const timeoutMs = ref(200)
   const checksumMode = ref<ChecksumMode>('ry_cs7')
@@ -77,6 +88,8 @@ export function useProtocolCommands() {
   })
 
   function loadProfileDefaults(p: ProtocolProfile) {
+    reportIdDirty.value = false
+    bodyLenDirty.value = false
     bodyLen.value = p.bodyLen
     reportIdText.value = p.reportId == null ? '' : formatReportIdText(p.reportId)
     channel.value = p.channel
@@ -139,19 +152,25 @@ export function useProtocolCommands() {
     return presets.value.find((x) => x.id === presetId)
   }
 
-  /** Apply per-preset reportId / bodyLen (e.g. RK9007 0x0A 小包). */
+  function markReportIdUserEdited() {
+    reportIdDirty.value = true
+  }
+
+  function markBodyLenUserEdited() {
+    bodyLenDirty.value = true
+  }
+
+  /** Apply per-preset reportId / bodyLen (e.g. RK9007 0x0A 小包). Keeps user edits. */
   function applyPresetWire(presetId: string) {
     const preset = findPreset(presetId)
     if (!preset) return
-    if (preset.reportId != null) {
-      reportIdText.value = formatReportIdText(preset.reportId)
-    } else if (profile.value.reportId != null) {
-      reportIdText.value = formatReportIdText(profile.value.reportId)
+    const rid = resolveWireField(preset.reportId, profile.value.reportId, reportIdDirty.value)
+    if (rid.apply) {
+      reportIdText.value = rid.value == null ? '' : formatReportIdText(rid.value)
     }
-    if (preset.bodyLen != null) {
-      bodyLen.value = preset.bodyLen
-    } else {
-      bodyLen.value = profile.value.bodyLen
+    const len = resolveWireField(preset.bodyLen, profile.value.bodyLen, bodyLenDirty.value)
+    if (len.apply) {
+      bodyLen.value = len.value
     }
   }
 
@@ -203,21 +222,22 @@ export function useProtocolCommands() {
       const honorUi = options?.honorUi === true
       const ch = honorUi
         ? channel.value
-        : protocolId.value === 'sparklink'
+        : forceOutputProtocol(protocolId.value)
           ? 'output'
           : channel.value
-      if (!honorUi && protocolId.value === 'sparklink') channel.value = 'output'
+      if (!honorUi && forceOutputProtocol(protocolId.value)) channel.value = 'output'
       const ridNote =
         reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
       pushLog('TX', requestHex.value, `${ridNote} ${ch} ${frame.length}B`)
       const response = await backend.exchangeReport(deviceId, frame, {
         timeoutMs:
-          protocolId.value === 'sparklink'
+          forceOutputProtocol(protocolId.value)
             ? Math.max(timeoutMs.value, 1200)
             : timeoutMs.value,
         reportId,
         channel: ch,
         usagePageHint: profile.value.usagePageHint,
+        expectPrefix: protocolId.value === 'tlw' ? tlwExpectPrefix(frame) : undefined,
         assembleSparkLink: protocolId.value === 'sparklink',
       })
       setResponseDisplay(response)
@@ -292,6 +312,39 @@ export function useProtocolCommands() {
     }
   }
 
+  /** TLW：实机命令分包读基本信息 / 功能区 / 按键 / 电量。 */
+  async function readTlwSnapshot(deviceId: string) {
+    if (!deviceId) throw new Error('请先选择设备')
+    if (protocolId.value !== 'tlw') throw new Error('请先切换到 TLW 网页AP 协议')
+    channel.value = 'output'
+    busy.value = true
+    error.value = ''
+    parsedText.value = ''
+    try {
+      const result = await dumpTlwSnapshot(
+        (frame, expectPrefix) =>
+          exchangeOnce(deviceId, frame, {
+            expectPrefix,
+            timeoutMs: Math.max(timeoutMs.value, 800),
+            channel: 'output',
+          }),
+        {
+          gapMs: 20,
+          onProgress: ({ step, index, total }) => {
+            parsedText.value = `读取 TLW… ${index + 1}/${total}（${step}）`
+          },
+        },
+      )
+      parsedText.value = result.text
+      return result
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
   /** 星闪：三次 DEFKEY 读完 6×21 默认键值，格式同航晟可复制数组（十六进制）。 */
   async function readSlkDefKey(deviceId: string) {
     if (!deviceId) throw new Error('请先选择设备')
@@ -333,6 +386,9 @@ export function useProtocolCommands() {
     }
     if (presetId === 'defkey_dump_all') {
       return readSlkDefKey(deviceId)
+    }
+    if (presetId === 'tlw_dump_all') {
+      return readTlwSnapshot(deviceId)
     }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')
@@ -425,10 +481,13 @@ export function useProtocolCommands() {
     rawHex,
     fillPreset,
     applyPresetWire,
+    markReportIdUserEdited,
+    markBodyLenUserEdited,
     sendPreset,
     sendRaw,
     readHsKeymap,
     readSlkDefKey,
+    readTlwSnapshot,
     clearLog,
     buildPresetFrame,
     setProtocol,

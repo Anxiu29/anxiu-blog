@@ -6,7 +6,7 @@ import {
 } from './ryCommon'
 
 /** 已知非容圆 VID：勿发 0x83（贝盈等同号命令语义不同）。 */
-const NON_RY_VIDS = new Set(['258A', '342D', '0603', '1CA2'])
+const NON_RY_VIDS = new Set(['258A', '342D', '0603', '1CA2', '320F'])
 
 function normVid(vid: string): string {
   return vid.trim().toUpperCase().replace(/^0X/, '')
