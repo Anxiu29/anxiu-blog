@@ -249,6 +249,8 @@ export interface TlwBasicInfo {
   dpiStart: number
   independentXY: boolean
   dpiStageCount: number
+  /** 基本信息偏移 18–19，小端。全 0 表示旧固件未报告版本。 */
+  firmwareVersion?: string
   vendorId: number
   productId: number
   valid: boolean
@@ -267,9 +269,18 @@ export function parseTlwBasicInfo(data: ArrayLike<number>): TlwBasicInfo {
     dpiStart: u16le(data, 14),
     independentXY: u8(data, 16) !== 0,
     dpiStageCount: u8(data, 17),
+    // CB75 V0111 回读：偏移 18–19 为 11 01（小端）→ V0111。全 0 为旧固件，不报版本。
+    firmwareVersion: formatTlwFirmwareVersion(u16le(data, 18)),
     vendorId: u16le(data, 21),
     productId: u16le(data, 23),
   }
+}
+
+/** 与 TLW 产品一致：小端 uint16 显示为 V + 4 位十六进制。0 表示未报告。 */
+export function formatTlwFirmwareVersion(version: number): string | undefined {
+  const value = version & 0xffff
+  if (value === 0) return undefined
+  return `V${value.toString(16).toUpperCase().padStart(4, '0')}`
 }
 
 function chargeLabel(status: number): string {
@@ -361,6 +372,7 @@ function formatBasic(info: TlwBasicInfo): string {
     `按键=${info.keyCount}（${info.keyBytes}B） 宏空间=${info.macroBytes}B`,
     `DPI step=${info.dpiStep} rank=${info.dpiRank} 起始=${info.dpiStart} 档位数=${info.dpiStageCount}`,
     `XY分开=${info.independentXY ? '是' : '否'}`,
+    `版本=${info.firmwareVersion ?? '未报告'}`,
     `USB VID:PID=${vid}:${pid}`,
   ].join('\n')
 }
@@ -547,6 +559,12 @@ export async function dumpTlwSnapshot(
 const PRESETS: PresetCommand[] = [
   // —— 当前固件（Cs=00，CMD = 逻辑号 + 0xA0；Anxiu 9/16 有线抓包）——
   {
+    id: 'cur_version',
+    label: '当前固件 读版本号 (0xA3)',
+    cmd: TLW_CMD.BASIC,
+    build: () => fwRead(TLW_CMD.BASIC),
+  },
+  {
     id: 'cur_basic',
     label: '当前固件 读基本信息 (0xA3)',
     cmd: TLW_CMD.BASIC,
@@ -619,6 +637,12 @@ const PRESETS: PresetCommand[] = [
     build: () => fwRead(TLW_CMD.FACTORY, 0, 24),
   },
   // —— 旧固件低命令族（Cs=00）——
+  {
+    id: 'fw_version',
+    label: '旧固件 读版本号 (0x03)',
+    cmd: TLW_FW_CMD.BASIC,
+    build: () => fwRead(TLW_FW_CMD.BASIC),
+  },
   {
     id: 'fw_basic',
     label: '旧固件 读基本信息 (0x03)',

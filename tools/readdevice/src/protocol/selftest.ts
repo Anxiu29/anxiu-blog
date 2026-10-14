@@ -310,6 +310,40 @@ function testBeiYing() {
   assert(r0[1] === '06000000', `k7=${r0[1]}`) // 第7键 r1c2
   assert(gridLines[1].split(/\s+/)[0] === '01000000', '第2键 r2c1')
 
+  // 0x82 Val=1：09 82 01 00 01 00 06/0A 00（不含 Report ID）
+  const pwd = buildBeiYingFrame({
+    cmd: 0x82,
+    param: 0x01,
+    board: 0,
+    packs: 1,
+    seq: 0,
+    dataLen: 6,
+  })
+  assert(pwd[0] === 0x82 && pwd[1] === 0x01 && pwd[5] === 6 && pwd[6] === 0, 'pwd req')
+  const pwdVer = buildBeiYingFrame({
+    cmd: 0x82,
+    param: 0x01,
+    board: 0,
+    packs: 1,
+    seq: 0,
+    dataLen: 0x0a,
+  })
+  assert(pwdVer[5] === 0x0a && pwdVer[6] === 0, 'pwd+ver req')
+
+  const pwdRx = new Uint8Array(20)
+  pwdRx[0] = 0x09
+  pwdRx[1] = 0x82
+  pwdRx[2] = 0x01
+  pwdRx[4] = 1
+  pwdRx[6] = 0x0a
+  pwdRx.set([0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0xaa, 0xbb, 0x10, 0x00], 8)
+  const pwdText = parseBeiYingResponse(0x82, pwdRx)
+  assert(pwdText.includes('无线密码=31 32 33 34 35 36'), pwdText)
+  assert(pwdText.includes('密码文本=123456'), pwdText)
+  assert(pwdText.includes('版本=1000'), pwdText)
+  assert(!pwdText.includes('版本=16'), pwdText)
+  assert(!pwdText.includes('版本=0010'), pwdText)
+
   const presets = getProtocol('beiying').presets
   assert(presets.length >= 15, `preset count ${presets.length}`)
   const ids = presets.map((p) => p.id)
@@ -317,6 +351,15 @@ function testBeiYing() {
   assert(ids.includes('read_battery'), 'has battery')
   assert(ids.includes('read_board'), 'has board')
   assert(ids.includes('read_light_colors'), 'has light colors')
+  assert(ids.includes('read_wireless_pwd'), 'has wireless pwd')
+  assert(ids.includes('read_wireless_pwd_ver'), 'has wireless pwd+ver')
+  const pwdPreset = presets.find((p) => p.id === 'read_wireless_pwd')
+  const verPreset = presets.find((p) => p.id === 'read_wireless_pwd_ver')
+  assert(pwdPreset?.build()[5] === 6, 'preset pwd len')
+  assert(verPreset?.build()[5] === 0x0a, 'preset ver len')
+  const matrixIdx = ids.indexOf('read_matrix_win_normal')
+  assert(ids.indexOf('read_wireless_pwd') < matrixIdx, '0x82 pwd before 0x83')
+  assert(ids.indexOf('read_wireless_pwd_ver') < matrixIdx, '0x82 ver before 0x83')
 }
 
 function testRk9007() {
@@ -681,6 +724,8 @@ async function testTlw() {
   infoData[14] = 0x2c
   infoData[15] = 0x01
   infoData[17] = 6
+  infoData[18] = 0x11
+  infoData[19] = 0x01
   infoData[21] = 0x0f
   infoData[22] = 0x32
   infoData[23] = 0xf2
@@ -688,12 +733,18 @@ async function testTlw() {
   const info = parseTlwBasicInfo(infoData)
   assert(info.valid && info.keyCount === 8 && info.keyBytes === 24, 'TLW basic keys')
   assert(info.macroBytes === 256 && info.dpiStageCount === 6, 'TLW basic dpi/macro')
+  assert(info.firmwareVersion === 'V0111', info.firmwareVersion ?? 'missing version')
   assert(info.vendorId === 0x320f && info.productId === 0x22f2, 'TLW VID PID')
+  const blankVer = new Uint8Array(infoData)
+  blankVer[18] = 0
+  blankVer[19] = 0
+  assert(parseTlwBasicInfo(blankVer).firmwareVersion == null, 'TLW blank version')
 
   const rx = buildTlwFrame({ cmd: TLW_FW_CMD.BASIC, len: 34, data: infoData, checksum: false })
   const text = parseTlwResponse(0x03, rx)
   assert(text.includes('320F:22F2'), text)
   assert(text.includes('按键=8'), text)
+  assert(text.includes('版本=V0111'), text)
 
   const keys = Uint8Array.from([0x10, 1, 0, 0x13, 1, 0, 0x70, 0, 0])
   const keyText = formatTlwKeys(keys, 3)
@@ -732,7 +783,9 @@ async function testTlw() {
   assert(tlw.checksum === 'none', 'TLW checksum none')
   const ids = tlw.presets.map((p) => p.id)
   assert(ids.includes('fw_basic'), 'TLW fw basic')
+  assert(ids.includes('fw_version'), 'TLW fw version')
   assert(ids.includes('cur_basic'), 'TLW current basic')
+  assert(ids.includes('cur_version'), 'TLW current version')
   assert(ids.includes('tlw_dump_all'), 'TLW dump')
   assert(ids.includes('tlw_dump_wireless'), 'TLW wireless dump')
   assert(ids.includes('doc_basic'), 'TLW doc basic')

@@ -65,6 +65,51 @@ export function parseBeiYingHex(text: string, bodyLen = BODY_LEN): Uint8Array {
   return padToLength(bytes, bodyLen)
 }
 
+function bytesAt(data: ArrayLike<number>, start: number, n: number): number[] {
+  const out: number[] = []
+  for (let i = 0; i < n; i++) out.push((data[start + i] ?? 0) & 0xff)
+  return out
+}
+
+function passwordText(bytes: number[]): string | undefined {
+  if (bytes.length === 0 || !bytes.every((b) => b >= 0x20 && b <= 0x7e)) return undefined
+  return String.fromCharCode(...bytes)
+}
+
+/**
+ * 0x82 读取键盘密码或宏空间。
+ * Val=1：6 字节密码；长度 0x0A 时版本为负载最后 2 字节，高字节在前（10 00 → 1000）。
+ * Val=0：4 字节宏空间，低位在前。
+ */
+function formatCmd82(
+  param: number,
+  data: ArrayLike<number>,
+  start: number,
+  len: number,
+): string[] {
+  if ((param & 0xff) === 0 && len >= 4) {
+    const size =
+      (data[start] ?? 0) |
+      ((data[start + 1] ?? 0) << 8) |
+      ((data[start + 2] ?? 0) << 16) |
+      ((data[start + 3] ?? 0) << 24)
+    return [`宏空间=${size >>> 0} 字节`]
+  }
+  const pwdN = Math.min(6, len)
+  if (pwdN <= 0) return []
+  const pwd = bytesAt(data, start, pwdN)
+  const lines = [`无线密码=${toHex(pwd)}`]
+  const text = passwordText(pwd)
+  if (text) lines.push(`密码文本=${text}`)
+  if (len >= 0x0a) {
+    const hi = (data[start + len - 2] ?? 0) & 0xff
+    const lo = (data[start + len - 1] ?? 0) & 0xff
+    const ver = (hi << 8) | lo
+    lines.push(`版本=${ver.toString(16).toUpperCase().padStart(4, '0')}`)
+  }
+  return lines
+}
+
 function chargeLabel(status: number): string {
   const charging = (status >> 4) & 0x0f
   const full = status & 0x0f
@@ -151,6 +196,12 @@ export function parseBeiYingResponse(_cmd: number, data: ArrayLike<number>): str
     `负载长度=${len}`,
   ]
 
+  // 0x82 Val=1：6 字节无线密码；0x0A 时版本为负载最后 2 字节。Val=0：4 字节宏空间 LE。
+  if ((cmd & 0xff) === 0x82 && len > 0) {
+    const extra = formatCmd82(param, data, payloadStart, len)
+    if (extra.length > 0) return [...head, ...extra].join('\n')
+  }
+
   // Battery 0x87: 2 bytes
   if ((cmd & 0xff) === 0x87 && len >= 2) {
     const pct = data[payloadStart] ?? 0
@@ -189,6 +240,34 @@ export function parseBeiYingResponse(_cmd: number, data: ArrayLike<number>): str
 /** Read presets aligned with BY USB examples (board=1 unless noted). */
 const PRESETS: PresetCommand[] = [
   // —— 读取 ——
+  {
+    id: 'read_wireless_pwd',
+    label: '读无线密码 6B (0x82)',
+    cmd: 0x82,
+    build: () =>
+      buildBeiYingFrame({
+        cmd: 0x82,
+        param: 0x01,
+        board: 0x00,
+        packs: 1,
+        seq: 0,
+        dataLen: 6,
+      }),
+  },
+  {
+    id: 'read_wireless_pwd_ver',
+    label: '读无线密码和版本号 len=0x0A (0x82)',
+    cmd: 0x82,
+    build: () =>
+      buildBeiYingFrame({
+        cmd: 0x82,
+        param: 0x01,
+        board: 0x00,
+        packs: 1,
+        seq: 0,
+        dataLen: 0x0a,
+      }),
+  },
   {
     id: 'read_matrix_win_normal',
     label: '读按键矩阵 Win/Normal 板载1 (0x83)',

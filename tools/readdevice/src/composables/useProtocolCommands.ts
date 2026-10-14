@@ -46,6 +46,10 @@ function nowLabel(): string {
   return new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function applyChecksum(frame: Uint8Array, mode: ChecksumMode): Uint8Array {
   if (mode === 'ry_cs7') return applyRyCs7(frame)
   if (mode === 'tlw_cs') return applyTlwChecksum(frame)
@@ -225,6 +229,42 @@ export function useProtocolCommands() {
     rawHex.value = toHex(frame)
   }
 
+  async function dispatchExchange(
+    deviceId: string,
+    tx: Uint8Array,
+    cmdForParse: number,
+    reportId: number | undefined,
+    honorUi: boolean,
+    note?: string,
+  ) {
+    const ch = honorUi
+      ? channel.value
+      : forceOutputProtocol(protocolId.value)
+        ? 'output'
+        : channel.value
+    if (!honorUi && forceOutputProtocol(protocolId.value)) channel.value = 'output'
+    const ridNote = reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
+    const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
+    setRequestDisplay(tx)
+    pushLog('TX', requestHex.value, [ridNote, ch, `${tx.length}B`, note].filter(Boolean).join(' '))
+    const response = await backend.exchangeReport(deviceId, tx, {
+      timeoutMs:
+        forceOutputProtocol(protocolId.value)
+          ? Math.max(timeoutMs.value, 1200)
+          : timeoutMs.value,
+      reportId,
+      channel: ch,
+      usagePageHint: profile.value.usagePageHint,
+      expectPrefix: tlwPrefixes ? tlwPrefixes[0] : undefined,
+      expectPrefixAlts: tlwPrefixes,
+      assembleSparkLink: protocolId.value === 'sparklink',
+    })
+    setResponseDisplay(response)
+    pushLog('RX', responseHex.value)
+    parsedText.value = profile.value.parseResponse(cmdForParse, response)
+    return response
+  }
+
   async function exchange(
     deviceId: string,
     frame: Uint8Array,
@@ -237,43 +277,55 @@ export function useProtocolCommands() {
     clearResultDisplay()
     parsedText.value = ''
     try {
-      const tx =
-        protocolId.value === 'tlw' ? prepareTlwFrame(deviceId, frame) : frame
-      setRequestDisplay(tx)
-      const reportId = parseReportId()
+      const tx = protocolId.value === 'tlw' ? prepareTlwFrame(deviceId, frame) : frame
       const honorUi = options?.honorUi === true
-      const ch = honorUi
-        ? channel.value
-        : forceOutputProtocol(protocolId.value)
-          ? 'output'
-          : channel.value
-      if (!honorUi && forceOutputProtocol(protocolId.value)) channel.value = 'output'
-      const ridNote =
-        reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
-      const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
-      pushLog('TX', requestHex.value, `${ridNote} ${ch} ${tx.length}B`)
-      const response = await backend.exchangeReport(deviceId, tx, {
-        timeoutMs:
-          forceOutputProtocol(protocolId.value)
-            ? Math.max(timeoutMs.value, 1200)
-            : timeoutMs.value,
-        reportId,
-        channel: ch,
-        usagePageHint: profile.value.usagePageHint,
-        expectPrefix: tlwPrefixes ? tlwPrefixes[0] : undefined,
-        expectPrefixAlts: tlwPrefixes,
-        assembleSparkLink: protocolId.value === 'sparklink',
-      })
-      setResponseDisplay(response)
-      pushLog('RX', responseHex.value)
-      parsedText.value = profile.value.parseResponse(cmdForParse, response)
-      return response
+      try {
+        return await dispatchExchange(deviceId, tx, cmdForParse, parseReportId(), honorUi)
+      } catch (e) {
+        if (!confirmSwitchBeiYingTo06()) throw e
+        reportIdText.value = formatReportIdText(0x06)
+        reportIdDirty.value = true
+        // 0x09 的失败控制传输会把管道停住，紧接着第一次 0x06 经常失败，再发一次才通。
+        let last: unknown = e
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (attempt > 0) await sleep(80)
+          try {
+            return await dispatchExchange(
+              deviceId,
+              tx,
+              cmdForParse,
+              0x06,
+              honorUi,
+              attempt > 0 ? '重试' : undefined,
+            )
+          } catch (err) {
+            last = err
+          }
+        }
+        throw last
+      }
     } catch (e) {
       error.value = String(e)
       throw e
     } finally {
       busy.value = false
     }
+  }
+
+  /** 贝盈当前是 0x09 且收发失败时询问；确认后由调用方改成 0x06 并重发。 */
+  function confirmSwitchBeiYingTo06(): boolean {
+    if (protocolId.value !== 'beiying') return false
+    let rid: number | undefined
+    try {
+      rid = parseReportId()
+    } catch {
+      return false
+    }
+    if (rid !== 0x09) return false
+    return (
+      typeof window !== 'undefined' &&
+      window.confirm('Report ID 0x09 收发失败，是否切换成 0x06？')
+    )
   }
 
   /** 底层单次收发（不切换 busy；供多包流程复用）。 */
