@@ -40,6 +40,7 @@ const {
   readHsKeymap,
   readSlkDefKey,
   readTlwSnapshot,
+  readRdrSnapshot,
   clearLog,
   buildPresetFrame,
   setProtocol,
@@ -106,6 +107,30 @@ const previewHex = computed(() => {
 
 const canSend = computed(() => !!props.deviceId && !props.disabled && !busy.value)
 
+const showDump = computed(
+  () =>
+    protocolId.value === 'hs' ||
+    protocolId.value === 'jp' ||
+    protocolId.value === 'sparklink' ||
+    protocolId.value === 'tlw' ||
+    protocolId.value === 'rdr',
+)
+
+const dumpLabel = computed(() =>
+  protocolId.value === 'tlw' || protocolId.value === 'rdr' ? '读取设备快照' : '读取全盘按键',
+)
+
+const dumpTitle = computed(() => {
+  if (protocolId.value === 'sparklink') return '三次 DEFKEY 读 6×21 默认键值，输出可复制数组'
+  if (protocolId.value === 'tlw') {
+    return '当前固件（A3/A5/A7/A8/BA，Cs=00）分包读基本信息 / 功能区 / 按键 / 电量'
+  }
+  if (protocolId.value === 'rdr') {
+    return '先发 0x10，再按 56 字节分包读取设备信息、功能区、按键矩阵 1、宏头、电量和 2.4G'
+  }
+  return '分包发送 82 01 get_buffer，解析为每层可复制数组'
+})
+
 const lenWarn = computed(() => {
   if (!rawHex.value.trim()) return ''
   const expected = bodyLen.value
@@ -140,6 +165,8 @@ async function onReadHsKeymap() {
       await readSlkDefKey(props.deviceId)
     } else if (protocolId.value === 'tlw') {
       await readTlwSnapshot(props.deviceId)
+    } else if (protocolId.value === 'rdr') {
+      await readRdrSnapshot(props.deviceId)
     } else {
       await readHsKeymap(props.deviceId)
     }
@@ -311,20 +338,14 @@ const checksumOptions: { value: ChecksumMode; label: string }[] = [
         </button>
         <button type="button" @click="onSendPreset" :disabled="!canSend || !presetId">发送</button>
         <button
-          v-if="protocolId === 'hs' || protocolId === 'jp' || protocolId === 'sparklink' || protocolId === 'tlw'"
+          v-if="showDump"
           type="button"
           class="secondary"
           @click="onReadHsKeymap"
           :disabled="!canSend"
-          :title="
-            protocolId === 'sparklink'
-              ? '三次 DEFKEY 读 6×21 默认键值，输出可复制数组'
-              : protocolId === 'tlw'
-                ? '当前固件（A3/A5/A7/A8/BA，Cs=00）分包读基本信息 / 功能区 / 按键 / 电量'
-                : '分包发送 82 01 get_buffer，解析为每层可复制数组'
-          "
+          :title="dumpTitle"
         >
-          {{ protocolId === 'tlw' ? '读取设备快照' : '读取全盘按键' }}
+          {{ dumpLabel }}
         </button>
         <button type="button" class="secondary" @click="onToggleAddForm" :disabled="busy">
           {{ showAddForm ? '取消添加' : '添加预设' }}

@@ -4,6 +4,7 @@ import { hsProfile } from './hs'
 import { jpProfile } from './jp'
 import { kb250718Profile } from './kb250718'
 import { rk9007Profile } from './rk9007'
+import { rdrProfile } from './rdr'
 import { ry5088Profile } from './ry5088'
 import { sparklinkProfile } from './sparklink'
 import { tlwProfile } from './tlw'
@@ -18,6 +19,7 @@ export const PROTOCOL_PROFILES: ProtocolProfile[] = [
   jpProfile,
   sparklinkProfile,
   tlwProfile,
+  rdrProfile,
   customProfile,
 ]
 

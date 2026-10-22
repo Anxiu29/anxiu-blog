@@ -86,6 +86,20 @@ import {
   TLW_WIRELESS_ROUTE_INDEX,
   TLW_WIRELESS_ROUTE,
 } from './tlw'
+import {
+  buildRdrFrame,
+  dumpRdrSnapshot,
+  extractRdrData,
+  formatRdrKeys,
+  formatRdrLedIndex,
+  parseRdrDeviceInfo,
+  parseRdrPacket,
+  parseRdrResponse,
+  rdrExpectPrefix,
+  RDR_CMD,
+  RDR_FRAME_LEN,
+  RDR_OK,
+} from './rdr'
 import { getProtocol, listProtocols } from './registry'
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -851,6 +865,149 @@ async function testTlw() {
   assert(wl.text.includes('无线 24B'), wl.text)
 }
 
+async function testRdr() {
+  const start = buildRdrFrame({ cmd: RDR_CMD.START, len: 0 })
+  assert(start.length === RDR_FRAME_LEN, 'RDR frame 64')
+  assert(start[0] === 0xaa && start[1] === 0x10 && start[4] === 0 && start[7] === 0, 'RDR start header')
+  assert(start.slice(8).every((b) => b === 0), 'RDR start no data')
+
+  const infoTx = buildRdrFrame({ cmd: RDR_CMD.READ_INFO, len: 56 })
+  assert(infoTx[1] === 0x12 && infoTx[4] === 56, 'RDR info len 56')
+  const prefix = rdrExpectPrefix(infoTx)
+  assert(!!prefix && prefix[0] === 0xaa && prefix[1] === 0x12, 'RDR expect AA 12')
+
+  const example = new Uint8Array(8)
+  example[0] = 0xaa
+  example[1] = 0x2e
+  example[7] = RDR_OK
+  const examplePkt = parseRdrPacket(example)
+  assert(examplePkt.cmd === 0x2e && examplePkt.result === RDR_OK && examplePkt.len === 0, 'RDR example packet')
+  assert(parseRdrResponse(0x2e, example).includes('同步控制灯光'), 'RDR 0x2E is LED sync in enum')
+
+  example[7] = 0x0f
+  let failed = false
+  try {
+    extractRdrData(example, 0x2e)
+  } catch (e) {
+    failed = String(e).includes('0x0F')
+  }
+  assert(failed, 'RDR 0x0F throws')
+
+  const keys = formatRdrKeys([0x10, 0x01, 0x04, 0x40, 0x00, 0x01, 0x40, 0x00, 0x02, 0x70, 0x00, 0x03, 0, 0, 0])
+  assert(keys.includes('LCtrl+A'), keys)
+  assert(keys.includes('左键') && keys.includes('右键'), keys)
+  assert(keys.includes('火力键'), keys)
+  assert(keys.includes('省略'), keys)
+  assert(formatRdrLedIndex([0x00, 0x02, 0xff, 0x01]).includes('灯数量=3'), 'RDR led count')
+
+  const info = new Uint8Array(64)
+  info[0] = 0xaa
+  info[1] = 0xbb
+  info[12] = 0
+  info[13] = 0
+  info[25] = 0
+  assert(parseRdrDeviceInfo(info).role === 'receiver', 'RDR receiver role')
+
+  let calls = 0
+  let sawStop = false
+  const dump = await dumpRdrSnapshot(
+    async (frame) => {
+      calls += 1
+      const rx = new Uint8Array(frame)
+      rx[7] = RDR_OK
+      const cmd = frame[1] ?? 0
+      const addr = (frame[2] ?? 0) | ((frame[3] ?? 0) << 8)
+      const data = rx.subarray(8)
+      if (cmd === RDR_CMD.STOP) sawStop = true
+      if (cmd === RDR_CMD.READ_INFO && addr === 0) {
+        data[0] = 0xaa
+        data[1] = 0xbb
+        data[2] = 0xb0
+        data[3] = 0x36
+        data[4] = 0xff
+        data[5] = 0x33
+        data[6] = 0x02
+        data[7] = 0x01
+        data[8] = 0x01
+        data[9] = 0x01
+        data[11] = 1
+        data[12] = 6
+        data[13] = 12
+        data[14] = 1
+        data[25] = 0x10
+        data[26] = 4
+        data[27] = 8
+      }
+      if (cmd === RDR_CMD.READ_FUNC && addr === 0) {
+        data[11] = 0
+        data[12] = 1
+        data[15] = 60
+        data[30] = 1
+        data[32] = 0x20
+        data[33] = 0x03
+        data[34] = 0x20
+        data[35] = 0x03
+        data[36] = 0xff
+      }
+      if (cmd === RDR_CMD.READ_DEFAULT_MATRIX1 && addr === 0) {
+        data[0] = 0x40
+        data[2] = 0x02
+      }
+      if (cmd === RDR_CMD.READ_MATRIX1 && addr === 0) {
+        data[0] = 0x40
+        data[2] = 0x01
+      }
+      if (cmd === RDR_CMD.READ_MACRO) {
+        data[0] = 0xaa
+        data[1] = 0x55
+        data[2] = 24
+        data[4] = 1
+        data[8] = 16
+        data[16] = 1
+        data[20] = 10
+        data[22] = 0x04
+        data[23] = 0x81
+      }
+      if (cmd === RDR_CMD.READ_BATT) data[0] = 0x50
+      if (cmd === RDR_CMD.RF24) data[0] = 0xff
+      return rx
+    },
+    { gapMs: 0 },
+  )
+  assert(calls === 12, `RDR dump calls ${calls}`)
+  assert(sawStop, 'RDR dump ends session')
+  assert(dump.text.includes('36B0:33FF'), dump.text)
+  assert(dump.text.includes('0x0102'), dump.text)
+  assert(dump.text.includes('双8K三模'), dump.text)
+  assert(dump.text.includes('PAW3311'), dump.text)
+  assert(dump.text.includes('1000 Hz'), dump.text)
+  assert(dump.text.includes('X=800'), dump.text)
+  assert(dump.text.includes('60s'), dump.text)
+  assert(dump.text.includes('右键') && dump.text.includes('左键'), dump.text)
+  assert(dump.text.includes('宏组数=1'), dump.text)
+  assert(dump.text.includes('按下/左/上'), dump.text)
+  assert(dump.text.includes('50'), dump.text)
+
+  let stoppedAfterFail = false
+  let rejected = false
+  try {
+    await dumpRdrSnapshot(
+      async (frame) => {
+        const rx = new Uint8Array(frame)
+        const cmd = frame[1] ?? 0
+        rx[7] = cmd === RDR_CMD.START || cmd === RDR_CMD.STOP ? RDR_OK : 0x0f
+        if (cmd === RDR_CMD.STOP) stoppedAfterFail = true
+        return rx
+      },
+      { gapMs: 0 },
+    )
+  } catch (e) {
+    rejected = String(e).includes('0x0F')
+  }
+  assert(rejected, 'RDR info fail rejects')
+  assert(stoppedAfterFail, 'RDR stop after failed read')
+}
+
 function testRegistry() {
   const ids = listProtocols().map((p) => p.id)
   assert(ids.includes('ry5088'), 'has ry5088')
@@ -862,6 +1019,7 @@ function testRegistry() {
   assert(ids.includes('jp'), 'has jp')
   assert(ids.includes('sparklink'), 'has sparklink')
   assert(ids.includes('tlw'), 'has tlw')
+  assert(ids.includes('rdr'), 'has rdr')
   assert(ids.includes('custom'), 'has custom')
   assert(getProtocol('beiying').reportId === 0x09, 'BY report id default')
   assert(getProtocol('beiying').bodyLen === 519, 'BY body len')
@@ -877,6 +1035,12 @@ function testRegistry() {
   assert(getProtocol('tlw').label.includes('TLW'), 'TLW label')
   assert(getProtocol('tlw').reportId === 4, 'TLW RID in registry')
   assert(getProtocol('tlw').vids?.includes('320F'), 'TLW VID in registry')
+  assert(getProtocol('rdr').label.includes('睿鼎荣'), 'RDR label')
+  assert(getProtocol('rdr').bodyLen === 64, 'RDR body 64')
+  assert(getProtocol('rdr').reportId === 0, 'RDR no report id')
+  assert(getProtocol('rdr').channel === 'output', 'RDR output channel')
+  assert(getProtocol('rdr').vids?.includes('36B0'), 'RDR VID 36B0')
+  assert(getProtocol('rdr').presets.some((p) => p.id === 'rdr_dump_all'), 'RDR dump preset')
 
   const custom = getProtocol('custom')
   assert(custom.reportId === 0, 'custom default report id 0')
@@ -898,6 +1062,7 @@ async function main() {
   await testJp()
   await testSparklink()
   await testTlw()
+  await testRdr()
   testRegistry()
   console.log('protocol selftest OK')
 }

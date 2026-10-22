@@ -5,6 +5,7 @@ import { applyCustomChecksum } from '../protocol/custom'
 import { dumpHsKeymapBuffer } from '../protocol/hs'
 import { buildJpGetBufferFrame } from '../protocol/jp'
 import { dumpSlkDefKeyMatrix } from '../protocol/sparklink'
+import { dumpRdrSnapshot, rdrExpectPrefixes } from '../protocol/rdr'
 import {
   applyTlwChecksum,
   applyTlwWirelessRoute,
@@ -71,6 +72,12 @@ function tlwLinkMode(deviceId: string): TlwLinkMode {
 
 function prepareTlwFrame(deviceId: string, frame: Uint8Array): Uint8Array {
   return tlwLinkMode(deviceId) === 'wireless' ? applyTlwWirelessRoute(frame) : frame
+}
+
+function expectPrefixesFor(protocol: string, frame: Uint8Array): number[][] | undefined {
+  if (protocol === 'tlw') return tlwExpectPrefixes(frame)
+  if (protocol === 'rdr') return rdrExpectPrefixes(frame)
+  return undefined
 }
 
 export function useProtocolCommands() {
@@ -244,7 +251,7 @@ export function useProtocolCommands() {
         : channel.value
     if (!honorUi && forceOutputProtocol(protocolId.value)) channel.value = 'output'
     const ridNote = reportId == null ? 'RID=auto' : `RID=${formatReportIdText(reportId)}`
-    const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
+    const wirePrefixes = expectPrefixesFor(protocolId.value, tx)
     setRequestDisplay(tx)
     pushLog('TX', requestHex.value, [ridNote, ch, `${tx.length}B`, note].filter(Boolean).join(' '))
     const response = await backend.exchangeReport(deviceId, tx, {
@@ -255,8 +262,8 @@ export function useProtocolCommands() {
       reportId,
       channel: ch,
       usagePageHint: profile.value.usagePageHint,
-      expectPrefix: tlwPrefixes ? tlwPrefixes[0] : undefined,
-      expectPrefixAlts: tlwPrefixes,
+      expectPrefix: wirePrefixes ? wirePrefixes[0] : undefined,
+      expectPrefixAlts: wirePrefixes,
       assembleSparkLink: protocolId.value === 'sparklink',
     })
     setResponseDisplay(response)
@@ -341,7 +348,7 @@ export function useProtocolCommands() {
   ): Promise<Uint8Array> {
     const reportId = parseReportId()
     const tx = protocolId.value === 'tlw' ? prepareTlwFrame(deviceId, frame) : frame
-    const tlwPrefixes = protocolId.value === 'tlw' ? tlwExpectPrefixes(tx) : undefined
+    const wirePrefixes = expectPrefixesFor(protocolId.value, tx)
     setRequestDisplay(tx)
     pushLog('TX', requestHex.value)
     const response = await backend.exchangeReport(deviceId, tx, {
@@ -349,8 +356,8 @@ export function useProtocolCommands() {
       reportId,
       channel: options?.channel ?? channel.value,
       usagePageHint: profile.value.usagePageHint,
-      expectPrefix: tlwPrefixes ? tlwPrefixes[0] : options?.expectPrefix,
-      expectPrefixAlts: tlwPrefixes,
+      expectPrefix: wirePrefixes ? wirePrefixes[0] : options?.expectPrefix,
+      expectPrefixAlts: wirePrefixes ?? (options?.expectPrefix ? [options.expectPrefix] : undefined),
       assembleSparkLink: options?.assembleSparkLink,
     })
     setResponseDisplay(response)
@@ -429,6 +436,37 @@ export function useProtocolCommands() {
     }
   }
 
+  /** 睿鼎荣：0x10 开始后按 56 字节分包读设备信息、功能区、矩阵 1、宏头、电量和 2.4G。 */
+  async function readRdrSnapshot(deviceId: string) {
+    if (!deviceId) throw new Error('请先选择设备')
+    if (protocolId.value !== 'rdr') throw new Error('请先切换到睿鼎荣 RDR 协议')
+    busy.value = true
+    error.value = ''
+    parsedText.value = ''
+    try {
+      const result = await dumpRdrSnapshot(
+        (frame, expectPrefix) =>
+          exchangeOnce(deviceId, frame, {
+            expectPrefix,
+            timeoutMs: Math.max(timeoutMs.value, 1200),
+          }),
+        {
+          gapMs: 20,
+          onProgress: ({ step, index, total }) => {
+            parsedText.value = `读取睿鼎荣… ${index + 1}/${total}（${step}）`
+          },
+        },
+      )
+      parsedText.value = result.text
+      return result
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
   /** 星闪：三次 DEFKEY 读完 6×21 默认键值，格式同航晟可复制数组（十六进制）。 */
   async function readSlkDefKey(deviceId: string) {
     if (!deviceId) throw new Error('请先选择设备')
@@ -476,6 +514,9 @@ export function useProtocolCommands() {
     }
     if (presetId === 'tlw_dump_wireless') {
       return readTlwSnapshot(deviceId, { mode: 'wireless' })
+    }
+    if (presetId === 'rdr_dump_all') {
+      return readRdrSnapshot(deviceId)
     }
     const preset = findPreset(presetId)
     if (!preset) throw new Error('未知预设指令')
@@ -575,6 +616,7 @@ export function useProtocolCommands() {
     readHsKeymap,
     readSlkDefKey,
     readTlwSnapshot,
+    readRdrSnapshot,
     clearLog,
     buildPresetFrame,
     setProtocol,
