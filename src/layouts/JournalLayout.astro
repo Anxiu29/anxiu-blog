@@ -1,26 +1,64 @@
 ---
-import Icon from '@/components/journal/Icon.astro';
-import SearchPanel from '@/components/journal/SearchPanel.astro';
-import BackgroundSettings from '@/components/journal/BackgroundSettings.astro';
-import {discoveryRecords} from '@/data/blog-discovery';
-import {tools,projectNotes} from '@/data/tools';
-import {getSortedPosts} from '@/utils/content-utils';
-import {getPostUrlBySlug} from '@/utils/url-utils';
-import {siteConfig} from '@/config/siteConfig';
-import '@/styles/journal.css';
-import '@/styles/sky-blog.css';
-import '@/styles/blog-discovery.css';
-import '@/styles/editorial.css';
-import '@/styles/browsing.css';
-import '@/styles/reference-pass.css';
-import '@/styles/background-settings.css';
-import '@/styles/wallpaper-layout.css';
-interface Props {title?:string;description?:string;active?:string;noindex?:boolean;}
-const {title,description=siteConfig.description,active='文章',noindex=false}=Astro.props;
-const posts=await getSortedPosts();
-const records=[...posts.filter(p=>!p.data.password).map(p=>({title:p.data.title,description:p.data.description,url:getPostUrlBySlug(p.id),type:'文章',text:(p.body||'')+' '+p.data.tags.join(' ')+' '+p.data.category})),...tools.map(t=>({title:t.title,description:t.description,url:t.href,type:'工具',text:t.keywords})),...projectNotes,...discoveryRecords];
-const canonical=new URL(Astro.url.pathname,siteConfig.site_url);
-const nav=[['首页','/'],['文章','/archive/'],['工具','/tools/'],['作品','/projects/'],['逛逛','/series/'],['关于','/about/']];
+import BackgroundSettings from "@/components/journal/BackgroundSettings.astro";
+import Icon from "@/components/journal/Icon.astro";
+import SearchPanel from "@/components/journal/SearchPanel.astro";
+import { siteConfig } from "@/config/siteConfig";
+import { discoveryRecords } from "@/data/blog-discovery";
+import { projectNotes, tools } from "@/data/tools";
+import { getSortedPosts } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import "@/styles/journal.css";
+import "@/styles/sky-blog.css";
+import "@/styles/blog-discovery.css";
+import "@/styles/editorial.css";
+import "@/styles/browsing.css";
+import "@/styles/reference-pass.css";
+import "@/styles/background-settings.css";
+import "@/styles/wallpaper-layout.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+	active?: string;
+	noindex?: boolean;
+}
+const {
+	title,
+	description = siteConfig.description,
+	active = "文章",
+	noindex = false,
+} = Astro.props;
+const posts = await getSortedPosts();
+const records = [
+	...posts
+		.filter((p) => !p.data.password)
+		.map((p) => ({
+			title: p.data.title,
+			description: p.data.description,
+			url: getPostUrlBySlug(p.id),
+			type: "文章",
+			text:
+				(p.body || "") + " " + p.data.tags.join(" ") + " " + p.data.category,
+		})),
+	...tools.map((t) => ({
+		title: t.title,
+		description: t.description,
+		url: t.href,
+		type: "工具",
+		text: t.keywords,
+	})),
+	...projectNotes,
+	...discoveryRecords,
+];
+const canonical = new URL(Astro.url.pathname, siteConfig.site_url);
+const nav = [
+	["首页", "/"],
+	["文章", "/archive/"],
+	["工具", "/tools/"],
+	["作品", "/projects/"],
+	["逛逛", "/series/"],
+	["关于", "/about/"],
+];
 ---
 <!doctype html>
 <html lang="zh-CN"><head>

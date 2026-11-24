@@ -1,16 +1,35 @@
 ---
-import {getSortedPosts} from '@/utils/content-utils';
-import {getPostUrlBySlug} from '@/utils/url-utils';
-import Icon from './Icon.astro';
-const posts=await getSortedPosts();
-const choices=[
-  {id:'webhid-tool-guide',label:'设备通信',reason:'从授权、发包到观察回包，分清“调用成功”和“设备生效”。'},
-  {id:'webhid-workbench',label:'联调工具',reason:'记录一次网页操作的报文，用快照对照发送与接收过程。'},
-  {id:'glassboard-maintenance',label:'维护实践',reason:'从 Dock 交互到系统适配，看看已有桌面项目需要核对哪些边界。'},
+import { getSortedPosts } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import Icon from "./Icon.astro";
+
+const posts = await getSortedPosts();
+const choices = [
+	{
+		id: "webhid-tool-guide",
+		label: "设备通信",
+		reason: "从授权、发包到观察回包，分清“调用成功”和“设备生效”。",
+	},
+	{
+		id: "webhid-workbench",
+		label: "联调工具",
+		reason: "记录一次网页操作的报文，用快照对照发送与接收过程。",
+	},
+	{
+		id: "glassboard-maintenance",
+		label: "维护实践",
+		reason: "从 Dock 交互到系统适配，看看已有桌面项目需要核对哪些边界。",
+	},
 ];
-const entries=choices.flatMap(choice=>{
-  const post=posts.find(p=>p.id.replace(/\.(md|mdx)$/,'')===choice.id&&!p.data.draft&&!p.data.templateDemo&&!p.data.password);
-  return post?[{...choice,post}]:[];
+const entries = choices.flatMap((choice) => {
+	const post = posts.find(
+		(p) =>
+			p.id.replace(/\.(md|mdx)$/, "") === choice.id &&
+			!p.data.draft &&
+			!p.data.templateDemo &&
+			!p.data.password,
+	);
+	return post ? [{ ...choice, post }] : [];
 });
 ---
 {entries.length>0&&<section class="home-reading" aria-labelledby="start-reading-heading">

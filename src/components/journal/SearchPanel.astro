@@ -1,8 +1,11 @@
 ---
-import Icon from './Icon.astro';
-interface Props {dialog?:boolean;}
-const {dialog=false}=Astro.props;
-const prefix=dialog?'site':'page';
+import Icon from "./Icon.astro";
+
+interface Props {
+	dialog?: boolean;
+}
+const { dialog = false } = Astro.props;
+const prefix = dialog ? "site" : "page";
 ---
 <div class:list={['search-panel',{'search-page-panel':!dialog}]} data-site-search data-search-page={!dialog||undefined}>
   <form role="search" data-search-form>

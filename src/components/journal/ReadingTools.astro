@@ -1,7 +1,10 @@
 ---
-import Icon from './Icon.astro';
-interface Props {url:string;}
-const {url}=Astro.props;
+import Icon from "./Icon.astro";
+
+interface Props {
+	url: string;
+}
+const { url } = Astro.props;
 ---
 <div class="reading-progress" aria-hidden="true"><span id="reading-progress-fill"></span></div>
 <div class="reading-tools" aria-label="阅读工具"><div><label for="reading-size">字号</label><select id="reading-size"><option value="default">标准</option><option value="large">稍大</option><option value="xlarge">大字</option></select></div><span class="reading-percent" id="reading-percent" aria-label="正文阅读进度">0%</span><button id="copy-article-link" type="button" data-url={url}>复制链接 <Icon name="arrow"/></button><span id="article-copy-status" class="sr-only" role="status" aria-live="polite"></span></div>

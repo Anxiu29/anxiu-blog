@@ -1,17 +1,23 @@
 ---
-import type {GetStaticPaths,Page} from 'astro';
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import BlogSidebar from '@/components/journal/BlogSidebar.astro';
-import PostList from '@/components/journal/PostList.astro';
-import HomeDiscovery from '@/components/journal/HomeDiscovery.astro';
-import SeriesGrid from '@/components/journal/SeriesGrid.astro';
-import HomeReading from '@/components/journal/HomeReading.astro';
-import {getCategoryList} from '@/utils/content-utils';
-import {getSortedPosts,type PostForList} from '@/utils/content-utils';
-import {siteConfig} from '@/config/siteConfig';
-export const getStaticPaths=(async({paginate})=>paginate(await getSortedPosts(),{pageSize:siteConfig.pagination.postsPerPage||8})) satisfies GetStaticPaths;
-const {page}=Astro.props as {page:Page<PostForList>};
-const categories=await getCategoryList();
+import type { GetStaticPaths, Page } from "astro";
+import BlogSidebar from "@/components/journal/BlogSidebar.astro";
+import HomeDiscovery from "@/components/journal/HomeDiscovery.astro";
+import HomeReading from "@/components/journal/HomeReading.astro";
+import PostList from "@/components/journal/PostList.astro";
+import SeriesGrid from "@/components/journal/SeriesGrid.astro";
+import { siteConfig } from "@/config/siteConfig";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import {
+	getCategoryList,
+	getSortedPosts,
+	type PostForList,
+} from "@/utils/content-utils";
+export const getStaticPaths = (async ({ paginate }) =>
+	paginate(await getSortedPosts(), {
+		pageSize: siteConfig.pagination.postsPerPage || 8,
+	})) satisfies GetStaticPaths;
+const { page } = Astro.props as { page: Page<PostForList> };
+const categories = await getCategoryList();
 ---
 <JournalLayout title={page.currentPage>1?'文章 · 第 '+page.currentPage+' 页':undefined} active="首页">
   {page.currentPage===1&&<HomeDiscovery/>}

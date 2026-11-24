@@ -1,10 +1,15 @@
 ---
-import {getPostUrlBySlug} from '@/utils/url-utils';
-import {getPostMedia} from '@/data/post-media';
-import Icon from './Icon.astro';
-import type {PostForList} from '@/utils/content-utils';
-interface Props{posts:PostForList[];filterable?:boolean;headingLevel?:'h2'|'h3';}
-const {posts,filterable=false,headingLevel:Heading='h3'}=Astro.props;
+import { getPostMedia } from "@/data/post-media";
+import type { PostForList } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import Icon from "./Icon.astro";
+
+interface Props {
+	posts: PostForList[];
+	filterable?: boolean;
+	headingLevel?: "h2" | "h3";
+}
+const { posts, filterable = false, headingLevel: Heading = "h3" } = Astro.props;
 ---
 <div class="post-list">{posts.map(post=>{const entryMedia=getPostMedia(post.id);const media=entryMedia?.thumbnail===false?undefined:entryMedia;return <article class:list={['post-row',{'has-cover':!!media}]} data-post-row={filterable?'':undefined} data-filter-text={post.data.title+' '+post.data.description+' '+post.data.tags.join(' ')} data-category={post.data.category||''} data-tags={post.data.tags.join('|')}>
   {media&&<a class="post-cover" href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true"><img src={media.src} alt="" width={media.width} height={media.height} loading="lazy"/></a>}

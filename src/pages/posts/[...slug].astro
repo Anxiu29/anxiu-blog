@@ -1,26 +1,44 @@
 ---
-import {render,type CollectionEntry} from 'astro:content';
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import PostList from '@/components/journal/PostList.astro';
-import EncryptedPost from '@/components/features/EncryptedPost.astro';
-import KatexManager from '@/components/features/KatexManager.astro';
-import Comment from '@/components/comment/index.astro';
-import {getSortedPosts,getRelatedPosts} from '@/utils/content-utils';
-import {getPostMedia} from '@/data/post-media';
-import {series} from '@/data/blog-discovery';
-import ReadingTools from '@/components/journal/ReadingTools.astro';
-import SeriesNavigation from '@/components/journal/SeriesNavigation.astro';
-import {siteConfig} from '@/config/siteConfig';
-import {removeFileExtension} from '@/utils/url-utils';
-interface Props {entry:CollectionEntry<'posts'>;}
-export async function getStaticPaths(){return (await getSortedPosts({includeTemplateDemos:true})).map(entry=>({params:{slug:removeFileExtension(entry.id)},props:{entry}}));}
-const {entry}=Astro.props;
-const {Content,headings}=await render(entry);
-const toc=headings.filter(h=>h.depth===2||h.depth===3).map(h=>({...h,text:h.text.replace(/#$/,'')}));
-const date=entry.data.published.toISOString().slice(0,10);
-const media=getPostMedia(entry.id);
-const topic=!entry.data.templateDemo&&!entry.data.password?series.find(s=>s.posts.includes(removeFileExtension(entry.id))):undefined;
-const related=!entry.data.templateDemo&&!entry.data.password?await getRelatedPosts(entry,2):[];
+import { type CollectionEntry, render } from "astro:content";
+import Comment from "@/components/comment/index.astro";
+import EncryptedPost from "@/components/features/EncryptedPost.astro";
+import KatexManager from "@/components/features/KatexManager.astro";
+import PostList from "@/components/journal/PostList.astro";
+import ReadingTools from "@/components/journal/ReadingTools.astro";
+import SeriesNavigation from "@/components/journal/SeriesNavigation.astro";
+import { siteConfig } from "@/config/siteConfig";
+import { series } from "@/data/blog-discovery";
+import { getPostMedia } from "@/data/post-media";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import { getRelatedPosts, getSortedPosts } from "@/utils/content-utils";
+import { removeFileExtension } from "@/utils/url-utils";
+
+interface Props {
+	entry: CollectionEntry<"posts">;
+}
+export async function getStaticPaths() {
+	return (await getSortedPosts({ includeTemplateDemos: true })).map(
+		(entry) => ({
+			params: { slug: removeFileExtension(entry.id) },
+			props: { entry },
+		}),
+	);
+}
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const toc = headings
+	.filter((h) => h.depth === 2 || h.depth === 3)
+	.map((h) => ({ ...h, text: h.text.replace(/#$/, "") }));
+const date = entry.data.published.toISOString().slice(0, 10);
+const media = getPostMedia(entry.id);
+const topic =
+	!entry.data.templateDemo && !entry.data.password
+		? series.find((s) => s.posts.includes(removeFileExtension(entry.id)))
+		: undefined;
+const related =
+	!entry.data.templateDemo && !entry.data.password
+		? await getRelatedPosts(entry, 2)
+		: [];
 ---
 <JournalLayout title={entry.data.title} description={entry.data.description} noindex={entry.data.templateDemo}>
   <KatexManager slot="head"/>

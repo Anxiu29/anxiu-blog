@@ -1,9 +1,16 @@
 ---
-import Icon from './Icon.astro';
-import {tools,toolCategories} from '@/data/tools';
-interface Props {headingLevel?: 'h2'|'h3';ids?:string[];directory?:boolean;}
-const {headingLevel:Heading='h3',ids,directory=false}=Astro.props;
-const entries=ids?ids.flatMap(id=>tools.filter(t=>t.id===id)):tools;
+import { toolCategories, tools } from "@/data/tools";
+import Icon from "./Icon.astro";
+
+interface Props {
+	headingLevel?: "h2" | "h3";
+	ids?: string[];
+	directory?: boolean;
+}
+const { headingLevel: Heading = "h3", ids, directory = false } = Astro.props;
+const entries = ids
+	? ids.flatMap((id) => tools.filter((t) => t.id === id))
+	: tools;
 ---
 <div class:list={['tool-collection',{directory}]} data-tool-collection>
   {directory&&<div class="tool-filters"><div class="filter-buttons" role="group" aria-label="工具类型">{toolCategories.map(c=><button type="button" data-category={c.id} aria-pressed={c.id==='all'}>{c.label}</button>)}</div><label class="tool-search"><Icon name="search"/><span class="sr-only">搜索工具</span><input type="search" placeholder="搜索工具" data-tool-search/></label></div>}

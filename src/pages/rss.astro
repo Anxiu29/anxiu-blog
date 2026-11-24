@@ -1,7 +1,8 @@
 ---
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import {siteConfig} from '@/config/siteConfig';
-const feedUrl=new URL('/rss.xml',siteConfig.site_url).href;
+import { siteConfig } from "@/config/siteConfig";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+
+const feedUrl = new URL("/rss.xml", siteConfig.site_url).href;
 ---
 <JournalLayout title="RSS 订阅" active="">
   <section class="page-intro"><h1>在阅读器里见。</h1><p>通过 RSS 订阅，收到这里的新文章。</p></section>

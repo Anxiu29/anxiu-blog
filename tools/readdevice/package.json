@@ -1,6 +1,7 @@
 {
   "name": "readdevice",
   "private": true,
+  "packageManager": "pnpm@9.14.4",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

@@ -1,14 +1,20 @@
 ---
-import {getCategoryList,getTagList} from '@/utils/content-utils';
-import {tools} from '@/data/tools';
-import {projects} from '@/data/projects';
-import Icon from './Icon.astro';
-import {updates,series} from '@/data/blog-discovery';
-import {getSortedPosts} from '@/utils/content-utils';
-const posts=await getSortedPosts();
-const projectCount=projects.length;
-const categories=await getCategoryList();
-const tags=(await getTagList()).sort((a,b)=>b.count-a.count).slice(0,12);
+import { series, updates } from "@/data/blog-discovery";
+import { projects } from "@/data/projects";
+import { tools } from "@/data/tools";
+import {
+	getCategoryList,
+	getSortedPosts,
+	getTagList,
+} from "@/utils/content-utils";
+import Icon from "./Icon.astro";
+
+const posts = await getSortedPosts();
+const projectCount = projects.length;
+const categories = await getCategoryList();
+const tags = (await getTagList())
+	.sort((a, b) => b.count - a.count)
+	.slice(0, 12);
 ---
 <aside class="blog-sidebar" aria-label="博客侧栏">
   <section class="sidebar-card profile-card"><div class="profile-cover" aria-hidden="true"><span>ANXIU</span><Icon name="keyboard"/></div><a class="profile-initial" href="/about/" aria-label="关于安秀">安</a><h2>安秀</h2><p>键鼠网页驱动开发，也写一些自己的小工具。</p><div class="profile-counts"><a href="/archive/"><strong>{posts.length}</strong><span>文章</span></a><a href="/tools/"><strong>{tools.length}</strong><span>工具</span></a><a href="/projects/"><strong>{projectCount}</strong><span>作品</span></a></div><div class="profile-links"><a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="/rss/">RSS 订阅</a><a href="/about/">关于</a></div></section>

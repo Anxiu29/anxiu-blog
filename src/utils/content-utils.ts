@@ -22,7 +22,9 @@ async function getRawSortedPosts(includeTemplateDemos = false) {
 	return sorted;
 }
 
-export async function getSortedPosts(options: {includeTemplateDemos?: boolean} = {}) {
+export async function getSortedPosts(
+	options: { includeTemplateDemos?: boolean } = {},
+) {
 	const sorted = await getRawSortedPosts(options.includeTemplateDemos);
 
 	for (let i = 1; i < sorted.length; i++) {

@@ -1,12 +1,31 @@
 ---
-import {tools} from '@/data/tools';
-import Icon from './Icon.astro';
-const choices=[
-  {id:'hid',title:'有协议，想验证一条指令',detail:'核对设备接口、Report ID 与数据长度，再发送并观察回包。',result:'对照协议解读响应，再实际操作设备确认效果。'},
-  {id:'workbench',title:'想看原网页发了什么',detail:'围绕一次操作记录报文，用快照比较操作前后的通信。',result:'保留发送、接收顺序与 JSON，方便后续对照。'},
-  {id:'align',title:'键位和背景图对不齐',detail:'在原项目中对照键盘图片调整位置、尺寸和整行布局。',result:'检查不同按键与整行的对齐效果，再按工具说明保存。'},
+import { tools } from "@/data/tools";
+import Icon from "./Icon.astro";
+
+const choices = [
+	{
+		id: "hid",
+		title: "有协议，想验证一条指令",
+		detail: "核对设备接口、Report ID 与数据长度，再发送并观察回包。",
+		result: "对照协议解读响应，再实际操作设备确认效果。",
+	},
+	{
+		id: "workbench",
+		title: "想看原网页发了什么",
+		detail: "围绕一次操作记录报文，用快照比较操作前后的通信。",
+		result: "保留发送、接收顺序与 JSON，方便后续对照。",
+	},
+	{
+		id: "align",
+		title: "键位和背景图对不齐",
+		detail: "在原项目中对照键盘图片调整位置、尺寸和整行布局。",
+		result: "检查不同按键与整行的对齐效果，再按工具说明保存。",
+	},
 ];
-const entries=choices.flatMap(choice=>{const tool=tools.find(t=>t.id===choice.id);return tool?[{...choice,tool}]:[];});
+const entries = choices.flatMap((choice) => {
+	const tool = tools.find((t) => t.id === choice.id);
+	return tool ? [{ ...choice, tool }] : [];
+});
 ---
 <section class="tool-paths" aria-labelledby="tool-paths-heading">
   <div class="tool-paths-heading"><h2 id="tool-paths-heading">按要解决的问题选工具</h2><p>手动测试、观察网页、调整布局，分别有对应的入口。</p></div>

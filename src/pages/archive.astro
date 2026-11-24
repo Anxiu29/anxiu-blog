@@ -1,10 +1,13 @@
 ---
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import PostList from '@/components/journal/PostList.astro';
-import BlogSidebar from '@/components/journal/BlogSidebar.astro';
-import {getSortedPosts} from '@/utils/content-utils';
-const posts=await getSortedPosts();
-const categories=[...new Set(posts.map(p=>p.data.category).filter(Boolean))];
+import BlogSidebar from "@/components/journal/BlogSidebar.astro";
+import PostList from "@/components/journal/PostList.astro";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import { getSortedPosts } from "@/utils/content-utils";
+
+const posts = await getSortedPosts();
+const categories = [
+	...new Set(posts.map((p) => p.data.category).filter(Boolean)),
+];
 ---
 <JournalLayout title="文章与记录"><section class="page-intro"><h1>文章与记录</h1><p>把做过的事情写清楚，把有用的方法留下来。</p><nav class="browse-links" aria-label="文章浏览方式"><a href="/tags/">按标签阅读 →</a><a href="/categories/">浏览分类</a><a href="/rss/">订阅更新</a></nav></section><div class="blog-columns"><div class="archive-content"><form class="archive-filter" role="search"><label class="sr-only" for="archive-query">搜索文章</label><input id="archive-query" name="q" type="search" placeholder="搜索标题、摘要或标签"/><label class="sr-only" for="archive-category">文章分类</label><select id="archive-category" name="category"><option value="">全部分类</option>{categories.map(c=><option value={c}>{c}</option>)}</select><button type="reset">重置筛选</button></form><p id="archive-status" class="result-count" role="status" aria-live="polite">共 {posts.length} 篇文章</p><PostList posts={posts} filterable headingLevel="h2"/><p id="archive-empty" class="empty-state" hidden>没有匹配的文章，试试其他关键词或重置筛选。</p></div><BlogSidebar/></div></JournalLayout>
 <script>

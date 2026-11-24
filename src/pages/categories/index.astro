@@ -1,6 +1,7 @@
 ---
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import {getCategoryList} from '@/utils/content-utils';
-const items=await getCategoryList();
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import { getCategoryList } from "@/utils/content-utils";
+
+const items = await getCategoryList();
 ---
 <JournalLayout title="文章分类"><section class="page-intro"><h1>按分类阅读</h1><p>从感兴趣的话题开始。</p></section><div class="topic-list">{items.map(item=><a href={'/archive/?category='+encodeURIComponent(item.name)}><strong>{item.name}</strong><span>{item.count} 篇 →</span></a>)}</div></JournalLayout>

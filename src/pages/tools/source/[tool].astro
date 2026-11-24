@@ -1,16 +1,61 @@
 ---
-import {readFileSync} from 'node:fs';
-import {join} from 'node:path';
-import JournalLayout from '@/layouts/JournalLayout.astro';
-export function getStaticPaths(){
-  const read=(rel:string)=>readFileSync(join(process.cwd(),'public',rel),'utf8');
-  const original=read('downloads/rk-key-align-original.txt');
-  const starts=[0,original.indexOf("import { readFile, writeFile } from 'node:fs/promises'"),original.indexOf('/** 对齐工具 / 写回插件共用：按键尺寸 class 命名 */'),original.lastIndexOf('<!--',original.indexOf('<template>'))];
-  if(starts.some((s,i)=>s<0||(i>0&&s<=starts[i-1])))throw new Error('RK 源码边界已变化，需要更新阅读页拆分规则');
-  const names=['mount.ts','vitePlugin.ts','alignShared.ts','keyAlignTool.vue'];
-  return [{params:{tool:'key-align'},props:{title:'RK 键位对齐工具',back:'/tools/key-align/',download:'/downloads/rk-key-align-tool.zip',files:[...names.map((name,i)=>({name,content:original.slice(starts[i],starts[i+1]??original.length)})),{name:'原始组合源码.txt',content:original}]}},{params:{tool:'webhid-workbench'},props:{title:'WebHID 抓包脚本',back:'/tools/webhid-workbench/',download:'/userscripts/webhid-workbench.user.js',files:[{name:'webhid-workbench.user.js',content:read('userscripts/webhid-workbench.user.txt')}]}}];
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+export function getStaticPaths() {
+	const read = (rel: string) =>
+		readFileSync(join(process.cwd(), "public", rel), "utf8");
+	const original = read("downloads/rk-key-align-original.txt");
+	const starts = [
+		0,
+		original.indexOf("import { readFile, writeFile } from 'node:fs/promises'"),
+		original.indexOf("/** 对齐工具 / 写回插件共用：按键尺寸 class 命名 */"),
+		original.lastIndexOf("<!--", original.indexOf("<template>")),
+	];
+	if (starts.some((s, i) => s < 0 || (i > 0 && s <= starts[i - 1])))
+		throw new Error("RK 源码边界已变化，需要更新阅读页拆分规则");
+	const names = [
+		"mount.ts",
+		"vitePlugin.ts",
+		"alignShared.ts",
+		"keyAlignTool.vue",
+	];
+	return [
+		{
+			params: { tool: "key-align" },
+			props: {
+				title: "RK 键位对齐工具",
+				back: "/tools/key-align/",
+				download: "/downloads/rk-key-align-tool.zip",
+				files: [
+					...names.map((name, i) => ({
+						name,
+						content: original.slice(
+							starts[i],
+							starts[i + 1] ?? original.length,
+						),
+					})),
+					{ name: "原始组合源码.txt", content: original },
+				],
+			},
+		},
+		{
+			params: { tool: "webhid-workbench" },
+			props: {
+				title: "WebHID 抓包脚本",
+				back: "/tools/webhid-workbench/",
+				download: "/userscripts/webhid-workbench.user.js",
+				files: [
+					{
+						name: "webhid-workbench.user.js",
+						content: read("userscripts/webhid-workbench.user.txt"),
+					},
+				],
+			},
+		},
+	];
 }
-const {title,back,download,files}=Astro.props;
+const { title, back, download, files } = Astro.props;
 ---
 <JournalLayout title={title+' · 源码'} active="工具" noindex>
 <section class="page-intro source-intro"><a class="source-back" href={back}>← {title}</a><h1>查看源码</h1><p>切换文件阅读，或复制、下载后在编辑器中查看。</p></section>

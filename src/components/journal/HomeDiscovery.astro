@@ -1,7 +1,10 @@
 ---
-import Icon from './Icon.astro';
-import {tools} from '@/data/tools';
-const shortcuts=tools.filter(tool=>['hid','workbench','align'].includes(tool.id));
+import { tools } from "@/data/tools";
+import Icon from "./Icon.astro";
+
+const shortcuts = tools.filter((tool) =>
+	["hid", "workbench", "align"].includes(tool.id),
+);
 ---
 <section class="home-discovery" aria-label="博客介绍与作品">
  <div class="wallpaper-welcome">

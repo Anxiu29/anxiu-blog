@@ -1,14 +1,20 @@
 ---
-import {getSortedPosts} from '@/utils/content-utils';
-import {getSeriesEntries} from '@/utils/series-utils';
-import {getPostUrlBySlug} from '@/utils/url-utils';
-import Icon from './Icon.astro';
-interface Props {entryId:string;}
-const {entryId}=Astro.props;
-const normalize=(id:string)=>id.replace(/\.[^.]+$/,'');
-const topic=getSeriesEntries(await getSortedPosts()).find(t=>t.entries.some(p=>normalize(p.id)===normalize(entryId)));
-const index=topic?.entries.findIndex(p=>normalize(p.id)===normalize(entryId))??-1;
-const previous=topic&&index>0?topic.entries[index-1]:undefined;
-const next=topic&&index>=0?topic.entries[index+1]:undefined;
+import { getSortedPosts } from "@/utils/content-utils";
+import { getSeriesEntries } from "@/utils/series-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import Icon from "./Icon.astro";
+
+interface Props {
+	entryId: string;
+}
+const { entryId } = Astro.props;
+const normalize = (id: string) => id.replace(/\.[^.]+$/, "");
+const topic = getSeriesEntries(await getSortedPosts()).find((t) =>
+	t.entries.some((p) => normalize(p.id) === normalize(entryId)),
+);
+const index =
+	topic?.entries.findIndex((p) => normalize(p.id) === normalize(entryId)) ?? -1;
+const previous = topic && index > 0 ? topic.entries[index - 1] : undefined;
+const next = topic && index >= 0 ? topic.entries[index + 1] : undefined;
 ---
 {topic&&<section class="series-navigation" aria-label="专题上一篇与下一篇"><div class="series-navigation-heading"><a href={'/series/'+topic.slug+'/'}>{topic.title}</a><span>第 {index+1} / {topic.entries.length} 篇</span></div><div class="series-neighbors">{previous?<a href={getPostUrlBySlug(previous.id)} rel="prev"><span>上一篇</span><strong>{previous.data.title}</strong><Icon name="arrow"/></a>:<div class="series-neighbor-boundary"><span>从这里开始</span><p>这是本专题的第一篇。</p></div>}{next?<a href={getPostUrlBySlug(next.id)} rel="next"><span>下一篇</span><strong>{next.data.title}</strong><Icon name="arrow"/></a>:<div class="series-neighbor-boundary"><span>已读到最后</span><a href="/series/">看看其他专题 →</a></div>}</div></section>}

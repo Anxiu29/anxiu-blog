@@ -1,10 +1,11 @@
 ---
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import BlogSidebar from '@/components/journal/BlogSidebar.astro';
-import Icon from '@/components/journal/Icon.astro';
-import {bookmarks} from '@/data/blog-discovery';
-import {siteConfig} from '@/config/siteConfig';
-const tags=[...new Set(bookmarks.flatMap(b=>b.tags))];
+import BlogSidebar from "@/components/journal/BlogSidebar.astro";
+import Icon from "@/components/journal/Icon.astro";
+import { siteConfig } from "@/config/siteConfig";
+import { bookmarks } from "@/data/blog-discovery";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+
+const tags = [...new Set(bookmarks.flatMap((b) => b.tags))];
 ---
 <JournalLayout title="友链与站点收藏" active="逛逛"><section class="page-intro"><h1>友链与站点收藏</h1><p>收集一些值得逛逛的博客和开源站点。目前这里是站点收藏，尚未互换友链。</p></section><div class="blog-columns"><div class="bookmarks-main"><section class="bookmark-filter" aria-label="筛选站点"><form role="search" id="bookmark-form"><label class="sr-only" for="bookmark-query">搜索收藏站点</label><div class="bookmark-search"><Icon name="search"/><input id="bookmark-query" type="search" name="q" placeholder="搜索站名、介绍或标签"/></div><button type="reset">重置</button></form><div class="bookmark-tags" role="group" aria-label="站点标签"><button type="button" data-bookmark-tag="" aria-pressed="true">全部</button>{tags.map(tag=><button type="button" data-bookmark-tag={tag} aria-pressed="false">{tag}</button>)}</div><div class="bookmark-status-row"><p id="bookmark-status" role="status" aria-live="polite">共 {bookmarks.length} 个站点</p><button type="button" id="pick-bookmark">随机挑一站 <Icon name="arrow"/></button></div><p id="bookmark-pick" hidden aria-live="polite"></p></section><section class="bookmark-grid" aria-label="收藏站点">{bookmarks.map(b=><article class="bookmark-card" data-bookmark-card data-filter-text={[b.name,b.description,b.reason,b.entry.title,b.url,...b.tags].join(' ')} data-tags={b.tags.join('|')}><div class="bookmark-card-top"><span class="bookmark-initial" aria-hidden="true">{b.initial}</span><div><h2><a href={b.url} target="_blank" rel="noopener noreferrer">{b.name}<Icon name="arrow"/></a></h2><span class="bookmark-domain">{new URL(b.url).hostname}</span></div></div><p>{b.description}</p><div class="bookmark-reason"><span>值得看看</span><p>{b.reason}</p><a href={b.entry.url} target="_blank" rel="noopener noreferrer">{b.entry.title}<Icon name="arrow"/></a></div><div class="bookmark-card-bottom"><span>{b.tags.join(' / ')}</span>{'feed' in b&&<a href={b.feed} target="_blank" rel="noopener noreferrer" aria-label={'订阅 '+b.name+' 的 RSS'}>RSS ↗</a>}</div></article>)}</section><p class="empty-state" id="bookmark-empty" hidden>没有匹配的站点，换个关键词或重置筛选。</p><section class="site-link-info"><h2>本站信息</h2><p>如果你想收藏这个博客，可以使用下面的信息。</p><dl><div><dt>名称</dt><dd>安秀</dd></div><div><dt>地址</dt><dd><a href={siteConfig.site_url}>{siteConfig.site_url}</a></dd></div><div><dt>简介</dt><dd>{siteConfig.description}</dd></div><div><dt>订阅</dt><dd><a href="/rss/">RSS 订阅与地址</a></dd></div></dl></section></div><BlogSidebar/></div></JournalLayout>
 <script>
