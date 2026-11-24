@@ -7,7 +7,7 @@ interface Props {
 const { url } = Astro.props;
 ---
 <div class="reading-progress" aria-hidden="true"><span id="reading-progress-fill"></span></div>
-<div class="reading-tools" aria-label="阅读工具"><div><label for="reading-size">字号</label><select id="reading-size"><option value="default">标准</option><option value="large">稍大</option><option value="xlarge">大字</option></select></div><span class="reading-percent" id="reading-percent" aria-label="正文阅读进度">0%</span><button id="copy-article-link" type="button" data-url={url}>复制链接 <Icon name="arrow"/></button><span id="article-copy-status" class="sr-only" role="status" aria-live="polite"></span></div>
+<div class="reading-tools" aria-label="阅读工具"><div><label for="reading-size">字号</label><select id="reading-size"><option value="default">标准</option><option value="large">稍大</option><option value="xlarge">大字</option></select></div><span class="reading-percent" id="reading-percent" aria-label="正文阅读进度">0%</span><button type="button" id="toggle-reading-focus" aria-pressed="false">专注阅读</button><button id="copy-article-link" type="button" data-url={url}>复制链接 <Icon name="arrow"/></button><span id="article-copy-status" class="sr-only" role="status" aria-live="polite"></span></div>
 <div id="article-share-fallback" class="article-share-fallback" hidden><label for="article-share-url">复制下方文章地址</label><input id="article-share-url" value={url} readonly/></div>
 <script>
 const articleBody=document.querySelector<HTMLElement>('.article-body');const size=document.querySelector<HTMLSelectElement>('#reading-size');const fill=document.querySelector<HTMLElement>('#reading-progress-fill');const percent=document.querySelector('#reading-percent');
@@ -17,6 +17,13 @@ size?.addEventListener('change',()=>{applySize(size.value);try{localStorage.setI
 let pending=false;function progress(){if(articleBody){const rect=articleBody.getBoundingClientRect();const distance=Math.max(1,rect.height-innerHeight);const value=Math.round(Math.min(100,Math.max(0,-rect.top/distance*100)));if(fill)fill.style.width=value+'%';if(percent)percent.textContent=value+'%';}pending=false;}
 function schedule(){if(!pending){pending=true;requestAnimationFrame(progress);}}
 document.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);if(articleBody)new ResizeObserver(schedule).observe(articleBody);schedule();
+const focusButton = document.querySelector<HTMLButtonElement>("#toggle-reading-focus");
+focusButton?.addEventListener("click", () => {
+  const focused = document.body.classList.toggle("reading-focus");
+  focusButton.setAttribute("aria-pressed", String(focused));
+  focusButton.textContent = focused ? "退出专注" : "专注阅读";
+  schedule();
+});
 const copy=document.querySelector<HTMLButtonElement>('#copy-article-link');const status=document.querySelector('#article-copy-status');const fallback=document.querySelector<HTMLElement>('#article-share-fallback');const address=document.querySelector<HTMLInputElement>('#article-share-url');
 copy?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(copy.dataset.url||'');if(status)status.textContent='文章链接已复制';copy.firstChild!.textContent='已复制 ';if(fallback)fallback.hidden=true;}catch{if(status)status.textContent='请手动复制文章地址';if(fallback)fallback.hidden=false;address?.focus();address?.select();}});
 </script>

@@ -1,0 +1,38 @@
+---
+import Icon from "./Icon.astro";
+---
+<dialog id="article-image-viewer" class="article-image-viewer" aria-label="查看文章图片">
+  <button type="button" class="image-viewer-close icon-button" aria-label="关闭图片"><Icon name="close"/></button>
+  <figure><img id="article-viewer-image" alt=""/><figcaption id="article-viewer-caption"></figcaption></figure>
+  <p>点击空白处或按 Esc 关闭</p>
+</dialog>
+<script>
+const dialog = document.querySelector<HTMLDialogElement>("#article-image-viewer");
+const preview = document.querySelector<HTMLImageElement>("#article-viewer-image");
+const caption = document.querySelector("#article-viewer-caption");
+if (dialog && preview) {
+  const close = () => dialog.close();
+  document.querySelectorAll<HTMLImageElement>(".article-body img, .article-project-cover img").forEach(image => {
+    if (image.closest("a,button") || !image.getAttribute("src")) return;
+    const label = image.alt || image.closest("figure")?.querySelector("figcaption")?.textContent || "文章图片";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "article-image-button";
+    button.setAttribute("aria-label", `查看大图：${label}`);
+    button.setAttribute("aria-haspopup", "dialog");
+    image.before(button);
+    button.append(image);
+    button.addEventListener("click", () => {
+      preview.src = image.currentSrc || image.src;
+      preview.alt = label;
+      if (caption) caption.textContent = label;
+      dialog.showModal();
+    });
+  });
+  dialog.querySelector("button")?.addEventListener("click", close);
+  dialog.addEventListener("click", event => {
+    if (event.target === dialog || event.target instanceof HTMLElement && event.target.tagName === "FIGURE") close();
+  });
+  dialog.addEventListener("close", () => preview.removeAttribute("src"));
+}
+</script>

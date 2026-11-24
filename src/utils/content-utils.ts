@@ -40,6 +40,7 @@ export async function getSortedPosts(
 }
 export type PostForList = {
 	id: string;
+	body?: string;
 	data: CollectionEntry<"posts">["data"];
 };
 export async function getSortedPostsList(): Promise<PostForList[]> {
