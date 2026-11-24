@@ -1,6 +1,7 @@
 ---
 import Icon from '@/components/journal/Icon.astro';
 import SearchPanel from '@/components/journal/SearchPanel.astro';
+import BackgroundSettings from '@/components/journal/BackgroundSettings.astro';
 import {discoveryRecords} from '@/data/blog-discovery';
 import {tools,projectNotes} from '@/data/tools';
 import {getSortedPosts} from '@/utils/content-utils';
@@ -12,6 +13,8 @@ import '@/styles/blog-discovery.css';
 import '@/styles/editorial.css';
 import '@/styles/browsing.css';
 import '@/styles/reference-pass.css';
+import '@/styles/background-settings.css';
+import '@/styles/wallpaper-layout.css';
 interface Props {title?:string;description?:string;active?:string;noindex?:boolean;}
 const {title,description=siteConfig.description,active='文章',noindex=false}=Astro.props;
 const posts=await getSortedPosts();
@@ -28,13 +31,14 @@ const nav=[['首页','/'],['文章','/archive/'],['工具','/tools/'],['作品',
 <link rel="canonical" href={canonical}/><link rel="icon" href="/favicon/favicon.ico"/><link rel="alternate" type="application/rss+xml" title="安秀的文章" href="/rss.xml"/>
 <meta property="og:title" content={title?title+' - 安秀':'安秀 · 技术、工具与记录'}/><meta property="og:description" content={description}/><meta property="og:url" content={canonical}/><meta property="og:type" content="website"/>
 <script is:inline>try{const dark=localStorage.getItem('anxiu-theme')==='dark'||(!localStorage.getItem('anxiu-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',dark);document.documentElement.dataset.theme=dark?'one-dark-pro':'one-light';}catch{}</script>
-<slot name="head"/></head><body id="top">
+<slot name="head"/></head><body id="top" class:list={{'home-page':active==='首页'}}>
 <a class="skip-link" href="#main">跳到正文</a>
-<header class="site-header"><div class="header-inner"><a class="wordmark" href="/" aria-label="安秀首页"><span class="brand-symbol" aria-hidden="true">a<span>.</span></span><span>安秀<small>开发手记</small></span></a><nav aria-label="主导航">{nav.map(([label,href])=>label==='逛逛'?<details class:list={['explore-menu',{selected:active==='逛逛'}]}><summary>逛逛<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="explore-dropdown"><a href="/series/"><strong>专题阅读</strong><span>按主题串起文章与工具</span></a><a href="/updates/"><strong>开发动态</strong><span>博客与工具的简短更新</span></a><a href="/friends/"><strong>友链与站点收藏</strong><span>去其他博客看看</span></a></div></details>:<a href={href} class:list={{selected:active===label}} aria-current={active===label?'page':undefined}>{label}</a>)}</nav><div class="header-actions"><button id="open-search" class="icon-button" aria-label="搜索文章和工具" aria-haspopup="dialog" aria-keyshortcuts="Control+k Meta+k"><Icon name="search"/></button><button id="theme-toggle" class="icon-button" aria-label="切换深浅色主题"><span class="light-icon"><Icon name="sun"/></span><span class="dark-icon"><Icon name="moon"/></span></button></div></div></header>
+<header class="site-header"><div class="header-inner"><a class="wordmark" href="/" aria-label="安秀首页"><span class="brand-symbol" aria-hidden="true">a<span>.</span></span><span>安秀<small>开发手记</small></span></a><nav aria-label="主导航">{nav.map(([label,href])=>label==='逛逛'?<details class:list={['explore-menu',{selected:active==='逛逛'}]}><summary>逛逛<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="explore-dropdown"><a href="/series/"><strong>专题阅读</strong><span>按主题串起文章与工具</span></a><a href="/updates/"><strong>开发动态</strong><span>博客与工具的简短更新</span></a><a href="/friends/"><strong>友链与站点收藏</strong><span>去其他博客看看</span></a></div></details>:<a href={href} class:list={{selected:active===label}} aria-current={active===label?'page':undefined}>{label}</a>)}</nav><div class="header-actions"><button id="open-search" class="icon-button" aria-label="搜索文章和工具" aria-haspopup="dialog" aria-keyshortcuts="Control+k Meta+k"><Icon name="search"/></button><button id="open-appearance" class="icon-button" aria-label="自定义背景与外观" aria-haspopup="dialog"><Icon name="palette"/></button><button id="theme-toggle" class="icon-button" aria-label="切换深浅色主题"><span class="light-icon"><Icon name="sun"/></span><span class="dark-icon"><Icon name="moon"/></span></button></div></div></header>
 <main id="main" class="site-main"><slot/></main>
 <footer class="site-footer"><div class="footer-top"><div class="footer-about"><a href="/" class="footer-name">安秀<span>.</span></a><p>前端开发、设备联调，<br/>还有一些自己做的小工具。</p><a class="footer-github" href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">GitHub <Icon name="arrow"/></a></div><nav aria-label="文章与阅读"><h2>阅读</h2><a href="/archive/">全部文章</a><a href="/series/">专题阅读</a><a href="/categories/">文章分类</a><a href="/tags/">全部标签</a></nav><nav aria-label="工具与项目"><h2>动手试试</h2><a href="/tools/">开发工具</a><a href="/projects/">个人作品</a><a href="/projects/fog-town/">雾镇夜行</a><a href="/tools/hid/">WebHID 调试</a></nav><nav aria-label="更多博客入口"><h2>保持联系</h2><a href="/about/">关于安秀</a><a href="/updates/">开发动态</a><a href="/friends/">站点收藏</a><a href="/rss/">RSS 订阅</a></nav></div><div class="footer-bottom"><span>© {new Date().getFullYear()} 安秀</span><div class="credits">Powered by <a href="https://astro.build/">Astro</a> &amp; <a href="https://github.com/CuteLeaf/Firefly">Firefly</a></div><a href="#top">回到顶部 ↑</a></div></footer>
 <a href="#top" id="back-top" class="back-top" aria-label="返回顶部" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 14 6-6 6 6M12 8v12"/></svg></a>
 <dialog id="search-dialog" aria-labelledby="search-title"><form method="dialog" class="search-top"><label id="search-title" for="site-search">搜索文章和工具</label><button class="icon-button" aria-label="关闭搜索"><Icon name="close"/></button></form><SearchPanel dialog/><div class="search-bottom"><span>Esc 关闭 · Ctrl / ⌘ K 搜索</span><a href="/search/" data-full-search>打开完整搜索 →</a></div></dialog>
+<BackgroundSettings/>
 <div id="search-data" hidden data-records={JSON.stringify(records)}></div>
 <script>
 import {initializeJournalSearch} from '@/scripts/journal-search';
@@ -47,7 +51,7 @@ function updateBackTop(){if(backTop)backTop.hidden=window.scrollY<500;}
 document.addEventListener('scroll',updateBackTop,{passive:true});updateBackTop();
 const dialog=document.querySelector<HTMLDialogElement>('#search-dialog');
 const input=document.querySelector<HTMLInputElement>('#site-search');
-function open(){if(!dialog||dialog.open)return;dialog.showModal();input?.dispatchEvent(new Event('input'));input?.focus();}
+function open(){if(!dialog||dialog.open)return;document.querySelector<HTMLDialogElement>('#appearance-dialog')?.close();dialog.showModal();input?.dispatchEvent(new Event('input'));input?.focus();}
 document.querySelector('#open-search')?.addEventListener('click',open);
 dialog?.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();open();}});
