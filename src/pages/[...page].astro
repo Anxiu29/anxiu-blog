@@ -1,70 +1,27 @@
 ---
-import type { GetStaticPaths } from "astro";
-import Pagination from "@/components/common/Pagination.astro";
-import PostPage from "@/components/layout/PostPage.astro";
-import { siteConfig } from "@/config";
-import MainGridLayout from "@/layouts/MainGridLayout.astro";
-import { getSortedPosts } from "@/utils/content-utils";
-export const getStaticPaths = (async ({ paginate }) => {
-	const allBlogPosts = await getSortedPosts();
-	// 使用配置中的文章数量
-	const pageSize = siteConfig.pagination.postsPerPage;
-	return paginate(allBlogPosts, { pageSize });
-}) satisfies GetStaticPaths;
-// https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
-
-const { page } = Astro.props;
-
-const len = page.data.length;
+import type {GetStaticPaths,Page} from 'astro';
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import BlogSidebar from '@/components/journal/BlogSidebar.astro';
+import PostList from '@/components/journal/PostList.astro';
+import HomeDiscovery from '@/components/journal/HomeDiscovery.astro';
+import SeriesGrid from '@/components/journal/SeriesGrid.astro';
+import HomeReading from '@/components/journal/HomeReading.astro';
+import {getCategoryList} from '@/utils/content-utils';
+import {getSortedPosts,type PostForList} from '@/utils/content-utils';
+import {siteConfig} from '@/config/siteConfig';
+export const getStaticPaths=(async({paginate})=>paginate(await getSortedPosts(),{pageSize:siteConfig.pagination.postsPerPage||8})) satisfies GetStaticPaths;
+const {page}=Astro.props as {page:Page<PostForList>};
+const categories=await getCategoryList();
 ---
-
-<MainGridLayout>
-  <PostPage page={page} />
-  {
-    page.total > page.size && (
-      <Pagination
-        class="mx-auto onload-animation"
-        page={page}
-        style={`animation-delay: calc(var(--content-delay) + ${len * 50}ms)`}
-      />
-    )
-  }
-</MainGridLayout>
+<JournalLayout title={page.currentPage>1?'文章 · 第 '+page.currentPage+' 页':undefined} active="首页">
+  {page.currentPage===1&&<HomeDiscovery/>}
+  {page.currentPage===1&&<HomeReading/>}
+  <div class="blog-columns home-columns"><section class="recent-posts" aria-labelledby="posts-heading"><div class="section-heading article-list-heading"><h2 id="posts-heading">文章 <small>{page.total} 篇记录</small></h2><a href="/archive/">全部文章 →</a></div><div class="home-category-tabs" role="group" aria-label="按分类浏览本页文章"><button type="button" data-home-category="" aria-pressed="true">全部</button>{categories.map(c=><button type="button" data-home-category={c.name} aria-pressed="false">{c.name}</button>)}</div><p id="home-filter-status" class="sr-only" role="status" aria-live="polite"></p><PostList posts={page.data}/><p id="home-filter-empty" class="empty-state" hidden>本页没有这个分类的文章，<a href="/archive/">去归档查看全部文章 →</a></p>{(page.url.prev||page.url.next)&&<nav class="pagination" aria-label="文章分页">{page.url.prev&&<a href={page.url.prev}>← 上一页</a>}<span>第 {page.currentPage} 页</span>{page.url.next&&<a href={page.url.next}>下一页 →</a>}</nav>}</section><BlogSidebar/></div>
+  {page.currentPage===1&&<section class="home-topic-shelf" aria-labelledby="home-topics-heading"><div class="section-heading article-list-heading"><h2 id="home-topics-heading">专题导读</h2><a href="/series/">全部专题 →</a></div><SeriesGrid compact/></section>}
+</JournalLayout>
 
 <script>
-  // 响应式分页处理脚本
-  document.addEventListener("DOMContentLoaded", function () {
-    // 如果启用了响应式分页，添加相应的CSS类
-    const responsiveEnabled = true; // ${siteConfig.pagination.responsive}
-    if (responsiveEnabled) {
-      const deviceType = getDeviceType();
-      document.body.classList.add(`device-${deviceType}`);
-
-      // 监听窗口大小变化
-      let resizeTimeout: any;
-      window.addEventListener("resize", function () {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(function () {
-          const newDeviceType = getDeviceType();
-          const currentDeviceType = document.body.className.match(
-            /device-(mobile|tablet|desktop)/
-          )?.[1];
-
-          if (currentDeviceType !== newDeviceType) {
-            document.body.classList.remove(`device-${currentDeviceType}`);
-            document.body.classList.add(`device-${newDeviceType}`);
-          }
-        }, 250);
-      });
-    }
-  });
-
-  function getDeviceType() {
-    if (typeof window === "undefined") return "desktop";
-
-    const width = window.innerWidth;
-    if (width < 768) return "mobile";
-    if (width < 1024) return "tablet";
-    return "desktop";
-  }
+const buttons=[...document.querySelectorAll<HTMLButtonElement>('[data-home-category]')];
+const rows=[...document.querySelectorAll<HTMLElement>('.recent-posts > .post-list > .post-row')];
+buttons.forEach(button=>button.addEventListener('click',()=>{const selected=button.dataset.homeCategory||'';let count=0;rows.forEach(row=>{row.hidden=!!selected&&row.dataset.category!==selected;if(!row.hidden)count++;});buttons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));const status=document.querySelector('#home-filter-status');if(status)status.textContent=(selected||'全部')+' · '+count+' 篇文章';const empty=document.querySelector<HTMLElement>('#home-filter-empty');if(empty)empty.hidden=count>0;}));
 </script>

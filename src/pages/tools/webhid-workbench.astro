@@ -1,0 +1,55 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import Icon from '@/components/journal/Icon.astro';
+---
+<JournalLayout title="WebHID 抓包脚本" description="WebHID Workbench 油猴脚本：观察键鼠网页驱动的 WebHID 报文，保存操作快照并导出 JSON。" active="工具">
+  <section class="page-intro workbench-intro">
+    <h1>WebHID 抓包脚本</h1>
+    <p>在键鼠网页驱动里，观察一次操作对应的报文。</p>
+  </section>
+  <div class="workbench-actions">
+    <a class="primary-action" href="/userscripts/webhid-workbench.user.js" target="_blank" rel="noopener noreferrer">安装脚本 <Icon name="arrow"/></a>
+    <a href="/userscripts/webhid-workbench.user.js" download>下载脚本</a>
+    <a href="/tools/source/webhid-workbench/">查看源码</a>
+  </div>
+  <p class="workbench-meta">WebHID Workbench · v2.2.4 · 需要油猴等用户脚本管理器</p>
+  <div class="reading-block workbench-doc">
+    <h2>它能做什么</h2>
+    <p>脚本在匹配的网页中加入一个悬浮工作台，记录页面的 WebHID API 调用与报告事件。它观察网页与设备之间的报文，不捕获系统中的全部 USB 通信。</p>
+    <ul>
+      <li>观察 <code>sendReport</code>、<code>sendFeatureReport</code>、<code>receiveFeatureReport</code> 和页面监听到的 <code>inputreport</code>，查看方向、Report ID 与十六进制数据。</li>
+      <li>开始或暂停记录，在一次操作后捕获增量快照，并添加“修改 DPI”等备注。</li>
+      <li>在控制台查看快照详情，将已保存的快照导出为 JSON。</li>
+      <li>将快照中的 OUT 报文按记录的时间间隔重新发送。当前复刻仅使用 <code>sendReport</code>，不包含 Feature Report。</li>
+    </ul>
+    <h2>安装与开始记录</h2>
+    <ol>
+      <li>在支持 WebHID 的桌面 Chrome 或 Edge 中，准备好油猴等用户脚本管理器。</li>
+      <li>点击“安装脚本”，在脚本管理器中确认安装。如果没有出现安装界面，可以打开“查看源码”，在管理器中新建脚本，用完整源码替换默认模板并保存。</li>
+      <li>打开下方匹配的网址，或刷新已经打开的网页。脚本在页面开始加载时注入，出现“WebHID 工作台”悬浮面板后，再通过原网页连接设备。</li>
+      <li>在原网页执行一次操作，点击“捕获快照”并填写备注。继续操作并捕获下一份快照，最后点击“导出”保存。</li>
+    </ol>
+    <div class="workbench-notice"><p>记录和快照保存在当前页面内存中，刷新或关闭页面前需要导出。清空实时缓冲区会重新划定下一次快照的起点。</p></div>
+    <h2>当前匹配的网址</h2>
+    <p>以下来自脚本的 <code>@match</code> 配置，仅表示脚本会尝试在这些网址运行，不代表每个站点和设备都已经完成兼容测试。其他域名需要在脚本管理器中添加对应的匹配规则，再刷新页面。</p>
+    <ul class="workbench-sites">
+      <li><code>https://hub.rapoo.cn/*</code></li>
+      <li><code>https://hub.atk.pro/*</code></li>
+      <li><code>https://www.rawmtech.com/*</code></li>
+      <li><code>https://www.mchose.com.cn/*</code></li>
+      <li><code>https://hub.miracletek.net/*</code></li>
+      <li><code>https://www.chaos.vin/*</code></li>
+      <li><code>https://chaos.vin/*</code></li>
+      <li><code>https://drive.rkgaming.com/*</code></li>
+      <li><code>https://drive5.rkgaming.com/*</code></li>
+      <li><code>http://localhost:5173/*</code></li>
+    </ul>
+    <h2>使用复刻前</h2>
+    <p>“复刻”会向当前打开的 HID 设备真实发送指令，可能改变改键、DPI 等配置。先核对设备、协议与快照内容，再使用这一功能；抓到报文也不等于已经确认设备上的功能正确生效。</p>
+    <p>这里提供的是原版 v2.2.4 脚本。本站未修改它的抓包或复刻实现，实际运行效果仍取决于脚本管理器、目标网页和设备。</p>
+    <h2>需要手动测试指令？</h2>
+    <p>可以使用 <a href="/tools/hid/">WebHID 调试工具</a>选择设备、发送指令并观察回包。它与这个用于观察原网页操作的脚本互为补充。</p>
+    <p><a href="/posts/webhid-workbench/">阅读文章：把页面操作和报文对应起来 →</a></p>
+    <p><a href="/tools/">← 返回开发工具</a></p>
+  </div>
+</JournalLayout>

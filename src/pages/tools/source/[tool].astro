@@ -1,0 +1,33 @@
+---
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
+import JournalLayout from '@/layouts/JournalLayout.astro';
+export function getStaticPaths(){
+  const read=(rel:string)=>readFileSync(join(process.cwd(),'public',rel),'utf8');
+  const original=read('downloads/rk-key-align-original.txt');
+  const starts=[0,original.indexOf("import { readFile, writeFile } from 'node:fs/promises'"),original.indexOf('/** 对齐工具 / 写回插件共用：按键尺寸 class 命名 */'),original.lastIndexOf('<!--',original.indexOf('<template>'))];
+  if(starts.some((s,i)=>s<0||(i>0&&s<=starts[i-1])))throw new Error('RK 源码边界已变化，需要更新阅读页拆分规则');
+  const names=['mount.ts','vitePlugin.ts','alignShared.ts','keyAlignTool.vue'];
+  return [{params:{tool:'key-align'},props:{title:'RK 键位对齐工具',back:'/tools/key-align/',download:'/downloads/rk-key-align-tool.zip',files:[...names.map((name,i)=>({name,content:original.slice(starts[i],starts[i+1]??original.length)})),{name:'原始组合源码.txt',content:original}]}},{params:{tool:'webhid-workbench'},props:{title:'WebHID 抓包脚本',back:'/tools/webhid-workbench/',download:'/userscripts/webhid-workbench.user.js',files:[{name:'webhid-workbench.user.js',content:read('userscripts/webhid-workbench.user.txt')}]}}];
+}
+const {title,back,download,files}=Astro.props;
+---
+<JournalLayout title={title+' · 源码'} active="工具" noindex>
+<section class="page-intro source-intro"><a class="source-back" href={back}>← {title}</a><h1>查看源码</h1><p>切换文件阅读，或复制、下载后在编辑器中查看。</p></section>
+<section class="source-viewer" aria-label={title+'源码'} data-source-viewer data-files={JSON.stringify(files)}>
+  <div class="source-toolbar"><strong data-source-name>{files[0].name}</strong><div><button class="button-link" type="button" data-source-copy>复制源码</button><button class="button-link" type="button" data-source-download>下载当前文件</button><a class="button-link" href={download} download>{files.length>1?'下载源码包':'下载脚本'}</a></div></div>
+  {files.length>1&&<div class="source-file-tabs" role="group" aria-label="源码文件">{files.map((file,index)=><button type="button" data-file-index={index} aria-pressed={index===0}>{file.name}</button>)}</div>}
+  <div class="source-info"><span>UTF-8 · <span data-source-lines>{files[0].content.split('\n').length}</span> 行</span><span role="status" aria-live="polite" data-source-status>源码仅供阅读，不会在页面中执行。</span></div>
+  <pre class="source-pre" tabindex="0" aria-label="源码内容"><code data-source-code>{files[0].content}</code></pre>
+</section>
+</JournalLayout>
+<script>
+for(const root of document.querySelectorAll<HTMLElement>('[data-source-viewer]')){
+ const files:{name:string;content:string}[]=JSON.parse(root.dataset.files||'[]');let index=0;
+ const code=root.querySelector<HTMLElement>('[data-source-code]');const status=root.querySelector<HTMLElement>('[data-source-status]');const buttons=[...root.querySelectorAll<HTMLButtonElement>('[data-file-index]')];
+ function message(text:string){if(status)status.textContent=text;}
+ for(const button of buttons)button.addEventListener('click',()=>{index=Number(button.dataset.fileIndex);const file=files[index];if(!file)return;if(code)code.textContent=file.content;const name=root.querySelector('[data-source-name]');if(name)name.textContent=file.name;const lines=root.querySelector('[data-source-lines]');if(lines)lines.textContent=String(file.content.split('\n').length);for(const b of buttons)b.setAttribute('aria-pressed',String(b===button));root.querySelector('.source-pre')?.scrollTo(0,0);message('已切换到 '+file.name);});
+ root.querySelector('[data-source-copy]')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(files[index].content);message('已复制 '+files[index].name);}catch{message('无法自动复制，请选中代码后复制。');}});
+ root.querySelector('[data-source-download]')?.addEventListener('click',()=>{const file=files[index];const url=URL.createObjectURL(new Blob([file.content],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('已下载 '+file.name);});
+}
+</script>

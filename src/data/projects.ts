@@ -1,0 +1,8 @@
+export const projectKinds=[{id:'',label:'全部作品'},{id:'device',label:'键鼠配置'},{id:'desktop',label:'桌面应用'},{id:'web',label:'网页实验'}];
+export const projects=[
+ {id:'anxiu',title:'Anxiu 键鼠配置',kind:'device',status:'可体验',description:'在浏览器中完成改键、宏与性能配置，也提供无设备演示模式。',tech:['Vue','TypeScript','WebHID'],href:'/posts/anxiu-demo/',action:'项目介绍',image:'/images/projects/anxiu-interface.jpg',imageAlt:'Anxiu RK-C98 演示模式实际界面',launch:'https://anxiu.vercel.app/',launchLabel:'体验演示'},
+ {id:'todo',title:'桌面待办',kind:'desktop',status:'可下载',description:'Windows 桌面待办挂件，支持快捷记录、步骤清单和完成日历。',tech:['Electron','React','TypeScript'],href:'/projects/desktop-todo/',action:'查看项目',launch:'https://github.com/Anxiu29/TODO/releases/latest',launchLabel:'GitHub 发行版'},
+ {id:'fog-town',title:'雾镇夜行',kind:'web',status:'可试玩',description:'雨夜古镇中的第一人称探索与逃生，支持浏览器试玩和离线游玩。',tech:['Three.js','WebGL','JavaScript'],href:'/projects/fog-town/',action:'查看游戏',image:'/images/projects/fog-town.jpg',imageAlt:'雾镇夜行实际运行的游戏标题界面',launch:'/games/fog-town/',launchLabel:'在线试玩'},
+ {id:'shike',title:'食刻',kind:'web',status:'开发中',description:'照片与文字记餐、本地饮食记录和数据备份，仍在持续开发。',tech:['Vue','IndexedDB','Capacitor'],href:'/projects/shike/',action:'开发记录',icon:'todo',features:['照片与文字记餐','本地数据管理','导入与备份']},
+ {id:'glassboard',title:'GlassBoard',kind:'desktop',status:'维护实践',description:'基于既有开源项目维护 Windows 桌面面板、Dock 和组件。',tech:['.NET','Windows'],href:'/projects/glassboard/',action:'维护记录',icon:'align',features:['桌面面板与 Dock','分组与排序','系统适配']},
+];

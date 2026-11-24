@@ -1,0 +1,11 @@
+---
+import Icon from './Icon.astro';
+---
+<div class="todo-preview"><div class="todo-sample" data-todo-sample>
+  <div class="todo-sample-title"><span class="sample-check"><Icon name="check"/></span><strong>今日待办</strong></div>
+  <div class="todo-sample-items">{['整理开发记录','验证键位布局','给工具补充说明'].map((label,i)=><label><input type="checkbox" checked={i===0}/><span>{label}</span></label>)}</div>
+  <p class="todo-sample-progress" role="status" aria-live="polite">完成 <span data-todo-count>1</span> / 3</p>
+</div><p class="preview-caption">交互示例，数据仅用于展示。</p></div>
+<script>
+for(const sample of document.querySelectorAll<HTMLElement>('[data-todo-sample]')){sample.addEventListener('change',()=>{const count=sample.querySelector('[data-todo-count]');if(count)count.textContent=String(sample.querySelectorAll('input:checked').length);});}
+</script>

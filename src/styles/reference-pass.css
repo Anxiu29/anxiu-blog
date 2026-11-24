@@ -1,0 +1,40 @@
+/* Editorial improvements based on the reference review; existing sky tokens. */
+.home-reading { margin:0 0 28px; padding:24px 27px; background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+.home-reading-heading { display:flex; justify-content:space-between; gap:20px; align-items:center; }
+.home-reading-heading h2,.tool-paths-heading h2 { font-size:21px; line-height:1.5; }
+.home-reading-heading p,.tool-paths-heading>p { font-size:12px; color:var(--muted); line-height:1.9; margin-top:7px; }
+.home-reading-heading>a { display:flex; gap:8px; align-items:center; flex-shrink:0; color:var(--accent); font-size:12px; }
+.home-reading svg,.tool-path nav svg,.bookmark-reason svg { width:14px; height:14px; flex-shrink:0; }
+.home-reading ol { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; margin:22px 0 0; padding:20px 0 0; border-top:1px solid var(--line); list-style:none; }
+.home-reading li { display:flex; gap:13px; min-width:0; }
+.home-reading li>div { min-width:0; }
+.reading-choice-number { font:20px/1.4 ui-monospace,Consolas,monospace; color:var(--accent); }
+.reading-choice-kind { display:block; font-size:10px; color:var(--muted); margin-bottom:7px; }
+.home-reading h3 { font-size:16px; font-weight:600; line-height:1.8; }
+.home-reading h3 a { display:block; }
+.home-reading h3 svg { display:inline; margin-left:5px; color:var(--accent); vertical-align:-2px; }
+.home-reading li p { font-size:12px; color:var(--muted); line-height:1.9; margin-top:8px; }
+.tool-paths { margin:0 0 29px; }
+.tool-paths-heading { margin-bottom:18px; }
+.tool-path-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.tool-path { display:flex; flex-direction:column; padding:23px; min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+.tool-path-kicker { display:flex; justify-content:space-between; align-items:center; color:var(--accent); margin-bottom:17px; }
+.tool-path-kicker>svg { width:24px; height:24px; }
+.tool-path-kicker>span { font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--muted); }
+.tool-path h3 { font-size:17px; line-height:1.7; }
+.tool-path>p,.tool-path-result p { font-size:13px; line-height:1.9; color:var(--muted); }
+.tool-path>p { margin-top:10px; }
+.tool-path-result { border-left:2px solid var(--line); padding-left:12px; margin:18px 0 22px; }
+.tool-path-result>span,.bookmark-reason>span { display:block; font-size:10px; color:var(--accent); margin-bottom:5px; }
+.tool-path nav { display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; border-top:1px solid var(--line); padding-top:15px; margin-top:auto; }
+.tool-path nav>a { display:flex; align-items:center; gap:6px; color:var(--accent); font-size:11px; }
+.bookmark-card { display:flex; flex-direction:column; }
+.bookmark-card>p { min-height:0; margin-bottom:15px; }
+.bookmark-reason { padding:14px 0 17px; border-top:1px solid var(--line); flex:1; }
+.bookmark-reason>p { font-size:12px; line-height:1.9; color:var(--muted); }
+.bookmark-reason>a { display:flex; align-items:center; gap:6px; width:fit-content; margin-top:12px; color:var(--accent); font-size:11px; }
+.bookmark-card-bottom { border-top:1px solid var(--line); padding-top:13px; }
+:is(.home-reading,.tool-path,.bookmark-reason) a:focus-visible { outline:2px solid var(--accent); outline-offset:5px; border-radius:2px; }
+@media(max-width:1000px) { .home-reading ol { gap:18px; } .home-reading li { gap:9px; } .tool-path { padding:19px; } }
+@media(max-width:768px) { .home-reading ol,.tool-path-grid { grid-template-columns:minmax(0,1fr); gap:0; } .home-reading li+li { border-top:1px solid var(--line); padding-top:18px; margin-top:18px; } .home-reading h3 { font-size:16px; } .home-reading li p { margin-top:5px; } .tool-path-grid { gap:14px; } .tool-path-result { margin:15px 0 18px; } }
+@media(max-width:600px) { .home-reading { padding:21px; margin-bottom:23px; } .home-reading-heading { display:block; } .home-reading-heading h2,.tool-paths-heading h2 { font-size:19px; } .home-reading-heading>a { margin-top:12px; width:fit-content; } .home-reading ol { margin-top:17px; padding-top:17px; } .reading-choice-number { font-size:18px; } .reading-choice-kind { font-size:10px; margin-bottom:4px; } .tool-path { padding:21px; } .tool-paths { margin-bottom:23px; } }

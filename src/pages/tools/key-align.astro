@@ -1,0 +1,55 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+---
+<JournalLayout title="RK 键位对齐工具" description="RK 项目内的键位对齐工具：对照键盘背景图调整按键位置、尺寸与整行布局，提供源码包与接入说明。" active="工具">
+  <section class="page-intro workbench-intro">
+    <h1>RK 键位对齐工具</h1>
+    <p>对照键盘背景图，把网页上的按键逐个对齐。</p>
+  </section>
+  <div class="workbench-actions">
+    <a class="primary-action" href="/downloads/rk-key-align-tool.zip" download>下载源码包</a>
+    <a href="/tools/source/key-align/">查看源码</a>
+  </div>
+  <p class="workbench-meta">项目内开发工具 · Vue 3 / Pinia / Vite · 写回插件版本 8</p>
+  <div class="reading-block workbench-doc">
+    <h2>它解决什么问题</h2>
+    <p>键盘配置页使用背景图展示键盘外观，叠加在图片上的按键区域需要与键帽边界对应。调整位置、宽高和特殊按键时，这个工具可以直接在原页面预览，减少反复修改数值、切换页面的操作。</p>
+    <p>开启对齐模式后，按键区域显示半透明紫色背景，方便对照底图查看边界。工具复用项目已有的背景图和键位数据，不提供背景图上传或独立画布。</p>
+    <h2>可以调整什么</h2>
+    <ul>
+      <li>单选、Ctrl / ⌘ 多选，以及 Shift 同行连续选择。</li>
+      <li>按键的水平 <code>offset</code>、垂直 <code>offsetY</code>、单键宽高与共用按键尺寸。</li>
+      <li>整行位置、黑白文字颜色，以及 1 / 2 / 5 步进和数值输入。</li>
+      <li>拖动和缩放工具面板；调整结果可写回当前布局对应的项目文件。</li>
+    </ul>
+    <h2>它如何接入项目</h2>
+    <p>这是一组需要放进原 RK 工程的开发工具。下载包整理为四个文件，保留所提供代码的实现逻辑：</p>
+    <ul>
+      <li><code>mount.ts</code>：挂载面板并复用活动 Pinia。</li>
+      <li><code>vitePlugin.ts</code>：开发模式注入入口，并处理本地源码写回。</li>
+      <li><code>alignShared.ts</code>：布局识别、尺寸类名与数值处理。</li>
+      <li><code>keyAlignTool.vue</code>：按键选择、实时调整与面板交互。</li>
+    </ul>
+    <ol>
+      <li>将压缩包内的 <code>devtools/key-align/</code> 放到 RK 项目根目录，保留目录层级。</li>
+      <li>在现有 <code>vite.config.ts</code> 中导入 <code>rkAlignWritePlugin</code>，从 <code>./devtools/key-align/vitePlugin</code> 加载，并加入已有的 <code>plugins</code> 数组。包内 README 提供接入示例；不需要修改 <code>App.vue</code>。</li>
+      <li>完全停止并重新运行 <code>npm run dev</code>。进入具体键盘的改键页面，点击“对齐工具”，核对识别到的型号与布局后调整。</li>
+      <li>调整完成后点击“写入代码”，检查本地文件差异，并重新核对页面效果。</li>
+    </ol>
+    <h2>键盘操作</h2>
+    <ul>
+      <li>方向键：调整选中按键的水平与垂直偏移。</li>
+      <li>W / A / S / D：调整当前整行位置。</li>
+      <li>[ / ]：调整宽度；分号 / 单引号：调整高度。</li>
+      <li>B / V：切换黑字 / 白字；Esc：取消选择。</li>
+    </ul>
+    <h2>写回到哪里</h2>
+    <p>偏移与相关样式写入 <code>src/stores/**/keyStore.ts</code>；尺寸和整行位置等 CSS 写入 <code>src/components/**/key.vue</code>。插件会根据键盘名称、布局特征和版本等信息进行检查；遇到无法确定的布局时会拒绝相应写入。</p>
+    <div class="workbench-notice"><p>“写入代码”会修改本地工程文件。使用前保存现有改动，写入后检查 diff。这里提供源码和说明，不会在博客里运行写回接口。</p></div>
+    <h2>使用条件</h2>
+    <p>工具依赖原工程的 <code>keyinfo_*</code> Pinia store、<code>state.keyMatrix</code>、<code>.keybox</code> 按键结构，以及 <code>@/device/enum</code> 中的协议枚举。源码包不包含完整 RK 工程或键盘背景图片，不能直接作为通用在线工具运行。</p>
+    <p>本次整理验证了源码拆分、打包与博客入口，未在 RK 项目执行对齐或写回测试。迁移到其他工程需要适配对应的数据和页面结构。</p>
+    <p><a href="/posts/rk-key-align/">阅读文章：在背景图上调整按键区域 →</a></p>
+    <p><a href="/tools/">← 返回开发工具</a></p>
+  </div>
+</JournalLayout>

@@ -1,0 +1,15 @@
+---
+import Icon from './Icon.astro';
+interface Props {dialog?:boolean;}
+const {dialog=false}=Astro.props;
+const prefix=dialog?'site':'page';
+---
+<div class:list={['search-panel',{'search-page-panel':!dialog}]} data-site-search data-search-page={!dialog||undefined}>
+  <form role="search" data-search-form>
+    {!dialog&&<label class="sr-only" for={prefix+'-search'}>搜索全站</label>}
+    <div class="search-input-wrap"><Icon name="search"/><input id={prefix+'-search'} class="site-search-input" name="q" type="search" placeholder="搜索文章、工具或作品…" autocomplete="off" aria-controls={dialog?'search-results':'page-search-results'}/></div>
+  </form>
+  <p class="search-help" id={dialog?'search-status':'page-search-status'} role="status" aria-live="polite" data-search-status>输入关键词，搜索文章全文、工具和作品。</p>
+  <ul class="search-results" id={dialog?'search-results':'page-search-results'} data-search-results></ul>
+  <noscript><p class="search-help">全文搜索需要 JavaScript，也可以从<a href="/archive/">文章归档</a>或<a href="/tools/">工具箱</a>继续浏览。</p></noscript>
+</div>

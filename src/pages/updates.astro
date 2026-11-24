@@ -1,0 +1,6 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import BlogSidebar from '@/components/journal/BlogSidebar.astro';
+import {updates} from '@/data/blog-discovery';
+---
+<JournalLayout title="开发动态" active="逛逛"><section class="page-intro"><h1>开发动态</h1><p>博客和工具的简短更新，长一点的内容留在文章里。</p></section><div class="blog-columns"><section class="update-feed" aria-label="开发更新记录">{updates.map(u=><article class="update-entry" id={u.id}><div class="update-meta"><time datetime={u.date}>{u.date.replaceAll('-','.')}</time><span>{u.category}</span></div><h2>{u.title}</h2><p>{u.text}</p><nav aria-label={u.title+'的相关入口'}>{u.links.map(link=><a href={link.href}>{link.title} →</a>)}</nav></article>)}</section><BlogSidebar/></div></JournalLayout>

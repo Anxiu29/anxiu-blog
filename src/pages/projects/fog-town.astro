@@ -1,0 +1,17 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import Icon from '@/components/journal/Icon.astro';
+---
+<JournalLayout title="雾镇夜行 · 网页小游戏" description="Three.js 实现的中式雨夜第一人称探索与逃生小游戏，提供在线试玩和离线包。" active="作品">
+  <section class="page-intro"><h1>雾镇夜行</h1><p>一座雨夜老镇，一通来自自己的电话，三盏等待点亮的灯。</p></section>
+  <div class="workbench-actions"><a class="primary-action" href="/games/fog-town/" target="_blank" rel="noopener noreferrer">打开游戏试玩 <Icon name="arrow"/></a><a href="/downloads/fog-town-nightwalk.zip" download>下载离线包</a><a href="/posts/fog-town-nightwalk/">阅读开发记录</a></div>
+  <p class="workbench-meta">单关卡原型 · Three.js / JavaScript / WebGL 2 · 游戏页面约 15 MB，点击后加载</p>
+  <figure class="game-screenshot"><img src="/images/projects/fog-town.jpg" alt="雾镇夜行实际运行的标题界面，雨夜古镇场景与走进雾里按钮" width="1280" height="800"/><figcaption>实际运行截图。在线试玩在独立页面打开，离线包可解压后用浏览器游玩。</figcaption></figure>
+  <div class="reading-block workbench-doc">
+    <h2>探索、躲藏，再找到归路</h2><p>先接起街角的旧电话，再探索井巷、戏台与祠堂，根据线索选择灯符。点亮三盏镇灯后，回到镇口离开。</p><p>奔跑与机关声会引来追踪者。可以借建筑遮住视线、进入木柜躲藏，或投石引开注意。手电有电量限制，照准近处目标后也能消耗电量短暂逼退它。三份可选记忆残页提供额外故事线索。</p>
+    <h2>开始游玩</h2><ul><li>使用支持 WebGL 2 的 Chrome 或 Edge，建议先用桌面键鼠体验。</li><li><code>WASD</code> 移动，鼠标环顾；<code>Shift</code> 奔跑，<code>C</code> 蹲行。</li><li><code>F</code> 切换手电，<code>E</code> 交互，<code>Q</code> 投石，<code>R</code> 强光逼退。</li><li><code>M</code> 打开手记与地图，<code>Esc</code> 暂停。标题页和暂停菜单都能调整画质。</li><li>下载离线包后，解压并用浏览器打开其中的 <code>雾镇夜行.html</code>。</li></ul>
+    <h2>从一次网页游戏实验开始</h2><p>灵感来自当时看到的一份标注为 Claude Fable 5.2 制作的网页 FPS 演示。随后选择了中式雨夜题材，以 Three.js 实现探索、躲藏与逃生原型。参考演示的模型标注属于其介绍信息，本项目不据此声明由该模型生成。</p>
+    <h2>实现与素材</h2><p>场景、角色、灯光和交互由 Three.js 与原生 JavaScript 组织，构建时将脚本、样式和素材内嵌为单个 HTML。原游戏文件按原样收录，不依赖外部 CDN 加载运行资源。</p><p>Three.js 使用 MIT 许可证；木、墙、石材及屋瓦的扫描纹理来自 Poly Haven，采用 CC0。在线目录与离线包都保留了 <a href="/games/fog-town/THIRD_PARTY_LICENSES.txt">第三方许可</a>和<a href="/games/fog-town/assets/slice/license/scanned-materials-manifest.json">材质来源清单</a>。</p>
+    <h2>当前状态</h2><p>这是单关卡可玩原型，提供均衡、精致与流畅画质。浏览器与显卡会影响表现；触屏控件已提供，实际手机性能和原生鼠标锁定仍需结合设备体验。</p><p><a href="/posts/fog-town-nightwalk/">阅读开发记录：把场景、玩法与交付串起来 →</a></p><p><a href="/projects/">← 返回项目列表</a></p>
+  </div>
+</JournalLayout>

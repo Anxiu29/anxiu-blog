@@ -1,0 +1,9 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+---
+<JournalLayout title="食刻 · 饮食记录" description="开发中的饮食记录项目，围绕照片、文字记餐与本地数据管理持续完善。" active="作品">
+<section class="page-intro"><h1>食刻</h1><p>把一餐记下来，再把记录整理清楚。</p></section>
+<p class="workbench-meta">持续开发 · Vue 3 / TypeScript / IndexedDB / Capacitor</p>
+<div class="reading-block"><h2>项目在做什么</h2><p>食刻是一个中文饮食记录项目，支持照片、文字描述与手动选食物等记录方式。识别或整理出的餐食先作为草稿展示，核对内容与份量后再保存。</p><h2>已经整理的功能</h2><ul><li>照片与文字记餐，支持在草稿中继续修改食物和数量。</li><li>手动查找食物、收藏常用条目，以及复用历史餐次。</li><li>饮食、体重、饮水与运动等记录的本地管理。</li><li>基于 IndexedDB 保存记录，并提供数据备份与导入。</li><li>复用网页界面构建 Android 应用，区分本地记录与联网模型调用。</li></ul><h2>开发中的重点</h2><p>除了页面交互，也在整理本地数据事务、历史快照、模型调用边界与安卓桥接。离线记录和联网识别属于不同能力；识别结果、份量与营养信息需要用户核对。</p><h2>当前状态</h2><p>目前作为个人项目持续开发，本页提供功能与技术实践介绍，尚未提供公开体验或下载入口。本次博客整理没有运行其模型服务或移动端安装包。</p><p><a href="/posts/shike-local-records/">阅读开发记录：从草稿到本地保存 →</a></p>
+    <p><a href="/projects/">← 返回项目列表</a></p></div>
+</JournalLayout>

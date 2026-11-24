@@ -1,0 +1,13 @@
+---
+import {getPostUrlBySlug} from '@/utils/url-utils';
+import {getPostMedia} from '@/data/post-media';
+import Icon from './Icon.astro';
+import type {PostForList} from '@/utils/content-utils';
+interface Props{posts:PostForList[];filterable?:boolean;headingLevel?:'h2'|'h3';}
+const {posts,filterable=false,headingLevel:Heading='h3'}=Astro.props;
+---
+<div class="post-list">{posts.map(post=>{const entryMedia=getPostMedia(post.id);const media=entryMedia?.thumbnail===false?undefined:entryMedia;return <article class:list={['post-row',{'has-cover':!!media}]} data-post-row={filterable?'':undefined} data-filter-text={post.data.title+' '+post.data.description+' '+post.data.tags.join(' ')} data-category={post.data.category||''} data-tags={post.data.tags.join('|')}>
+  {media&&<a class="post-cover" href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true"><img src={media.src} alt="" width={media.width} height={media.height} loading="lazy"/></a>}
+  <div class="post-summary"><a href={getPostUrlBySlug(post.id)}><Heading>{post.data.title}</Heading></a><p>{post.data.description}</p></div>
+  <div class="post-meta"><span class="post-category-icon"><Icon name={post.data.category==='WebHID'?'usb':post.data.category==='开发工具'?'align':post.data.category==='维护实践'?'capture':'keyboard'}/></span>{post.data.pinned&&<span class="pinned-note">置顶</span>}<a class="category-tag" href={'/archive/?category='+encodeURIComponent(post.data.category||'未分类')}>{post.data.category||'未分类'}</a><span class="meta-divider"></span><time datetime={post.data.published.toISOString()}>{post.data.published.toISOString().slice(0,10).replaceAll('-','.')}</time></div><div class="post-bottom"><div class="post-topics">{post.data.tags.slice(0,3).map(tag=><a href={'/archive/?tag='+encodeURIComponent(tag)}># {tag}</a>)}</div><a class="post-read" href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true">阅读全文 <Icon name="arrow"/></a></div>
+</article>;})}</div>

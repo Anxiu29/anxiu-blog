@@ -1,25 +1,25 @@
 ---
-
-import { getEntry, render } from "astro:content";
-import Markdown from "@components/common/Markdown.astro";
-import I18nKey from "@/i18n/i18nKey";
-import { i18n } from "@/i18n/translation";
-import MainGridLayout from "@/layouts/MainGridLayout.astro";
-
-const aboutPost = await getEntry("spec", "about");
-
-if (!aboutPost) {
-	throw new Error("About page content not found");
-}
-
-const { Content } = await render(aboutPost);
+import JournalLayout from '@/layouts/JournalLayout.astro';
 ---
-<MainGridLayout title={i18n(I18nKey.about)} description={i18n(I18nKey.about)}>
-    <div class="flex w-full rounded-(--radius-large) overflow-hidden relative min-h-32">
-        <div class="card-base z-10 px-9 py-6 relative w-full ">
-            <Markdown class="mt-2">
-                <Content />
-            </Markdown>
-        </div>
+<JournalLayout title="关于安秀" active="关于">
+  <section class="page-intro"><h1>关于安秀</h1><p>做前端，连接设备，也把重复操作做成工具。</p></section>
+  <div class="about-layout">
+    <div class="reading-block about-body">
+      <h2>从界面到设备上的实际效果</h2>
+      <p>我的工作涉及 RK、KZZI 的键鼠网页配置工具，主要使用 Vue、TypeScript 和 WebHID，完成界面开发、型号适配与设备通信。</p>
+      <p>除了沿用既有方案添加设备，也对接过新的固件方案商。从确认协议资料、实现收发流程，到核对回包、读回配置和实际改键效果，把功能一步步接到真实设备上。</p>
+      <h2>把开发里的重复操作留下来</h2>
+      <p>调协议时需要发指令、看回复，于是整理了 HID 调试工具；想知道网页操作对应哪些报文，就做了抓包与快照脚本；对照键盘底图调整按键区域，则有项目内的键位对齐工具。</p>
+      <p>这些工具来自具体的开发场景。这里既提供入口，也整理它们的使用方法、接入条件与源码。</p>
+      <h2>工作之外，也做些自己的项目</h2>
+      <p>用桌面待办整理任务，用食刻探索本地记录与移动端交互，也尝试把 Three.js 场景做成可以游玩的《雾镇夜行》。GlassBoard 则作为基于已有代码的维护与适配实践单独记录。</p>
+      <p>文章会围绕真实功能和已有资料展开：做了什么，为什么这样做，以及还有哪些地方需要继续验证。</p>
+      <h2>关于这个站点</h2>
+      <p>博客基于 <a href="https://astro.build/">Astro</a> 与 <a href="https://github.com/CuteLeaf/Firefly">Firefly</a> 搭建，保留原主题及其上游项目的开源署名。</p>
     </div>
-</MainGridLayout>
+    <aside class="about-aside" aria-label="相关入口">
+      <section><h2>在这里看</h2><a href="/archive/">文章与开发记录 <span>→</span></a><a href="/tools/">开发工具与源码 <span>→</span></a><a href="/projects/">个人作品 <span>→</span></a></section>
+      <section><h2>保持联系</h2><a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">GitHub <span>↗</span></a><a href="/rss/">通过 RSS 订阅 <span>→</span></a></section>
+    </aside>
+  </div>
+</JournalLayout>

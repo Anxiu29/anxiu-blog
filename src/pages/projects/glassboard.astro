@@ -1,0 +1,9 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+---
+<JournalLayout title="GlassBoard · 维护实践" description="围绕 Windows 桌面面板、Dock 与轻量组件的维护和适配实践。" active="作品">
+<section class="page-intro"><h1>GlassBoard 维护实践</h1><p>围绕桌面面板、Dock 和轻量组件，处理实际使用中的问题。</p></section>
+<p class="workbench-meta">维护与适配 · Windows / .NET Framework 4.8</p>
+<div class="reading-block"><h2>项目与角色</h2><p>这是基于既有 GlassBoard 代码进行的维护与适配。原代码的 MIT 许可证署名为森霖Sama，维护版本继续保留原有版权及第三方声明。</p><h2>维护目录中的功能</h2><ul><li>Dock 固定入口、运行中软件与自建分组。</li><li>图标拖动排序、多选移动，以及撤销与重做。</li><li>系统媒体会话读取与媒体按键适配。</li><li>天气请求兼容，以及已有布局、便签与外观配置的保留。</li></ul><h2>这类维护关注什么</h2><p>维护会涉及原有配置兼容、窗口与交互状态、系统组件调用，以及修改后对原有功能的回归核对。界面变化之外，也需要关注重开窗口、迟到请求和设备环境差异。</p><h2>当前展示范围</h2><p>本页记录维护实践，暂未提供下载入口，也未在本次博客整理中进行 Windows 桌面交互测试。具体功能应结合所用维护版本核对。</p><p><a href="/posts/glassboard-maintenance/">阅读维护记录：桌面交互与系统适配 →</a></p>
+    <p><a href="/projects/">← 返回项目列表</a></p></div>
+</JournalLayout>

@@ -1,0 +1,15 @@
+---
+import Icon from './Icon.astro';
+import {tools} from '@/data/tools';
+const shortcuts=tools.filter(tool=>['hid','workbench','align'].includes(tool.id));
+---
+<section class="home-discovery" aria-label="博客介绍与作品">
+  <div class="home-showcase">
+    <div class="lead-story">
+      <div class="home-intro"><div><h1 aria-label="前端开发与设备联调"><span>前端开发</span><span>与设备联调</span></h1><p>记录键鼠网页驱动、设备协议，以及自己做的工具和项目。</p></div><div class="home-actions"><a class="button-link primary" href="/archive/">浏览文章 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a><a class="text-link" href="/projects/">查看作品</a></div><div class="intro-topics"><span>WebHID</span><span>Vue</span><span>TypeScript</span></div></div>
+      <a class="featured-entry anxiu-highlight" href="/posts/anxiu-demo/"><div class="project-window"><div class="project-window-bar" aria-hidden="true"><span></span><span></span><span></span><small>anxiu.vercel.app</small></div><img src="/images/projects/anxiu-interface.jpg" width="1280" height="800" alt="Anxiu 演示模式的键盘改键界面"/></div><div class="project-window-caption"><span><strong>Anxiu</strong> 键鼠网页驱动</span><Icon name="arrow"/></div></a>
+    </div>
+    <a class="featured-entry game-highlight" href="/projects/fog-town/"><img src="/images/projects/fog-town.jpg" width="1280" height="800" alt="雾镇夜行的雨夜古镇游戏界面"/><div class="game-highlight-copy"><div><span>Three.js · 网页小游戏</span><h2>雾镇夜行</h2></div><span class="game-open" aria-label="查看游戏"><Icon name="arrow"/></span></div></a>
+  </div>
+  <nav class="home-toolbelt" aria-label="常用开发工具">{shortcuts.map(tool=><a href={tool.href}><span class="toolbelt-icon"><Icon name={tool.icon}/></span><span class="toolbelt-copy"><strong>{tool.title}</strong><span>{tool.description}</span></span><Icon name="arrow" class="toolbelt-arrow"/></a>)}</nav>
+</section>

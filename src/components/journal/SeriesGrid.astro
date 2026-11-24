@@ -1,0 +1,11 @@
+---
+import Icon from './Icon.astro';
+import {getSortedPosts} from '@/utils/content-utils';
+import {getSeriesEntries} from '@/utils/series-utils';
+import {getPostUrlBySlug} from '@/utils/url-utils';
+interface Props {compact?:boolean;}
+const {compact=false}=Astro.props;
+const Heading=compact?'h3':'h2';
+const topics=getSeriesEntries(await getSortedPosts());
+---
+<div class:list={['topic-catalog',{'topic-catalog-compact':compact}]}>{topics.map(topic=><article class="topic-preview"><div class="topic-preview-top"><span class="series-icon"><Icon name={topic.icon}/></span><span>{topic.entries.length} 篇文章</span></div><Heading><a href={'/series/'+topic.slug+'/'}>{topic.title}</a></Heading><p>{topic.description}</p><ol>{topic.entries.slice(0,compact?2:4).map(entry=><li><a href={getPostUrlBySlug(entry.id)}>{entry.data.title}</a></li>)}</ol><a class="topic-preview-more" href={'/series/'+topic.slug+'/'}>查看专题 <Icon name="arrow"/></a></article>)}</div>

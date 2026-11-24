@@ -1,0 +1,32 @@
+---
+import Icon from './Icon.astro';
+import {tools,toolCategories} from '@/data/tools';
+interface Props {headingLevel?: 'h2'|'h3';ids?:string[];directory?:boolean;}
+const {headingLevel:Heading='h3',ids,directory=false}=Astro.props;
+const entries=ids?ids.flatMap(id=>tools.filter(t=>t.id===id)):tools;
+---
+<div class:list={['tool-collection',{directory}]} data-tool-collection>
+  {directory&&<div class="tool-filters"><div class="filter-buttons" role="group" aria-label="工具类型">{toolCategories.map(c=><button type="button" data-category={c.id} aria-pressed={c.id==='all'}>{c.label}</button>)}</div><label class="tool-search"><Icon name="search"/><span class="sr-only">搜索工具</span><input type="search" placeholder="搜索工具" data-tool-search/></label></div>}
+  <div class="tool-grid">{entries.map(tool=>{
+    const external=tool.href.startsWith('https://');
+    return <article class:list={['tool-card',{'desktop-tool':tool.category==='desktop'&&directory}]} data-tool-category={tool.category} data-tool-text={tool.title+' '+tool.description+' '+tool.keywords}>
+      <div class="tool-icon"><Icon name={tool.icon}/></div>
+      <div class="tool-content"><Heading><a href={tool.href} target={external?'_blank':undefined} rel={external?'noopener noreferrer':undefined}>{tool.title}</a></Heading>
+      {directory&&<span class="tool-kind">{toolCategories.find(c=>c.id===tool.category)?.label}{tool.category==='desktop'?' · Windows':''}</span>}
+      <p>{tool.description}</p>{!directory&&<p class="tool-note">{tool.note}</p>}
+      <div class="tool-actions"><a class="button-link primary" href={tool.href} target={external?'_blank':undefined} rel={external?'noopener noreferrer':undefined}>{tool.action}<Icon name="arrow"/></a>{directory&&tool.guide&&<a class="button-link" href={tool.guide}>使用说明</a>}</div></div>
+    </article>;
+  })}</div>
+  {directory&&<><p class="tool-filter-status sr-only" role="status" aria-live="polite" data-tool-status></p><p class="empty-state" data-tool-empty hidden>没有匹配的工具，换个关键词或切换“全部”试试。</p></>}
+</div>
+<script>
+for(const root of document.querySelectorAll<HTMLElement>('[data-tool-collection].directory')){
+  const buttons=[...root.querySelectorAll<HTMLButtonElement>('button[data-category]')];
+  const input=root.querySelector<HTMLInputElement>('[data-tool-search]');
+  const cards=[...root.querySelectorAll<HTMLElement>('[data-tool-category]')];
+  let category='all';
+  function filter(){const q=input?.value.trim().toLocaleLowerCase()||'';let count=0;for(const card of cards){const visible=(category==='all'||card.dataset.toolCategory===category)&&(card.dataset.toolText||'').toLocaleLowerCase().includes(q);card.hidden=!visible;if(visible)count++;}const empty=root.querySelector<HTMLElement>('[data-tool-empty]');if(empty)empty.hidden=count>0;const status=root.querySelector('[data-tool-status]');if(status)status.textContent='显示 '+count+' 个工具';}
+  for(const button of buttons)button.addEventListener('click',()=>{category=button.dataset.category||'all';for(const b of buttons)b.setAttribute('aria-pressed',String(b===button));filter();});
+  input?.addEventListener('input',filter);filter();
+}
+</script>

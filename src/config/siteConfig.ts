@@ -9,14 +9,14 @@ export const siteConfig: SiteConfig = {
 	title: "安秀",
 
 	// 站点副标题
-	subtitle: "个人博客",
+	subtitle: "技术、工具与记录",
 
 	// 站点 URL（域名确定后请替换为正式地址）
-	site_url: "https://example.com",
+	site_url: "https://anxiu-blog.vercel.app",
 
 	// 站点描述
 	description:
-		"安秀的个人博客，记录技术与生活，并提供 HID 设备查询等在线工具。",
+		"安秀的技术博客，记录前端开发、WebHID 与设备联调实践，分享开发工具与个人作品。",
 
 	// 站点关键词
 	keywords: ["安秀", "博客", "技术博客", "静态博客", "HID", "WebHID"],
@@ -91,7 +91,7 @@ export const siteConfig: SiteConfig = {
 	// 页面开关配置 - 控制特定页面的访问权限，设为false会返回404并自动隐藏对应的导航栏菜单项
 	pages: {
 		// 友链页面开关
-		friends: false,
+		friends: true,
 		// 打赏页面开关
 		sponsor: false,
 		// 留言板页面开关，需要配置评论系统
