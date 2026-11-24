@@ -1,22 +1,25 @@
 ---
+import { updates } from "@/data/blog-discovery";
 import { tools } from "@/data/tools";
 import Icon from "./Icon.astro";
 
 const shortcuts = tools.filter((tool) =>
 	["hid", "workbench", "align"].includes(tool.id),
 );
+const latest = updates[0];
 ---
 <section class="home-discovery" aria-label="博客介绍与作品">
- <div class="wallpaper-welcome">
-  <div class="welcome-copy"><h1 aria-label="前端开发与设备联调">前端开发<span>与设备联调</span></h1><p>记录键鼠网页驱动、设备协议，<br/>以及自己做的工具和项目。</p><div class="welcome-actions"><a class="welcome-primary" href="/archive/">浏览文章 <Icon name="arrow"/></a><a href="/projects/">查看作品 <Icon name="arrow"/></a></div><div class="welcome-topics"><span>WebHID</span><span>Vue</span><span>TypeScript</span></div></div>
-  <button type="button" class="welcome-wallpaper" data-open-wallpaper><Icon name="palette"/><span>更换壁纸</span></button>
- </div>
- <div class="home-featured" aria-label="作品选读">
-  <a class="wallpaper-project" href="/posts/anxiu-demo/"><img src="/images/projects/anxiu-interface.jpg" width="1280" height="800" alt="Anxiu 演示模式的键盘改键界面"/><div><h2>Anxiu 键鼠网页驱动</h2><p>改键、宏与设备配置，也可以先试试演示模式。</p></div><Icon name="arrow"/></a>
-  <a class="wallpaper-project" href="/projects/fog-town/"><img src="/images/projects/fog-town.jpg" width="1280" height="800" alt="雾镇夜行的雨夜古镇游戏界面"/><div><h2>雾镇夜行</h2><p>用 Three.js 做的雨夜古镇探索小游戏。</p></div><Icon name="arrow"/></a>
- </div>
- <nav class="home-toolbelt" aria-label="常用开发工具">{shortcuts.map(tool=><a href={tool.href}><span class="toolbelt-icon"><Icon name={tool.icon}/></span><span class="toolbelt-copy"><strong>{tool.title}</strong><span>{tool.description}</span></span><Icon name="arrow" class="toolbelt-arrow"/></a>)}</nav>
+  <div class="wallpaper-welcome">
+    <div class="welcome-copy"><p class="welcome-eyebrow">写代码，也记录过程</p><h1>安秀的开发手记</h1><p>键鼠网页驱动、设备联调，<br/>还有一些自己做的小工具。</p><div class="welcome-actions"><a class="welcome-primary" href="#posts-heading">开始阅读</a><a href="/about/">关于这个博客</a></div></div>
+    <button type="button" class="welcome-wallpaper" data-open-wallpaper><Icon name="palette"/><span>更换壁纸</span></button>
+  </div>
+  <div class="home-featured" aria-label="作品选读">
+    <a class="wallpaper-project" href="/posts/anxiu-demo/"><img src="/images/projects/anxiu-interface.jpg" width="1280" height="800" alt="Anxiu 演示模式的键盘改键界面" fetchpriority="high"/><div><span class="project-eyebrow">设备与浏览器</span><h2>Anxiu 键鼠网页驱动</h2><p>从改键、宏到设备配置，先从演示模式试起。</p><span class="project-read">查看项目</span></div></a>
+    <a class="wallpaper-project" href="/projects/fog-town/"><img src="/images/projects/fog-town.jpg" width="1280" height="800" alt="雾镇夜行的雨夜古镇游戏界面" loading="lazy"/><div><span class="project-eyebrow">一个网页实验</span><h2>雾镇夜行</h2><p>在雨夜的古镇里，找一条离开的路。</p><span class="project-read">进入游戏</span></div></a>
+  </div>
+  <nav class="home-toolbelt" aria-label="常用开发工具">{shortcuts.map(tool => <a href={tool.href}><span class="toolbelt-icon"><Icon name={tool.icon}/></span><span class="toolbelt-copy"><strong>{tool.title}</strong><span>{tool.description}</span></span></a>)}</nav>
+  {latest && <div class="home-note"><Icon name="capture"/><span>近况</span><a href={`/updates/#${latest.id}`}>{latest.title}</a><time datetime={latest.date}>{latest.date.slice(5).replace("-", ".")}</time><a class="home-note-more" href="/updates/" aria-label="查看所有开发动态">更多动态</a></div>}
 </section>
 <script>
-document.querySelector('[data-open-wallpaper]')?.addEventListener('click',()=>document.querySelector<HTMLButtonElement>('#open-appearance')?.click());
+document.querySelector("[data-open-wallpaper]")?.addEventListener("click", () => document.querySelector<HTMLButtonElement>("#open-appearance")?.click());
 </script>

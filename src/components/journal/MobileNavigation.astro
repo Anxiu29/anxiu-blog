@@ -1,0 +1,27 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+	active: string;
+}
+const { active } = Astro.props;
+const links = [
+	{ title: "首页", href: "/", icon: "home" },
+	{ title: "文章", href: "/archive/", icon: "book" },
+	{ title: "工具", href: "/tools/", icon: "usb" },
+	{ title: "作品", href: "/projects/", icon: "keyboard" },
+	{ title: "逛逛", href: "/series/", icon: "compass" },
+	{ title: "关于", href: "/about/", icon: "person" },
+];
+---
+<dialog id="mobile-navigation" class="mobile-navigation" aria-labelledby="mobile-nav-title">
+  <div class="mobile-navigation-heading"><a href="/" id="mobile-nav-title">安秀的开发手记</a><button type="button" class="icon-button" data-close-navigation aria-label="关闭导航"><Icon name="close"/></button></div>
+  <nav aria-label="手机主导航">{links.map(link => <a href={link.href} aria-current={active === link.title ? "page" : undefined}><Icon name={link.icon}/><span>{link.title}</span></a>)}</nav>
+  <div class="mobile-navigation-more"><a href="/updates/">开发动态</a><a href="/friends/">站点收藏</a><a href="/rss/">RSS 订阅</a></div>
+  <p>记录开发过程，也分享自己用得上的工具。</p>
+</dialog>
+<noscript><nav class="no-script-navigation" aria-label="手机导航">{links.map(link => <a href={link.href}>{link.title}</a>)}</nav></noscript>
+<script>
+import { initializeMobileNavigation } from "@/scripts/mobile-navigation";
+initializeMobileNavigation();
+</script>

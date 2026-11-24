@@ -1,5 +1,4 @@
 ---
-import { series, updates } from "@/data/blog-discovery";
 import { projects } from "@/data/projects";
 import { tools } from "@/data/tools";
 import {
@@ -7,21 +6,30 @@ import {
 	getSortedPosts,
 	getTagList,
 } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
 import Icon from "./Icon.astro";
 
 const posts = await getSortedPosts();
-const projectCount = projects.length;
 const categories = await getCategoryList();
 const tags = (await getTagList())
 	.sort((a, b) => b.count - a.count)
-	.slice(0, 12);
+	.slice(0, 10);
+const choices = [
+	"webhid-tool-guide",
+	"webhid-workbench",
+	"glassboard-maintenance",
+];
+const recommendations = choices.flatMap((id) => {
+	const post = posts.find(
+		(p) => p.id.replace(/\.(md|mdx)$/, "") === id && !p.data.password,
+	);
+	return post ? [post] : [];
+});
 ---
 <aside class="blog-sidebar" aria-label="博客侧栏">
-  <section class="sidebar-card profile-card"><div class="profile-cover" aria-hidden="true"><span>ANXIU</span><Icon name="keyboard"/></div><a class="profile-initial" href="/about/" aria-label="关于安秀">安</a><h2>安秀</h2><p>键鼠网页驱动开发，也写一些自己的小工具。</p><div class="profile-counts"><a href="/archive/"><strong>{posts.length}</strong><span>文章</span></a><a href="/tools/"><strong>{tools.length}</strong><span>工具</span></a><a href="/projects/"><strong>{projectCount}</strong><span>作品</span></a></div><div class="profile-links"><a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="/rss/">RSS 订阅</a><a href="/about/">关于</a></div></section>
-  <section class="sidebar-card"><div class="sidebar-title"><h2><Icon name="capture"/>最近更新</h2><a href="/updates/">更多 →</a></div><ol class="sidebar-updates">{updates.slice(0,2).map(u=><li><time datetime={u.date}>{u.date.slice(5).replace('-','.')}</time><a href={'/updates/#'+u.id}>{u.title}</a></li>)}</ol></section>
-  <section class="sidebar-card"><h2><Icon name="keyboard"/>专题阅读</h2>{series.map(s=><a class="sidebar-row" href={'/series/'+s.slug+'/'}><span>{s.title}</span><small>{s.posts.length}</small></a>)}</section>
-  <section class="sidebar-card"><h2><Icon name="align"/>分类</h2><nav aria-label="文章分类">{categories.map(c=><a class="sidebar-row" href={'/archive/?category='+encodeURIComponent(c.name)}><span>{c.name}</span><small>{c.count}</small></a>)}</nav></section>
-  <section class="sidebar-card"><h2><Icon name="usb"/>开发工具</h2><nav aria-label="常用开发工具">{tools.filter(t=>['hid','workbench','align'].includes(t.id)).map(tool=><a class="sidebar-row" href={tool.href}><span class="sidebar-tool-name"><Icon name={tool.icon}/>{tool.title}</span><Icon name="arrow"/></a>)}</nav></section>
-  <section class="sidebar-card"><h2><Icon name="check"/>标签</h2><div class="sidebar-tags">{tags.map(tag=><a href={'/archive/?tag='+encodeURIComponent(tag.name)}>{tag.name}</a>)}</div><a class="sidebar-more" href="/tags/">全部标签 →</a></section>
-  <section class="sidebar-card"><h2><Icon name="todo"/>个人项目</h2><a class="sidebar-row" href="/projects/desktop-todo/"><span>桌面待办</span><span aria-hidden="true">→</span></a><a class="sidebar-row" href="/projects/fog-town/"><span>雾镇夜行</span><span aria-hidden="true">→</span></a><a class="sidebar-row" href="/projects/shike/"><span>食刻</span><span aria-hidden="true">→</span></a><a class="sidebar-more" href="/projects/">全部作品 →</a></section>
+  <section class="sidebar-card profile-card"><div class="profile-cover" aria-hidden="true"><span>开发 · 工具 · 记录</span><Icon name="keyboard"/></div><a class="profile-initial" href="/about/" aria-label="关于安秀">安</a><h2>安秀</h2><p>做键鼠网页驱动，<br/>也折腾一些日常用得上的工具。</p><div class="profile-counts"><a href="/archive/"><strong>{posts.length}</strong><span>文章</span></a><a href="/tools/"><strong>{tools.length}</strong><span>工具</span></a><a href="/projects/"><strong>{projects.length}</strong><span>作品</span></a></div><div class="profile-links"><a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">GitHub</a><a href="/rss/">RSS 订阅</a><a href="/about/">关于</a></div></section>
+  <section class="sidebar-card sidebar-recommendations"><div class="sidebar-title"><h2><Icon name="book"/>从这几篇开始</h2><a href="/series/">专题</a></div><ol>{recommendations.map(post => <li><a href={getPostUrlBySlug(post.id)}><small>{post.data.category}</small><strong>{post.data.title}</strong><span>{post.data.description}</span></a></li>)}</ol></section>
+  <section class="sidebar-card sidebar-topics"><h2><Icon name="compass"/>按主题找文章</h2><nav aria-label="文章分类">{categories.map(category => <a class="sidebar-row" href={`/archive/?category=${encodeURIComponent(category.name)}`}><span>{category.name}</span><small>{category.count}</small></a>)}</nav><div class="sidebar-tags">{tags.map(tag => <a href={`/archive/?tag=${encodeURIComponent(tag.name)}`}>{tag.name}</a>)}</div><a class="sidebar-more" href="/tags/">查看全部标签</a></section>
+  <section class="sidebar-card sidebar-tools"><h2><Icon name="usb"/>常用工具</h2><nav aria-label="常用开发工具">{tools.filter(tool => ["hid", "workbench", "align"].includes(tool.id)).map(tool => <a class="sidebar-row" href={tool.href}><span class="sidebar-tool-name"><Icon name={tool.icon}/>{tool.title}</span></a>)}</nav></section>
+  <section class="sidebar-card sidebar-subscribe"><Icon name="rss"/><h2>下次见</h2><p>用 RSS 订阅新文章，<br/>或者去收藏的博客里逛逛。</p><a href="/rss/">订阅文章</a><a href="/friends/">逛逛其他博客</a></section>
 </aside>

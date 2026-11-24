@@ -2,7 +2,6 @@
 import type { GetStaticPaths, Page } from "astro";
 import BlogSidebar from "@/components/journal/BlogSidebar.astro";
 import HomeDiscovery from "@/components/journal/HomeDiscovery.astro";
-import HomeReading from "@/components/journal/HomeReading.astro";
 import PostList from "@/components/journal/PostList.astro";
 import SeriesGrid from "@/components/journal/SeriesGrid.astro";
 import { siteConfig } from "@/config/siteConfig";
@@ -17,12 +16,16 @@ export const getStaticPaths = (async ({ paginate }) =>
 		pageSize: siteConfig.pagination.postsPerPage || 8,
 	})) satisfies GetStaticPaths;
 const { page } = Astro.props as { page: Page<PostForList> };
-const categories = await getCategoryList();
+const pageCategories = new Set(
+	page.data.map((post) => post.data.category || "未分类"),
+);
+const categories = (await getCategoryList()).filter((category) =>
+	pageCategories.has(category.name),
+);
 ---
 <JournalLayout title={page.currentPage>1?'文章 · 第 '+page.currentPage+' 页':undefined} active="首页">
   {page.currentPage===1&&<HomeDiscovery/>}
-  {page.currentPage===1&&<HomeReading/>}
-  <div class="blog-columns home-columns"><section class="recent-posts" aria-labelledby="posts-heading"><div class="section-heading article-list-heading"><h2 id="posts-heading">文章 <small>{page.total} 篇记录</small></h2><a href="/archive/">全部文章 →</a></div><div class="home-category-tabs" role="group" aria-label="按分类浏览本页文章"><button type="button" data-home-category="" aria-pressed="true">全部</button>{categories.map(c=><button type="button" data-home-category={c.name} aria-pressed="false">{c.name}</button>)}</div><p id="home-filter-status" class="sr-only" role="status" aria-live="polite"></p><PostList posts={page.data}/><p id="home-filter-empty" class="empty-state" hidden>本页没有这个分类的文章，<a href="/archive/">去归档查看全部文章 →</a></p>{(page.url.prev||page.url.next)&&<nav class="pagination" aria-label="文章分页">{page.url.prev&&<a href={page.url.prev}>← 上一页</a>}<span>第 {page.currentPage} 页</span>{page.url.next&&<a href={page.url.next}>下一页 →</a>}</nav>}</section><BlogSidebar/></div>
+  <div class="blog-columns home-columns"><section class="recent-posts" aria-labelledby="posts-heading"><div class="section-heading article-list-heading"><h2 id="posts-heading">最近文章 <small>{page.total} 篇记录</small></h2><a href="/archive/">全部文章 →</a></div><div class="home-category-tabs" role="group" aria-label="按分类浏览本页文章"><button type="button" data-home-category="" aria-pressed="true">全部</button>{categories.map(c=><button type="button" data-home-category={c.name} aria-pressed="false">{c.name}</button>)}</div><p id="home-filter-status" class="sr-only" role="status" aria-live="polite"></p><PostList posts={page.data}/><p id="home-filter-empty" class="empty-state" hidden>本页没有这个分类的文章，<a href="/archive/">去归档查看全部文章 →</a></p>{(page.url.prev||page.url.next)&&<nav class="pagination" aria-label="文章分页">{page.url.prev&&<a href={page.url.prev}>← 上一页</a>}<span>第 {page.currentPage} 页</span>{page.url.next&&<a href={page.url.next}>下一页 →</a>}</nav>}</section><BlogSidebar/></div>
   {page.currentPage===1&&<section class="home-topic-shelf" aria-labelledby="home-topics-heading"><div class="section-heading article-list-heading"><h2 id="home-topics-heading">专题导读</h2><a href="/series/">全部专题 →</a></div><SeriesGrid compact/></section>}
 </JournalLayout>
 

@@ -153,6 +153,17 @@ export const bookmarks = [
 
 export const updates = [
 	{
+		id: "reading-details",
+		date: "2026-11-24",
+		category: "博客",
+		title: "重新整理首页，也补了一些阅读细节",
+		text: "缩短首页导读，重新整理文章卡片与侧栏；补上手机导航、专注阅读和文章图片大图查看。罗小黑动态壁纸和原来的工具入口继续保留。",
+		links: [
+			{ title: "看看文章", href: "/archive/" },
+			{ title: "常用工具", href: "/tools/" },
+		],
+	},
+	{
 		id: "discovery",
 		date: "2026-11-23",
 		category: "博客",
