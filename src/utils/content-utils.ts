@@ -4,9 +4,9 @@ import { i18n } from "@i18n/translation";
 import { getCategoryUrl } from "@utils/url-utils";
 
 // // Retrieve posts and sort them by publication date
-async function getRawSortedPosts() {
+async function getRawSortedPosts(includeTemplateDemos = false) {
 	const allBlogPosts = await getCollection("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
+		return data.draft !== true && (includeTemplateDemos || !data.templateDemo);
 	});
 
 	const sorted = allBlogPosts.sort((a, b) => {
@@ -22,8 +22,8 @@ async function getRawSortedPosts() {
 	return sorted;
 }
 
-export async function getSortedPosts() {
-	const sorted = await getRawSortedPosts();
+export async function getSortedPosts(options: {includeTemplateDemos?: boolean} = {}) {
+	const sorted = await getRawSortedPosts(options.includeTemplateDemos);
 
 	for (let i = 1; i < sorted.length; i++) {
 		sorted[i].data.nextSlug = sorted[i - 1].id;
@@ -58,7 +58,7 @@ export type Tag = {
 
 export async function getTagList(): Promise<Tag[]> {
 	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
+		return data.draft !== true && !data.templateDemo;
 	});
 
 	const countMap: { [key: string]: number } = {};
@@ -85,7 +85,7 @@ export type Category = {
 
 export async function getCategoryList(): Promise<Category[]> {
 	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
+		return data.draft !== true && !data.templateDemo;
 	});
 	const count: { [key: string]: number } = {};
 	allBlogPosts.forEach((post: { data: { category: string | null } }) => {
@@ -161,7 +161,7 @@ export async function getRelatedPosts(
 	maxCount = 5,
 ): Promise<PostForList[]> {
 	const allPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
+		return data.draft !== true && !data.templateDemo;
 	});
 
 	// 排除自身和加密文章

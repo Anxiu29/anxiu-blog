@@ -5,6 +5,7 @@ description: 用于验证 Firefly 中 PlantUML 插件渲染、主题切换与交
 tags: [PlantUML, Firefly, Markdown]
 category: 文章示例
 draft: false
+templateDemo: true
 ---
 
 ## Markdown 中 PlantUML 图表指南
@@ -247,4 +248,3 @@ Rel(web, plantuml, "请求图表 SVG")
 LAYOUT_LEFT_RIGHT()
 @enduml
 ```
-

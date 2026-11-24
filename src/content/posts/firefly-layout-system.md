@@ -6,6 +6,7 @@ image: ./images/firefly1.avif
 tags: [Firefly, 布局, 博客, 使用指南]
 category: 博客指南
 draft: false
+templateDemo: true
 ---
 
 ## 📖 概述
