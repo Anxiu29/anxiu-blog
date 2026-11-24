@@ -1,0 +1,1786 @@
+import { createApp } from 'vue'
+import { getActivePinia } from 'pinia'
+import AlignTool from './keyAlignTool.vue'
+
+/** 独立挂载对齐工具：不改 App.vue，由 Vite 插件在 dev 入口末尾调用 */
+export function mountAlignTool() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('rk-align-root')) return
+
+  const el = document.createElement('div')
+  el.id = 'rk-align-root'
+  document.body.appendChild(el)
+
+  const app = createApp(AlignTool)
+  const pinia = getActivePinia()
+  if (pinia) app.use(pinia)
+  app.mount(el)
+}
+
+import { readFile, writeFile } from 'node:fs/promises'
+import { resolve, normalize } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { Plugin } from 'vite'
+import { fingerprintMatrix, KEYLINE_CLASS_RE, matrixNameForKeyboard, round2, SIZE_CLASS_RE, stripLegacySizeClasses } from './alignShared.ts'
+
+/**
+ * 本地按键对齐工具（仅 npm run dev）
+ * 主工程只需在 vite.config 里「文件存在则加载」本插件；不要改 App.vue。
+ * 负责：注入面板 + 写回 keyStore / key.vue
+ */
+export const RK_ALIGN_PLUGIN_VERSION = 8
+
+type AlignKeyPatch = {
+  index: number
+  position?: number
+  offset: number
+  offsetY?: number
+  style?: string
+  width?: number
+  height?: number
+}
+
+export function rkAlignWritePlugin(): Plugin {
+  const root = fileURLToPath(new URL('../..', import.meta.url))
+  const mountPath = fileURLToPath(new URL('./mount.ts', import.meta.url)).replace(/\\/g, '/')
+  const VIRTUAL_ID = 'virtual:rk-key-align'
+  const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_ID
+  const num = '-?\\d+(?:\\.\\d+)?'
+  const fmt = (n: number) => String(round2(n))
+
+  const assertSafePath = (rel: string, kind: 'store' | 'vue') => {
+    const n = normalize(rel).replace(/\\/g, '/')
+    if (n.includes('..')) throw new Error(`非法路径: ${rel}`)
+    if (kind === 'store' && (!n.startsWith('src/stores/') || !n.endsWith('keyStore.ts'))) {
+      throw new Error(`storePath 必须在 src/stores/**/keyStore.ts: ${rel}`)
+    }
+    if (kind === 'vue' && (!n.startsWith('src/components/') || !n.endsWith('/key.vue'))) {
+      throw new Error(`vuePath 必须在 src/components/**/key.vue: ${rel}`)
+    }
+    return resolve(root, n)
+  }
+
+  const extractGetIndex = (src: string): ((l: number, c: number) => number) => {
+    const compile = (p1: string, p2: string, expr: string) => {
+      try {
+        const fn = new Function(p1, p2, `"use strict"; return (${expr});`) as (
+          a: number,
+          b: number
+        ) => number
+        const sample = fn(1, 2)
+        if (!Number.isFinite(sample)) return null
+        return (l: number, c: number) => Number(fn(l, c))
+      } catch {
+        return null
+      }
+    }
+
+    const block = src.match(
+      /const getIndex\s*=\s*\(\s*(\w+)[^,)]*,\s*(\w+)[^)]*\)\s*(?::[^=\{]+)?\s*=>\s*\{([\s\S]*?)\}/
+    )
+    if (block) {
+      const ret = block[3].match(/return\s+([^;]+)/)
+      const fn = ret ? compile(block[1], block[2], ret[1]) : null
+      if (fn) return fn
+    }
+
+    const arrow = src.match(
+      /const getIndex\s*=\s*\(\s*(\w+)[^,)]*,\s*(\w+)[^)]*\)\s*(?::[^=\{]+)?\s*=>\s*([^;\{]+)/
+    )
+    if (arrow) {
+      const fn = compile(arrow[1], arrow[2], arrow[3])
+      if (fn) return fn
+    }
+
+    if (/\bgetIndex\s*\(/.test(src) && /\bconst\s+getIndex\b/.test(src)) {
+      throw new Error('无法解析 getIndex（星闪是 row * 列数 + col），拒绝写入以免改错键')
+    }
+    return (l, c) => {
+      throw new Error(`文件没有可用的 getIndex，无法处理 getIndex(${l}, ${c})`)
+    }
+  }
+
+  const findMatchingBracket = (src: string, start: number) => {
+    let depth = 0
+    let quote: string | null = null
+    for (let i = start; i < src.length; i++) {
+      const ch = src[i]
+      if (quote) {
+        if (ch === '\\') {
+          i++
+          continue
+        }
+        if (ch === quote) quote = null
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        quote = ch
+        continue
+      }
+      if (ch === '[') depth++
+      else if (ch === ']') {
+        depth--
+        if (depth === 0) return i + 1
+      }
+    }
+    return -1
+  }
+
+  const matrixBlocks = (src: string) => {
+    const blocks: Array<{ name: string; start: number; end: number; body: string }> = []
+    const re = /const (keyMatrix_\w+)\s*=\s*\[/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(src))) {
+      const bracket = src.indexOf('[', m.index)
+      const end = findMatchingBracket(src, bracket)
+      if (end > bracket) {
+        blocks.push({ name: m[1], start: m.index, end, body: src.slice(m.index, end) })
+      }
+    }
+    return blocks
+  }
+
+  const lineCommented = (src: string, at: number) => {
+    const lineStart = src.lastIndexOf('\n', Math.max(0, at - 1)) + 1
+    return src.slice(lineStart, at).includes('//')
+  }
+
+  const pickMatrixBlock = (
+    src: string,
+    getIndex: (l: number, c: number) => number,
+    opts: { keyboardNames?: string[]; layoutFingerprint?: string }
+  ) => {
+    const blocks = matrixBlocks(src)
+    if (!blocks.length) {
+      if (/\bkeyMatrix_\w+/.test(src)) {
+        throw new Error('无法切分 keyMatrix_*，拒绝整文件替换')
+      }
+      return null
+    }
+    if (blocks.length === 1) return blocks[0]
+
+    const wanted = matrixNameForKeyboard(src, opts.keyboardNames)
+    const byName = wanted ? blocks.find((b) => b.name === wanted) : undefined
+
+    const live = opts.layoutFingerprint || ''
+    const scored = live
+      ? blocks
+          .map((b) => ({ b, score: fingerprintMatrix(b.body, getIndex) === live ? 1 : 0 }))
+          .filter((x) => x.score)
+      : []
+
+    if (byName && scored.length) {
+      const hit = scored.find((x) => x.b.name === byName.name)
+      if (hit) return hit.b
+      throw new Error(
+        `键盘名对应 ${byName.name}，但当前页面键位对上的是 ${scored.map((x) => x.b.name).join('/')}`
+      )
+    }
+    if (byName) return byName
+    if (scored.length === 1) return scored[0].b
+    if (scored.length > 1) {
+      throw new Error(
+        `当前页面键位同时匹配 ${scored.map((x) => x.b.name).join('/')}，无法判断语言。请确认设备名已写在 keyboardDefine.name 里`
+      )
+    }
+    throw new Error(
+      `无法确定当前语言的 keyMatrix（候选 ${blocks.map((b) => b.name).join('/')}）。请重启 npm run dev 后再试`
+    )
+  }
+
+  const patchKeyStoreChunk = (
+    src: string,
+    keys: AlignKeyPatch[],
+    getIndex: (l: number, c: number) => number
+  ) => {
+    const byIndex = new Map(keys.map((k) => [k.index, k]))
+    const matchKey = (idx: number, pos: string) => {
+      const k = byIndex.get(idx)
+      if (!k) return null
+      if (k.position != null && Number(pos) !== Number(k.position)) return null
+      return k
+    }
+    const reGetIndex = new RegExp(
+      `index:\\s*getIndex\\((\\d+),\\s*(\\d+)\\),\\s*keyData:\\s*getKeyData\\(getIndex\\(\\1,\\s*\\2\\)\\),\\s*position:\\s*(${num}),\\s*offset:\\s*(${num})(?:,\\s*offsetY:\\s*(${num}))?`,
+      'g'
+    )
+    let out = src.replace(reGetIndex, (full, ...rest: Array<string | number>) => {
+      const all = String(rest[rest.length - 1])
+      const at = Number(rest[rest.length - 2])
+      if (lineCommented(all, at)) return full
+      const l = String(rest[0])
+      const c = String(rest[1])
+      const pos = String(rest[2])
+      const k = matchKey(getIndex(Number(l), Number(c)), pos)
+      if (!k) return full
+      const oy = round2(k.offsetY || 0)
+      const oyPart = oy !== 0 ? `, offsetY: ${fmt(oy)}` : ''
+      return `index: getIndex(${l}, ${c}), keyData: getKeyData(getIndex(${l}, ${c})), position: ${pos}, offset: ${fmt(k.offset)}${oyPart}`
+    })
+
+    const reRaw = new RegExp(
+      `(index:\\s*)(\\d+)(,\\s*keyData:[^\\n]*?position:\\s*(${num}),\\s*offset:\\s*)(${num})(?:,\\s*offsetY:\\s*${num})?`,
+      'g'
+    )
+    out = out.replace(reRaw, (full, ...rest: Array<string | number>) => {
+      const all = String(rest[rest.length - 1])
+      const at = Number(rest[rest.length - 2])
+      if (lineCommented(all, at)) return full
+      const p1 = String(rest[0])
+      const indexStr = String(rest[1])
+      const mid = String(rest[2])
+      const pos = String(rest[3])
+      const k = matchKey(Number(indexStr), pos)
+      if (!k) return full
+      // 保留原来的 index 写法。巨鹏是字面量 index: 34，不能改成 getIndex(行, 列)
+      const oy = round2(k.offsetY || 0)
+      const oyPart = oy !== 0 ? `, offsetY: ${fmt(oy)}` : ''
+      return `${p1}${indexStr}${mid}${fmt(k.offset)}${oyPart}`
+    })
+
+    const reStyleGetIndex = new RegExp(
+      `(style:\\s*)(['"])([^'"]*)(\\2)(,\\s*index:\\s*getIndex\\()(\\d+)(,\\s*)(\\d+)(\\))`,
+      'g'
+    )
+    out = out.replace(reStyleGetIndex, (full, ...rest: Array<string | number>) => {
+      const all = String(rest[rest.length - 1])
+      const at = Number(rest[rest.length - 2])
+      if (lineCommented(all, at)) return full
+      const p1 = String(rest[0])
+      const q = String(rest[1])
+      const style = String(rest[2])
+      const p5 = String(rest[4])
+      const l = String(rest[5])
+      const p7 = String(rest[6])
+      const c = String(rest[7])
+      const p9 = String(rest[8])
+      const idx = getIndex(Number(l), Number(c))
+      const k = byIndex.get(idx)
+      if (!k?.style || k.style === style) return full
+      const nextStyle = stripLegacySizeClasses(k.style)
+      if (!nextStyle || nextStyle === style) return full
+      return `${p1}${q}${nextStyle}${q}${p5}${l}${p7}${c}${p9}`
+    })
+    const reStyleRaw = new RegExp(
+      `(style:\\s*)(['"])([^'"]*)(\\2)(,\\s*index:\\s*)(\\d+)`,
+      'g'
+    )
+    out = out.replace(reStyleRaw, (full, ...rest: Array<string | number>) => {
+      const all = String(rest[rest.length - 1])
+      const at = Number(rest[rest.length - 2])
+      if (lineCommented(all, at)) return full
+      const p1 = String(rest[0])
+      const q = String(rest[1])
+      const style = String(rest[2])
+      const p5 = String(rest[4])
+      const indexStr = String(rest[5])
+      const k = byIndex.get(Number(indexStr))
+      if (!k?.style || k.style === style) return full
+      const nextStyle = stripLegacySizeClasses(k.style)
+      if (!nextStyle || nextStyle === style) return full
+      return `${p1}${q}${nextStyle}${q}${p5}${indexStr}`
+    })
+    return out
+  }
+
+  const patchKeyStore = (
+    src: string,
+    keys: AlignKeyPatch[],
+    opts: { keyboardNames?: string[]; layoutFingerprint?: string }
+  ) => {
+    const getIndex = extractGetIndex(src)
+    const target = pickMatrixBlock(src, getIndex, opts)
+    if (!target) {
+      return { src: patchKeyStoreChunk(src, keys, getIndex), matrixName: '' }
+    }
+    const next = patchKeyStoreChunk(target.body, keys, getIndex)
+    if (keys.length && next === target.body) {
+      throw new Error(`在 ${target.name} 里没有匹配到要改的键，已取消写入`)
+    }
+    return {
+      src: src.slice(0, target.start) + next + src.slice(target.end),
+      matrixName: target.name,
+    }
+  }
+
+  /**
+   * 改 width/height；兼容 .key 内嵌套 img{}（只改到第一个 } 之前的属性）
+   * className 可为 key 或 key_xxx
+   */
+  const upsertCssDecls = (src: string, className: string, decls: Record<string, string>) => {
+    if (!/^key(?:[_a-z0-9]+)?$/i.test(className) && !KEYLINE_CLASS_RE.test(className)) return src
+    let out = src
+    const hasBlock = new RegExp(`\\.${className}\\b[^{]*\\{`).test(out)
+    for (const [prop, val] of Object.entries(decls)) {
+      const propRe = new RegExp(`(\\.${className}\\b[^{]*\\{[^}]*?${prop}:\\s*)([^;\\n]+)`)
+      if (propRe.test(out)) {
+        out = out.replace(propRe, `$1${val}`)
+        continue
+      }
+      if (hasBlock) {
+        out = out.replace(new RegExp(`(\\.${className}\\b[^{]*\\{)`), `$1\n    ${prop}: ${val};`)
+        continue
+      }
+      const block = `\n.${className} {\n    ${prop}: ${val};\n}\n`
+      out = /<\/style>/i.test(out) ? out.replace(/<\/style>/i, `${block}</style>`) : out + block
+    }
+    return out
+  }
+
+  return {
+    name: 'rk-align-write',
+    apply: 'serve',
+    resolveId(id) {
+      if (id === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID
+    },
+    load(id) {
+      if (id !== RESOLVED_VIRTUAL_ID) return
+      return `export { mountAlignTool } from ${JSON.stringify(mountPath)}\n`
+    },
+    transform(code, id) {
+      const cleanId = id.split('?')[0].replace(/\\/g, '/')
+      if (!/\/src\/main\.(ts|js|tsx|jsx)$/.test(cleanId)) return
+      if (code.includes(VIRTUAL_ID) || code.includes('mountAlignTool')) return
+      return {
+        code: `${code}\n;import(${JSON.stringify(VIRTUAL_ID)}).then((m) => m.mountAlignTool());\n`,
+        map: null,
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use('/__rk_align_write', async (req, res, next) => {
+        if (req.method === 'GET') {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: true, pluginVersion: RK_ALIGN_PLUGIN_VERSION }))
+          return
+        }
+        if (req.method !== 'POST') {
+          next()
+          return
+        }
+        try {
+          const chunks: Buffer[] = []
+          for await (const chunk of req) chunks.push(Buffer.from(chunk))
+          const body = JSON.parse(Buffer.concat(chunks).toString('utf-8') || '{}') as {
+            storePath?: string
+            vuePath?: string
+            keys?: AlignKeyPatch[]
+            keyboardName?: string
+            keyboardNames?: string[]
+            layoutFingerprint?: string
+            widths?: Record<string, number>
+            heights?: Record<string, number>
+            keylineTops?: Record<string, number>
+            keylineLefts?: Record<string, number>
+            pluginVersion?: number
+          }
+
+          if (body.pluginVersion != null && body.pluginVersion !== RK_ALIGN_PLUGIN_VERSION) {
+            throw new Error('对齐写入插件未更新，请完全停止后重新运行 npm run dev')
+          }
+          if (!body.storePath) throw new Error('缺少 storePath')
+          const storeAbs = assertSafePath(body.storePath, 'store')
+          const keys = body.keys || []
+          const keyboardNames = [
+            ...(body.keyboardNames || []),
+            ...(body.keyboardName ? [body.keyboardName] : []),
+          ]
+
+          let matrixName = ''
+          if (keys.length) {
+            const keyStore = await readFile(storeAbs, 'utf-8')
+            const patched = patchKeyStore(keyStore, keys, {
+              keyboardNames,
+              layoutFingerprint: body.layoutFingerprint,
+            })
+            matrixName = patched.matrixName
+            await writeFile(storeAbs, patched.src, 'utf-8')
+          }
+
+          let sizeCount = 0
+          if (body.vuePath) {
+            const vueAbs = assertSafePath(body.vuePath, 'vue')
+            const keyVueOriginal = await readFile(vueAbs, 'utf-8')
+            let keyVue = keyVueOriginal
+            const widths = { ...(body.widths || {}) }
+            const heights = { ...(body.heights || {}) }
+
+            for (const key of keys) {
+              if (!key.style) continue
+              const m = stripLegacySizeClasses(key.style).split(/\s+/).find((c) => SIZE_CLASS_RE.test(c))
+              if (!m) continue
+              if (key.width != null) widths[m] = key.width
+              if (key.height != null) heights[m] = key.height
+            }
+
+            const classNames = new Set([...Object.keys(widths), ...Object.keys(heights)])
+            for (const cls of classNames) {
+              const decls: Record<string, string> = {}
+              if (widths[cls] != null) decls.width = `${fmt(widths[cls])}px`
+              if (heights[cls] != null) decls.height = `${fmt(heights[cls])}px`
+              if (!Object.keys(decls).length) continue
+              const next = upsertCssDecls(keyVue, cls, decls)
+              if (next !== keyVue) sizeCount++
+              keyVue = next
+            }
+            const keylineTops = body.keylineTops || {}
+            const keylineLefts = body.keylineLefts || {}
+            for (const cls of new Set([...Object.keys(keylineTops), ...Object.keys(keylineLefts)])) {
+              if (!KEYLINE_CLASS_RE.test(cls)) continue
+              const decls: Record<string, string> = {}
+              if (keylineTops[cls] != null) decls.top = `${fmt(keylineTops[cls])}px`
+              if (keylineLefts[cls] != null) decls.left = `${fmt(keylineLefts[cls])}px`
+              if (!Object.keys(decls).length) continue
+              const next = upsertCssDecls(keyVue, cls, decls)
+              if (next !== keyVue) sizeCount++
+              keyVue = next
+            }
+            if (keyVue !== keyVueOriginal) await writeFile(vueAbs, keyVue, 'utf-8')
+          }
+
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.end(
+            JSON.stringify({
+              ok: true,
+              keys: keys.length,
+              widths: sizeCount,
+              storePath: body.storePath,
+              matrixName,
+              pluginVersion: RK_ALIGN_PLUGIN_VERSION,
+            })
+          )
+        } catch (error) {
+          server.config.logger.error(`[rk-align] 写入失败: ${String(error)}`)
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: String(error) }))
+        }
+      })
+    },
+  }
+}
+
+/** 对齐工具 / 写回插件共用：按键尺寸 class 命名 */
+
+/** 最多两位小数，去掉二进制浮点尾巴（如 -2.9000000000000004） */
+export const round2 = (v: unknown): number => {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return 0
+  return Number(n.toFixed(2))
+}
+
+/** 真正控制宽高的 class（不含 key_left_1 / key_small 等） */
+export const SIZE_CLASS_RE =
+  /^key_(?:mute|macro|esc|nav|backspace|tab|slash|cap|enter|l_shift|r_shift|l_ctrl|r_ctrl|ctrl|fn|space|r_alt|num_plus|num_enter|num_0|i_\d+)(?:_[a-z0-9]+)?$/i
+
+export const KEYLINE_CLASS_RE = /^keyline_\d+(?:_[a-z0-9]+)?$/i
+
+/** 行/键上用来区分语言的 class，键位序号相同时仍能分开两份矩阵 */
+export const styleMarks = (style?: string): string =>
+  (style || '')
+    .split(/\s+/)
+    .filter((c) => KEYLINE_CLASS_RE.test(c) || SIZE_CLASS_RE.test(c))
+    .sort()
+    .join('+')
+
+export const layoutToken = (index: number, position: number, style?: string): string =>
+  `${index}:${round2(position)}:${styleMarks(style)}`
+
+/** 去掉连接方式和型号里的分隔符。rk r104pro es wire → rkr104proes */
+export const normKbName = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/\b(wire|keyboard|dongle)\b/g, '')
+    .replace(/[\s_-]+/g, '')
+
+/** 设备名多带一个 rk 前缀时，仍能对上 switch 里的 R104pro ES */
+export const nameVariants = (s: string): string[] => {
+  const n = normKbName(s)
+  if (!n) return []
+  const out = [n]
+  if (n.startsWith('rk') && n.length > 2) out.push(n.slice(2))
+  return out
+}
+
+export const parseSwitchMap = (src: string): Map<string, string> => {
+  const pending: string[] = []
+  const map = new Map<string, string>()
+  const re = /case\s+['"]([^'"]+)['"]\s*:|tmp\s*=\s*(keyMatrix_\w+)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src))) {
+    if (m[1]) pending.push(m[1])
+    else if (m[2]) {
+      for (const n of pending) map.set(n, m[2])
+      pending.length = 0
+    }
+  }
+  return map
+}
+
+/** 名单按优先级排列。第一个能对上 switch 的名字生效，后面的名字不能把它盖掉。 */
+export const matrixNameForKeyboard = (src: string, names?: string[]): string | null => {
+  const list = (names || []).map((n) => n.trim()).filter(Boolean)
+  if (!list.length) return null
+  const map = parseSwitchMap(src)
+  if (!map.size) return null
+
+  const matchOne = (raw: string) => {
+    const wants = nameVariants(raw)
+    if (!wants.length) return null
+    let bestMatrix: string | null = null
+    let bestScore = 0
+    for (const [caseName, matrix] of map) {
+      const haves = nameVariants(caseName)
+      for (const want of wants) {
+        for (const have of haves) {
+          if (!want || !have) continue
+          let score = 0
+          if (want === have) score = 1000 + have.length
+          else if (want.startsWith(have)) score = 100 + have.length
+          else if (have.startsWith(want) && want.length >= 4) score = 50 + want.length
+          if (score > bestScore) {
+            bestScore = score
+            bestMatrix = matrix
+          }
+        }
+      }
+    }
+    return bestMatrix
+  }
+
+  for (const raw of list) {
+    const hit = matchOne(raw)
+    if (hit) return hit
+  }
+  return null
+}
+
+export const fingerprintMatrix = (
+  body: string,
+  getIndex: (l: number, c: number) => number,
+): string => {
+  const seq: string[] = []
+  for (const line of body.split(/\r?\n/)) {
+    if (line.trim().startsWith('//')) continue
+    const style = line.match(/style:\s*['"]([^'"]*)['"]/)?.[1]
+    const indexed = line.match(/index:\s*getIndex\((\d+),\s*(\d+)\)/)
+    const position = line.match(/position:\s*(-?[\d.]+)/)
+    if (indexed && position) {
+      seq.push(layoutToken(getIndex(Number(indexed[1]), Number(indexed[2])), Number(position[1]), style))
+      continue
+    }
+    const raw = line.match(/index:\s*(\d+)\b/)
+    if (raw && position) {
+      seq.push(layoutToken(Number(raw[1]), Number(position[1]), style))
+      continue
+    }
+    const lineMark = styleMarks(style)
+    if (lineMark && KEYLINE_CLASS_RE.test(lineMark.split('+')[0] || '')) {
+      seq.push(`L:${lineMark}`)
+    }
+  }
+  return seq.join(',')
+}
+
+/** 去掉早期自动补的尺寸 class，避免和正式 key_xxx 叠在一起 */
+export const stripLegacySizeClasses = (style: string): string => {
+  const parts = style.split(/\s+/).filter(Boolean)
+  const hasReal = parts.some((c) => SIZE_CLASS_RE.test(c) && !/^key_i_\d+$/i.test(c))
+  return parts
+    .filter((c) => {
+      if (/^key_[wh]_\d+$/i.test(c)) return false
+      if (hasReal && /^key_i_\d+$/i.test(c)) return false
+      return true
+    })
+    .join(' ')
+}
+
+<!--
+  全局按键对齐工具（由 Vite 插件注入，不改 App.vue）
+  - 不修改任何 key.vue 逻辑
+  - 从当前页面 .keybox + Pinia keyinfo_* 自动识别键盘
+  - offset 直接改 Pinia keyMatrix（沿用键盘已有值，不会重置）
+  - 单键宽高按 index / 专用 class；全部按键改共用 .key
+-->
+<template>
+    <Teleport to="body">
+        <button
+            v-if="isDev && !active"
+            type="button"
+            class="rk-align-toggle"
+            @click="open"
+        >对齐工具</button>
+
+        <div
+            v-else-if="isDev && active"
+            class="rk-align-panel"
+            :style="panelStyle"
+            @mousedown.stop="onPanelMouseDown"
+            @click.stop
+        >
+            <div class="rk-align-head" @mousedown="startDrag">
+                <b>按键对齐</b>
+                <button type="button" @click="close" @mousedown.stop>关闭</button>
+            </div>
+
+            <div class="rk-align-card">
+                <div>{{ keyboardLabel || '未检测到键盘页面' }}</div>
+                <div class="hint">{{ storeId || '-' }}</div>
+                <div class="hint">{{ keyboardName || '未识别语言' }} → 只改这一份 keyMatrix</div>
+            </div>
+
+            <div class="rk-align-row">
+                步进
+                <button type="button" :class="{ on: step === 1 }" @click="step = 1">1</button>
+                <button type="button" :class="{ on: step === 2 }" @click="step = 2">2</button>
+                <button type="button" :class="{ on: step === 5 }" @click="step = 5">5</button>
+            </div>
+            <div class="hint">
+                单击选中；Ctrl/⌘ 多选；Shift 同行连选；拖面板边框调大小<br />
+                ←→ offset；↑↓ offsetY；W上 S下 A左 D右 整行；[ ] 单键宽；; ' 单键高；B 黑字 V 白字
+            </div>
+
+            <div class="rk-align-card">
+                <div><b>全部按键</b>（共用 .key）</div>
+                <div class="rk-align-row">
+                    width
+                    <button type="button" @click="nudgeBaseWidth(-step)">−</button>
+                    <input type="number" step="0.01" :value="displayBaseWidth()" @change="onBaseWidthInput($event)" />
+                    <button type="button" @click="nudgeBaseWidth(step)">+</button>
+                </div>
+                <div class="rk-align-row">
+                    height
+                    <button type="button" @click="nudgeBaseHeight(-step)">−</button>
+                    <input type="number" step="0.01" :value="displayBaseHeight()" @change="onBaseHeightInput($event)" />
+                    <button type="button" @click="nudgeBaseHeight(step)">+</button>
+                </div>
+                <div class="hint">写入时直接改 key.vue 的 .key { width/height }</div>
+            </div>
+
+            <div class="rk-align-card">
+                <div>
+                    已选 {{ selectedIndexes.length }}
+                    <button v-if="selectedIndexes.length" type="button" @click="clearSelection">清空</button>
+                </div>
+                <div v-if="selectedKeys.length" class="hint">{{ selectionLabel }}</div>
+                <template v-if="primaryKey">
+                    <div class="rk-align-row">
+                        offset
+                        <button type="button" @click="nudgeOffset(-step)">←</button>
+                        <input type="number" step="0.01" :value="num(primaryKey.offset)" @change="onOffsetInput($event)" />
+                        <button type="button" @click="nudgeOffset(step)">→</button>
+                    </div>
+                    <div class="rk-align-row">
+                        offsetY
+                        <button type="button" @click="nudgeOffsetY(-step)">↑</button>
+                        <input type="number" step="0.01" :value="num(primaryKey.offsetY)" @change="onOffsetYInput($event)" />
+                        <button type="button" @click="nudgeOffsetY(step)">↓</button>
+                    </div>
+                    <div class="rk-align-row">
+                        width
+                        <button type="button" @click="nudgeWidth(-step)">[</button>
+                        <input type="number" step="0.01" :value="displayWidth(primaryKey)" @change="onWidthInput($event)" />
+                        <button type="button" @click="nudgeWidth(step)">]</button>
+                    </div>
+                    <div class="rk-align-row">
+                        height
+                        <button type="button" @click="nudgeHeight(-step)">;</button>
+                        <input type="number" step="0.01" :value="displayHeight(primaryKey)" @change="onHeightInput($event)" />
+                        <button type="button" @click="nudgeHeight(step)">'</button>
+                    </div>
+                    <div class="rk-align-row">
+                        字体
+                        <button type="button" :class="{ on: textToneOf(primaryKey) === 'text-black-1' }" @click="setTextTone('text-black-1')">黑</button>
+                        <button type="button" :class="{ on: textToneOf(primaryKey) === 'text-white-1' }" @click="setTextTone('text-white-1')">白</button>
+                        <span class="hint">{{ textToneOf(primaryKey) || '未标色' }}</span>
+                    </div>
+                    <div class="hint">
+                        单键宽/高 → index={{ primaryKey.index }}
+                        <template v-if="sizeClassOf(primaryKey)">（{{ sizeClassOf(primaryKey) }}）</template>
+                        ；黑白写入 style 的 text-black-1 / text-white-1
+                    </div>
+                </template>
+            </div>
+
+            <div v-if="primaryLineClass" class="rk-align-card">
+                <div><b>整行</b> .{{ primaryLineClass }}</div>
+                <div class="hint">{{ keylineHint }}</div>
+                <div class="rk-align-row">
+                    top
+                    <button type="button" @click="nudgeKeyline('top', -step)">W</button>
+                    <input type="number" step="0.01" :value="displayKeyline(primaryLineClass, 'top')" @change="onKeylineInput('top', $event)" />
+                    <button type="button" @click="nudgeKeyline('top', step)">S</button>
+                </div>
+                <div class="rk-align-row">
+                    left
+                    <button type="button" @click="nudgeKeyline('left', -step)">A</button>
+                    <input type="number" step="0.01" :value="displayKeyline(primaryLineClass, 'left')" @change="onKeylineInput('left', $event)" />
+                    <button type="button" @click="nudgeKeyline('left', step)">D</button>
+                </div>
+            </div>
+
+            <div class="rk-align-row">
+                <button type="button" class="primary" @click="writeToCode">写入代码</button>
+                <button type="button" @click="refreshTarget">刷新</button>
+                <button type="button" @click="clearSizeOverrides">清尺寸覆盖</button>
+            </div>
+            <div class="hint">
+                打开工具不会重置键盘已有 offset。<br />
+                写入：offset → keyStore；整行 top/left 与宽高 → key.vue。巨鹏的 index 保持数字，不会改成 getIndex。
+            </div>
+        </div>
+    </Teleport>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { getActivePinia } from 'pinia';
+import { ProtocolType } from '@/device/enum';
+import { KEYLINE_CLASS_RE, layoutToken, round2, SIZE_CLASS_RE, stripLegacySizeClasses, styleMarks } from './alignShared';
+
+type AlignKey = {
+    index: number;
+    offset?: number;
+    offsetY?: number;
+    position?: number;
+    style?: string;
+    key?: any;
+};
+
+type AlignLine = { style?: string; keys: AlignKey[] };
+
+const PLUGIN_VERSION = 8;
+const isDev = import.meta.env.DEV;
+const STORAGE_KEY = 'rk_key_align_tool_v5';
+const active = ref(false);
+const step = ref(1);
+const selectedIndexes = ref<number[]>([]);
+const lastSelected = ref<number | null>(null);
+/** 按键 index → 宽/高（单键覆盖） */
+const widthByIndex = reactive<Record<number, number>>({});
+const heightByIndex = reactive<Record<number, number>>({});
+/** 共用 .key 宽高；null 表示未改 */
+const baseKeyWidth = ref<number | null>(null);
+const baseKeyHeight = ref<number | null>(null);
+/** 改 .key 前缓存专用 class 尺寸，避免预览时把 shift/enter 一并压扁 */
+const specialSizeCache = reactive<Record<string, { w: number; h: number }>>({});
+const storeId = ref('');
+const storePath = ref('');
+const vuePath = ref('');
+const keyboardLabel = ref('');
+const keyboardName = ref('');
+const keyboardNames = ref<string[]>([]);
+const keyMatrix = ref<AlignLine[]>([]);
+const baselineByIndex = new Map<number, { offset: number; offsetY: number; style: string }>();
+const TEXT_TONE_RE = /\btext-(?:white|black)-1\b/;
+const keylineTopByClass = reactive<Record<string, number>>({});
+const keylineLeftByClass = reactive<Record<string, number>>({});
+
+// 再往下贴底（bottom 越小越靠下）
+const panelPos = reactive({ right: 12, bottom: 4, width: 320, height: 560 });
+const dragging = ref(false);
+const dragOrigin = reactive({ mx: 0, my: 0, right: 0, bottom: 0 });
+const panelStyle = computed(() => ({
+    right: `${panelPos.right}px`,
+    bottom: `${panelPos.bottom}px`,
+    width: `${panelPos.width}px`,
+    height: `${panelPos.height}px`,
+    left: 'auto',
+    top: 'auto',
+}));
+
+const num = (v: unknown) => round2(v);
+
+const findKey = (index: number): AlignKey | null => {
+    for (const line of keyMatrix.value) {
+        for (const key of line.keys || []) {
+            if (key.index === index) return key;
+        }
+    }
+    return null;
+};
+
+const findLine = (index: number): AlignLine | null => {
+    for (const line of keyMatrix.value) {
+        if ((line.keys || []).some((k) => k.index === index)) return line;
+    }
+    return null;
+};
+
+const selectedKeys = computed(() =>
+    selectedIndexes.value.map(findKey).filter((k): k is AlignKey => !!k)
+);
+const primaryKey = computed(() => selectedKeys.value[selectedKeys.value.length - 1] || null);
+const selectionLabel = computed(() =>
+    selectedKeys.value.map((k) => `#${k.index}`).join(', ')
+);
+
+const resolveKeyEl = (index: number): HTMLElement | null => {
+    const el =
+        (document.querySelector(`.keybox [i="${index}"]`) as HTMLElement | null) ||
+        (document.querySelector(`.keybox #key${index}`) as HTMLElement | null);
+    if (!el) return null;
+    return (
+        (el.matches('.key, .key_jp') ? el : null) ||
+        (el.querySelector('.key, .key_jp, [class*="key_"]') as HTMLElement | null) ||
+        el
+    );
+};
+
+const readDomSize = (index: number, prop: 'width' | 'height'): number | null => {
+    const target = resolveKeyEl(index);
+    if (!target) return null;
+    const v = parseFloat(getComputedStyle(target)[prop]);
+    return Number.isFinite(v) ? round2(v) : null;
+};
+
+const displayWidth = (key: AlignKey): number => {
+    if (widthByIndex[key.index] != null) return widthByIndex[key.index];
+    return readDomSize(key.index, 'width') ?? 0;
+};
+
+const displayHeight = (key: AlignKey): number => {
+    if (heightByIndex[key.index] != null) return heightByIndex[key.index];
+    return readDomSize(key.index, 'height') ?? 0;
+};
+
+/** 读页面上一个普通 .key 的尺寸（优先无专用宽高 class 的） */
+const readBaseKeySize = (prop: 'width' | 'height'): number => {
+    const els = document.querySelectorAll<HTMLElement>('.keybox .key');
+    let fallback: HTMLElement | null = null;
+    for (const el of els) {
+        const hasSizeCls = [...el.classList].some((c) => SIZE_CLASS_RE.test(c));
+        if (!hasSizeCls) {
+            const v = parseFloat(getComputedStyle(el)[prop]);
+            if (Number.isFinite(v)) return round2(v);
+        }
+        if (!fallback) fallback = el;
+    }
+    if (fallback) {
+        const v = parseFloat(getComputedStyle(fallback)[prop]);
+        if (Number.isFinite(v)) return round2(v);
+    }
+    return prop === 'width' ? 25 : 28;
+};
+
+const displayBaseWidth = () => baseKeyWidth.value ?? readBaseKeySize('width');
+const displayBaseHeight = () => baseKeyHeight.value ?? readBaseKeySize('height');
+
+const collectVisibleKeyIndexes = (): Set<number> => {
+    const ids = new Set<number>();
+    document.querySelectorAll('.keybox [i], .keybox [id]').forEach((el) => {
+        const attr = el.getAttribute('i');
+        if (attr != null && attr !== '') ids.add(Number(attr));
+        const m = el.id?.match(/^key(\d+)$/);
+        if (m) ids.add(Number(m[1]));
+    });
+    return ids;
+};
+
+const scoreStoreAgainstDom = (store: any, visible: Set<number>): number => {
+    if (!visible.size) return 0;
+    let n = 0;
+    for (const line of store.state?.keyMatrix || []) {
+        for (const key of line.keys || []) {
+            if (visible.has(key.index)) n++;
+        }
+    }
+    return n;
+};
+
+const findSourcePath = (globMap: Record<string, unknown>, folder: string, fileName: string, preferJupeng: boolean): string => {
+    const aliases = [
+        folder,
+        folder.replace(/_pro$/, 'pro'),
+        folder.replace(/^rk_r87_pro$/, 'rk_r87pro'),
+        folder === 'rk_r108_jupeng' ? 'rk_r108' : '',
+    ].filter(Boolean);
+    const keys = Object.keys(globMap).map((p) => p.replace(/\\/g, '/'));
+    const hits: string[] = [];
+    for (const name of aliases) {
+        for (const p of keys) {
+            if (p.endsWith(`/${name}/${fileName}`) && !hits.includes(p)) hits.push(p);
+        }
+    }
+    if (!hits.length) return '';
+    const jupeng = hits.filter((p) => p.includes('/jupeng/'));
+    const other = hits.filter((p) => !p.includes('/jupeng/'));
+    const pool = preferJupeng ? (jupeng.length ? jupeng : other) : (other.length ? other : jupeng);
+    if (folder === 'rk_r108_jupeng') {
+        const exact = pool.find((p) => p.includes('/jupeng/rk_r108/'));
+        if (exact) return exact.replace(/^\//, '');
+    }
+    return pool[0].replace(/^\//, '');
+};
+
+const piniaUsesJuPeng = (pinia: any): boolean => {
+    for (const s of pinia._s.values()) {
+        const candidates = [
+            s.hidDevideDefine?.protocolType,
+            s.state?.hidDevideDefine?.protocolType,
+            s.keyboardDefine?.protocolType,
+            s.state?.keyboardDefine?.protocolType,
+            s.keyboard?.keyboardDefine?.protocolType,
+        ];
+        if (candidates.includes(ProtocolType.JuPeng)) return true;
+    }
+    return false;
+};
+
+/** 当前这块键盘的型号名。不限制 RK 前缀，后面新的型号名也能对上 switch。 */
+const readKeyboardNames = (store: any): string[] => {
+    const names: string[] = [];
+    const take = (v: unknown) => {
+        if (typeof v !== 'string') return;
+        const t = v.trim();
+        if (!t || t.includes('<img') || t.length > 80) return;
+        if (!names.includes(t)) names.push(t);
+    };
+    take(store?.keyboard?.keyboardDefine?.name);
+    take(store?.state?.keyboardDefine?.name);
+    take(store?.keyboardDefine?.name);
+    take(store?.state?.deviceName);
+    take(store?.deviceName);
+    return names;
+};
+
+const resolveFromPinia = () => {
+    const pinia = getActivePinia() as any;
+    if (!pinia?._s) return null;
+
+    const candidates: any[] = [];
+    for (const s of pinia._s.values()) {
+        if (!String(s.$id || '').startsWith('keyinfo_')) continue;
+        const matrix = s.state?.keyMatrix;
+        if (Array.isArray(matrix) && matrix.some((l: any) => l?.keys?.length)) {
+            candidates.push(s);
+        }
+    }
+    if (!candidates.length) return null;
+
+    const visible = collectVisibleKeyIndexes();
+    const ranked = [...candidates].sort(
+        (a, b) => scoreStoreAgainstDom(b, visible) - scoreStoreAgainstDom(a, visible)
+    );
+    const best = ranked[0];
+    const picked = (visible.size && scoreStoreAgainstDom(best, visible) > 0)
+        ? best
+        : ranked[ranked.length - 1];
+
+    const id: string = picked.$id;
+    const folder = id.replace(/^keyinfo_/, '');
+    const preferJupeng = id.endsWith('_jupeng') || piniaUsesJuPeng(pinia);
+    const kbNames = readKeyboardNames(picked);
+    const kbName = kbNames[0] || '';
+    keyboardLabel.value = kbName || folder.replace(/_/g, ' ').toUpperCase() || '(unknown)';
+
+    const storeGlob = import.meta.glob('/src/stores/**/keyStore.ts', { eager: false });
+    const vueGlob = import.meta.glob('/src/components/**/key.vue', { eager: false });
+
+    const sp = findSourcePath(storeGlob, folder, 'keyStore.ts', preferJupeng);
+    const vp = findSourcePath(vueGlob, folder, 'key.vue', preferJupeng);
+
+    return {
+        store: picked,
+        storeId: id,
+        storePath: sp || `src/stores/${folder}/keyStore.ts`,
+        vuePath: vp || `src/components/${folder}/key.vue`,
+        keyboardName: kbName,
+        keyboardNames: kbNames,
+        matrix: picked.state.keyMatrix as AlignLine[],
+    };
+};
+
+const sameNum = (a: number, b: number) => num(a) === num(b);
+
+const captureBaseline = () => {
+    baselineByIndex.clear();
+    for (const line of keyMatrix.value) {
+        for (const key of line.keys || []) {
+            baselineByIndex.set(key.index, {
+                offset: num(key.offset),
+                offsetY: num(key.offsetY),
+                style: key.style || '',
+            });
+        }
+    }
+};
+
+const collectLayoutFingerprint = () => {
+    const seq: string[] = [];
+    for (const line of keyMatrix.value) {
+        const lineMark = styleMarks(line.style);
+        if (lineMark) seq.push(`L:${lineMark}`);
+        for (const key of line.keys || []) {
+            seq.push(layoutToken(key.index, num(key.position), key.style));
+        }
+    }
+    return seq.join(',');
+};
+
+const refreshTarget = () => {
+    const hit = resolveFromPinia();
+    if (!hit) {
+        storeId.value = '';
+        storePath.value = '';
+        vuePath.value = '';
+        keyboardName.value = '';
+        keyboardNames.value = [];
+        keyMatrix.value = [];
+        baselineByIndex.clear();
+        return;
+    }
+    storeId.value = hit.storeId;
+    storePath.value = hit.storePath;
+    vuePath.value = hit.vuePath;
+    keyboardName.value = hit.keyboardName || '';
+    keyboardNames.value = hit.keyboardNames || (hit.keyboardName ? [hit.keyboardName] : []);
+    // 直接引用 pinia 里的矩阵，不拷贝、不改写已有 offset
+    keyMatrix.value = hit.matrix;
+    if (!baselineByIndex.size) captureBaseline();
+    paintSelection();
+};
+
+const clearSelection = () => {
+    selectedIndexes.value = [];
+    lastSelected.value = null;
+    paintSelection();
+};
+
+const paintSelection = () => {
+    document.querySelectorAll('.rk-align-selected').forEach((el) => el.classList.remove('rk-align-selected'));
+    for (const idx of selectedIndexes.value) {
+        document.querySelectorAll(`.keybox [i="${idx}"], .keybox #key${idx}`).forEach((el) => {
+            el.classList.add('rk-align-selected');
+        });
+    }
+};
+
+/** 行 class 带的布局后缀，如 keyline_0_th → _th。美式没有后缀。 */
+const layoutSuffix = (): string => {
+    for (const line of keyMatrix.value) {
+        const cls = (line.style || '').split(/\s+/).find((c) => KEYLINE_CLASS_RE.test(c)) || '';
+        const matched = cls.match(/^keyline_\d+(_[a-z0-9]+)$/i);
+        if (matched) return matched[1];
+    }
+    return '';
+};
+
+/** 共用键尺寸。泰文写 .key_th，避免改到美式 .key */
+const baseSizeClass = () => `key${layoutSuffix()}`;
+
+/** 专用尺寸 class（key_l_shift 等）；纯 .key 没有则返回 null */
+const sizeClassOf = (key: AlignKey | null | undefined): string | null => {
+    if (!key?.style) return null;
+    return key.style.split(/\s+/).find((c) => SIZE_CLASS_RE.test(c)) || null;
+};
+
+/** 无专用 class 时补 key_i_${index}，才能单独改/写入宽高 */
+const ensureSizeClass = (key: AlignKey): string => {
+    key.style = stripLegacySizeClasses(key.style || '');
+    const suffix = layoutSuffix();
+    let existing = sizeClassOf(key);
+    if (existing && suffix && !existing.toLowerCase().endsWith(suffix.toLowerCase())) {
+        const next = `${existing}${suffix}`;
+        key.style = (key.style || '').split(/\s+/).map((c) => (c === existing ? next : c)).join(' ');
+        existing = next;
+    }
+    if (existing) return existing;
+    const cls = `key_i_${key.index}${suffix}`;
+    key.style = `${key.style} ${cls}`.trim();
+    return cls;
+};
+
+const captureSpecialSizes = () => {
+    if (Object.keys(specialSizeCache).length) return;
+    for (const line of keyMatrix.value) {
+        for (const key of line.keys || []) {
+            const cls = sizeClassOf(key);
+            if (!cls || specialSizeCache[cls]) continue;
+            const el = document.querySelector<HTMLElement>(`.keybox .${cls}`);
+            if (!el) continue;
+            const w = parseFloat(getComputedStyle(el).width);
+            const h = parseFloat(getComputedStyle(el).height);
+            if (Number.isFinite(w) && Number.isFinite(h)) {
+                specialSizeCache[cls] = { w: round2(w), h: round2(h) };
+            }
+        }
+    }
+};
+
+const injectSizeCss = () => {
+    let style = document.getElementById('rk-align-width-style') as HTMLStyleElement | null;
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'rk-align-width-style';
+        document.head.appendChild(style);
+    }
+    if (!active.value) {
+        style.textContent = '';
+        return;
+    }
+    const lines: string[] = [];
+    // 先写共用 .key，再还原专用 class，最后单键覆盖
+    if (baseKeyWidth.value != null || baseKeyHeight.value != null) {
+        const parts: string[] = [];
+        if (baseKeyWidth.value != null) parts.push(`width: ${baseKeyWidth.value}px !important`);
+        if (baseKeyHeight.value != null) parts.push(`height: ${baseKeyHeight.value}px !important`);
+        lines.push(`.keybox .${baseSizeClass()} { ${parts.join('; ')}; }`);
+        for (const [cls, sz] of Object.entries(specialSizeCache)) {
+            lines.push(`.keybox .${cls} { width: ${sz.w}px !important; height: ${sz.h}px !important; }`);
+        }
+    }
+    const indexes = new Set([
+        ...Object.keys(widthByIndex),
+        ...Object.keys(heightByIndex),
+    ]);
+    for (const idx of indexes) {
+        const parts: string[] = [];
+        if (widthByIndex[Number(idx)] != null) parts.push(`width: ${widthByIndex[Number(idx)]}px !important`);
+        if (heightByIndex[Number(idx)] != null) parts.push(`height: ${heightByIndex[Number(idx)]}px !important`);
+        if (!parts.length) continue;
+        const decl = parts.join('; ');
+        lines.push(`.keybox [i="${idx}"] { ${decl}; }`);
+        lines.push(`.keybox [i="${idx}"] .key, .keybox [i="${idx}"] .key_jp { ${decl}; }`);
+        lines.push(`.keybox #key${idx}, .keybox #key${idx} .key, .keybox #key${idx} .key_jp { ${decl}; }`);
+        lines.push(`.keybox .key_i_${idx} { ${decl}; }`);
+    }
+    for (const cls of Object.keys(keylineTopByClass).concat(Object.keys(keylineLeftByClass))) {
+        if (!KEYLINE_CLASS_RE.test(cls)) continue;
+        const parts: string[] = [];
+        if (keylineTopByClass[cls] != null) parts.push(`top: ${keylineTopByClass[cls]}px !important`);
+        if (keylineLeftByClass[cls] != null) parts.push(`left: ${keylineLeftByClass[cls]}px !important`);
+        if (parts.length) lines.push(`.keybox .${cls} { ${parts.join('; ')}; }`);
+    }
+    style.textContent = lines.join('\n');
+};
+
+const persist = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        panelPos: { ...panelPos },
+        // 不持久化宽度，避免污染其它键盘
+    }));
+};
+
+const restore = () => {
+    // 清掉旧版错误缓存（曾把 .key 宽度写进 localStorage）
+    localStorage.removeItem('rk_key_align_tool_v3');
+    localStorage.removeItem('rk_key_align_tool_v2');
+    localStorage.removeItem('rk_s70_align_tool_v1');
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.panelPos?.right != null) Object.assign(panelPos, data.panelPos);
+    } catch { /* ignore */ }
+};
+
+const clearSizeOverrides = () => {
+    Object.keys(widthByIndex).forEach((k) => delete widthByIndex[Number(k)]);
+    Object.keys(heightByIndex).forEach((k) => delete heightByIndex[Number(k)]);
+    baseKeyWidth.value = null;
+    baseKeyHeight.value = null;
+    Object.keys(specialSizeCache).forEach((k) => delete specialSizeCache[k]);
+    injectSizeCss();
+};
+
+const nudgeBaseWidth = (dw: number) => {
+    captureSpecialSizes();
+    const cur = displayBaseWidth();
+    baseKeyWidth.value = Math.max(8, round2(cur + dw));
+    injectSizeCss();
+};
+const nudgeBaseHeight = (dh: number) => {
+    captureSpecialSizes();
+    const cur = displayBaseHeight();
+    baseKeyHeight.value = Math.max(8, round2(cur + dh));
+    injectSizeCss();
+};
+const onBaseWidthInput = (e: Event) => {
+    captureSpecialSizes();
+    const v = num((e.target as HTMLInputElement).value);
+    baseKeyWidth.value = Math.max(8, v);
+    injectSizeCss();
+};
+const onBaseHeightInput = (e: Event) => {
+    captureSpecialSizes();
+    const v = num((e.target as HTMLInputElement).value);
+    baseKeyHeight.value = Math.max(8, v);
+    injectSizeCss();
+};
+
+const ensurePluginReady = async () => {
+    try {
+        const res = await fetch('/__rk_align_write');
+        const data = await res.json();
+        if (!res.ok || data.pluginVersion !== PLUGIN_VERSION) {
+            throw new Error('version');
+        }
+        return true;
+    } catch {
+        alert('对齐写入插件未更新。请完全停止后重新运行 npm run dev（改写入逻辑后热更新无效）。');
+        return false;
+    }
+};
+
+const open = async () => {
+    if (!(await ensurePluginReady())) return;
+    active.value = true;
+    restore();
+    baselineByIndex.clear();
+    refreshTarget();
+    captureBaseline();
+    // 打开时不注入尺寸覆盖，保留键盘原样
+    injectSizeCss();
+    paintSelection();
+};
+
+const close = () => {
+    active.value = false;
+    clearSelection();
+    clearSizeOverrides();
+    Object.keys(keylineTopByClass).forEach((k) => delete keylineTopByClass[k]);
+    Object.keys(keylineLeftByClass).forEach((k) => delete keylineLeftByClass[k]);
+    const style = document.getElementById('rk-align-width-style');
+    if (style) style.textContent = '';
+};
+
+const selectIndex = (idx: number, ev: MouseEvent) => {
+    const ctrl = ev.ctrlKey || ev.metaKey;
+    const shift = ev.shiftKey;
+    if (shift && lastSelected.value != null) {
+        const line = findLine(idx) || findLine(lastSelected.value);
+        if (line) {
+            const ids = line.keys.map((k) => k.index);
+            const a = ids.indexOf(lastSelected.value);
+            const b = ids.indexOf(idx);
+            if (a >= 0 && b >= 0) {
+                const [lo, hi] = a < b ? [a, b] : [b, a];
+                const range = ids.slice(lo, hi + 1);
+                selectedIndexes.value = ctrl
+                    ? [...new Set([...selectedIndexes.value, ...range])]
+                    : range;
+                lastSelected.value = idx;
+                paintSelection();
+                return;
+            }
+        }
+    }
+    if (ctrl) {
+        if (selectedIndexes.value.includes(idx)) {
+            selectedIndexes.value = selectedIndexes.value.filter((i) => i !== idx);
+        } else {
+            selectedIndexes.value = [...selectedIndexes.value, idx];
+        }
+    } else {
+        selectedIndexes.value = [idx];
+    }
+    lastSelected.value = idx;
+    paintSelection();
+};
+
+const onCaptureClick = (ev: MouseEvent) => {
+    if (!active.value) return;
+    const t = ev.target as HTMLElement | null;
+    if (!t || t.closest('.rk-align-panel') || t.closest('.rk-align-toggle')) return;
+
+    let idx: number | null = null;
+    let el: HTMLElement | null = t;
+    while (el && el !== document.body) {
+        const attr = el.getAttribute?.('i');
+        if (attr != null && attr !== '') {
+            idx = Number(attr);
+            break;
+        }
+        if (el.id && /^key\d+$/.test(el.id)) {
+            idx = Number(el.id.slice(3));
+            break;
+        }
+        el = el.parentElement;
+    }
+    if (idx == null || Number.isNaN(idx)) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (!keyMatrix.value.length) refreshTarget();
+    if (findKey(idx)) selectIndex(idx, ev);
+};
+
+const forEachSelected = (fn: (key: AlignKey) => void) => {
+    for (const key of selectedKeys.value) fn(key);
+};
+
+const lineClassOf = (line: AlignLine | null): string => {
+    if (!line?.style) return '';
+    return line.style.split(/\s+/).find((c) => KEYLINE_CLASS_RE.test(c)) || '';
+};
+
+const primaryLine = computed(() => (primaryKey.value ? findLine(primaryKey.value.index) : null));
+const primaryLineClass = computed(() => lineClassOf(primaryLine.value));
+
+/** 当前画面上的那一行。不要用全页样式表里最后一个同名 .keyline_*，北影页会同时载入所有键盘的样式。 */
+const visibleKeylineEl = (cls: string): HTMLElement | null => {
+    if (!cls) return null;
+    const nodes = document.querySelectorAll<HTMLElement>(`.keybox .${CSS.escape(cls)}`);
+    for (const el of nodes) {
+        if (el.getClientRects().length) return el;
+    }
+    return nodes[0] ?? null;
+};
+
+const keylineUsesCssPos = (cls: string): boolean => {
+    const el = visibleKeylineEl(cls);
+    if (!el) return false;
+    const p = getComputedStyle(el).position;
+    return p === 'absolute' || p === 'fixed';
+};
+
+const keylineHint = computed(() => {
+    const cls = primaryLineClass.value;
+    if (!cls) return '';
+    if (keylineUsesCssPos(cls)) {
+        return `绝对定位行：W/S 改 .${cls} 的 top，A/D 改 left。方向键只改按键`;
+    }
+    return `flex 行：WASD 改本行 offset / offsetY，写入 keyStore（不会加 position）`;
+});
+
+const displayKeyline = (cls: string, prop: 'top' | 'left'): number => {
+    if (!cls) return 0;
+    if (!keylineUsesCssPos(cls)) {
+        const line = keyMatrix.value.find((item) => lineClassOf(item) === cls);
+        const key = line?.keys?.[0];
+        if (!key) return 0;
+        return prop === 'left' ? num(key.offset) : num(key.offsetY);
+    }
+    const bag = prop === 'top' ? keylineTopByClass : keylineLeftByClass;
+    if (bag[cls] != null) return bag[cls];
+    const el = visibleKeylineEl(cls);
+    if (!el) return 0;
+    const raw = getComputedStyle(el)[prop];
+    if (!raw || raw === 'auto') return 0;
+    const v = parseFloat(raw);
+    return Number.isFinite(v) ? round2(v) : 0;
+};
+
+const applyFlexKeyline = (cls: string, prop: 'top' | 'left', d: number) => {
+    const line = keyMatrix.value.find((item) => lineClassOf(item) === cls);
+    if (!line) return;
+    if (prop === 'left') {
+        const first = line.keys?.[0];
+        if (first) first.offset = num(num(first.offset) + d);
+        return;
+    }
+    for (const k of line.keys || []) k.offsetY = num(num(k.offsetY) + d);
+};
+
+const nudgeKeyline = (prop: 'top' | 'left', d: number) => {
+    const cls = primaryLineClass.value;
+    if (!cls) return;
+    if (!keylineUsesCssPos(cls)) {
+        applyFlexKeyline(cls, prop, d);
+        return;
+    }
+    const bag = prop === 'top' ? keylineTopByClass : keylineLeftByClass;
+    bag[cls] = num(displayKeyline(cls, prop) + d);
+    injectSizeCss();
+};
+
+const onKeylineInput = (prop: 'top' | 'left', e: Event) => {
+    const cls = primaryLineClass.value;
+    if (!cls) return;
+    const v = num((e.target as HTMLInputElement).value);
+    if (!keylineUsesCssPos(cls)) {
+        applyFlexKeyline(cls, prop, num(v - displayKeyline(cls, prop)));
+        return;
+    }
+    const bag = prop === 'top' ? keylineTopByClass : keylineLeftByClass;
+    bag[cls] = v;
+    injectSizeCss();
+};
+
+const nudgeOffset = (dx: number) => {
+    forEachSelected((k) => {
+        const line = findLine(k.index);
+        const keys = line?.keys || [];
+        const i = keys.findIndex((item) => item.index === k.index);
+        if (i < 0) return;
+        keys[i].offset = num(num(keys[i].offset) + dx);
+        if (keys[i + 1]) keys[i + 1].offset = num(num(keys[i + 1].offset) - dx);
+    });
+};
+const nudgeOffsetY = (dy: number) => {
+    forEachSelected((k) => { k.offsetY = num(num(k.offsetY) + dy); });
+};
+const nudgeWidth = (dw: number) => {
+    forEachSelected((k) => {
+        ensureSizeClass(k);
+        const cur = displayWidth(k) || readDomSize(k.index, 'width') || 25;
+        widthByIndex[k.index] = Math.max(8, round2(cur + dw));
+    });
+    injectSizeCss();
+};
+
+const textToneOf = (key: { style?: string } | null | undefined) => (key?.style || '').match(TEXT_TONE_RE)?.[0] || '';
+
+const setTextTone = (tone: 'text-black-1' | 'text-white-1') => {
+    forEachSelected((k) => {
+        const parts = stripLegacySizeClasses(k.style || '').split(/\s+/).filter((c) => c && !TEXT_TONE_RE.test(c));
+        parts.unshift(tone);
+        k.style = parts.join(' ');
+    });
+};
+
+const nudgeHeight = (dh: number) => {
+    forEachSelected((k) => {
+        ensureSizeClass(k);
+        const cur = displayHeight(k) || readDomSize(k.index, 'height') || 28;
+        heightByIndex[k.index] = Math.max(8, round2(cur + dh));
+    });
+    injectSizeCss();
+};
+
+const onOffsetInput = (e: Event) => {
+    const v = num((e.target as HTMLInputElement).value);
+    const base = num(primaryKey.value?.offset);
+    const delta = v - base;
+    forEachSelected((k) => {
+        const line = findLine(k.index);
+        const keys = line?.keys || [];
+        const i = keys.findIndex((item) => item.index === k.index);
+        if (i < 0) return;
+        keys[i].offset = num(num(keys[i].offset) + delta);
+        if (keys[i + 1]) keys[i + 1].offset = num(num(keys[i + 1].offset) - delta);
+    });
+};
+const onOffsetYInput = (e: Event) => {
+    const v = num((e.target as HTMLInputElement).value);
+    const base = num(primaryKey.value?.offsetY);
+    const delta = v - base;
+    forEachSelected((k) => { k.offsetY = num(num(k.offsetY) + delta); });
+};
+const onWidthInput = (e: Event) => {
+    const v = num((e.target as HTMLInputElement).value);
+    forEachSelected((k) => {
+        ensureSizeClass(k);
+        widthByIndex[k.index] = Math.max(8, v);
+    });
+    injectSizeCss();
+};
+const onHeightInput = (e: Event) => {
+    const v = num((e.target as HTMLInputElement).value);
+    forEachSelected((k) => {
+        ensureSizeClass(k);
+        heightByIndex[k.index] = Math.max(8, v);
+    });
+    injectSizeCss();
+};
+
+const writeToCode = async () => {
+    refreshTarget();
+    if (!storePath.value) {
+        alert('未找到 keyStore，请先打开某个键盘改键页');
+        return;
+    }
+    const keys = [];
+    const widths: Record<string, number> = {};
+    const heights: Record<string, number> = {};
+    const baseCls = baseSizeClass();
+    if (baseKeyWidth.value != null) widths[baseCls] = baseKeyWidth.value;
+    if (baseKeyHeight.value != null) heights[baseCls] = baseKeyHeight.value;
+    for (const line of keyMatrix.value) {
+        for (const key of line.keys || []) {
+            const touchedW = widthByIndex[key.index] != null;
+            const touchedH = heightByIndex[key.index] != null;
+            const prev = baselineByIndex.get(key.index);
+            const offsetChanged = !prev
+                || !sameNum(num(key.offset), prev.offset)
+                || !sameNum(num(key.offsetY), prev.offsetY);
+            const toneChanged = textToneOf(key) !== textToneOf(prev);
+            if (!offsetChanged && !touchedW && !touchedH && !toneChanged) continue;
+
+            const item: any = {
+                index: key.index,
+                position: num(key.position),
+                offset: num(key.offset),
+                offsetY: num(key.offsetY),
+            };
+            if (touchedW || touchedH || toneChanged) {
+                if (touchedW || touchedH) ensureSizeClass(key);
+                item.style = stripLegacySizeClasses(key.style || '');
+            }
+            if (touchedW || touchedH) {
+                const cls = ensureSizeClass(key);
+                if (touchedW) {
+                    item.width = widthByIndex[key.index];
+                    widths[cls] = widthByIndex[key.index];
+                }
+                if (touchedH) {
+                    item.height = heightByIndex[key.index];
+                    heights[cls] = heightByIndex[key.index];
+                }
+            }
+            keys.push(item);
+        }
+    }
+    const keylineTops: Record<string, number> = {};
+    const keylineLefts: Record<string, number> = {};
+    for (const cls of new Set([...Object.keys(keylineTopByClass), ...Object.keys(keylineLeftByClass)])) {
+        if (!KEYLINE_CLASS_RE.test(cls)) continue;
+        if (keylineTopByClass[cls] != null) keylineTops[cls] = keylineTopByClass[cls];
+        if (keylineLeftByClass[cls] != null) keylineLefts[cls] = keylineLeftByClass[cls];
+    }
+    const sizeN = Object.keys(widths).length + Object.keys(heights).length;
+    const lineN = Object.keys(keylineTops).length + Object.keys(keylineLefts).length;
+    if (!keys.length && !sizeN && !lineN) {
+        alert('没有需要写入的改动');
+        return;
+    }
+    try {
+        if (!(await ensurePluginReady())) return;
+        const res = await fetch('/__rk_align_write', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                storePath: storePath.value,
+                vuePath: vuePath.value,
+                keys,
+                keyboardName: keyboardName.value,
+                keyboardNames: keyboardNames.value,
+                layoutFingerprint: collectLayoutFingerprint(),
+                pluginVersion: PLUGIN_VERSION,
+                widths,
+                heights,
+                keylineTops,
+                keylineLefts,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        captureBaseline();
+        const baseTip = (widths[baseCls] != null || heights[baseCls] != null) ? `（含 .${baseCls}）` : '';
+        const lineTip = lineN ? `\n整行 → ${vuePath.value || 'key.vue'}` : '';
+        alert(
+            `已写入 ${keys.length} 个键 → ${storePath.value}` +
+            (data.matrixName ? `\n布局：${data.matrixName}` : '') +
+            (sizeN ? `\n宽高 → ${vuePath.value || 'key.vue'}（${sizeN} 条 class）${baseTip}` : '') +
+            lineTip
+        );
+    } catch (e: any) {
+        alert(`写入失败：${e?.message || e}\n请重启 npm run dev`);
+    }
+};
+
+const resizing = ref(false);
+const resizeOrigin = reactive({ mx: 0, my: 0, w: 0, h: 0, right: 0, bottom: 0, edge: '' });
+
+const onPanelMouseDown = (e: MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, select')) return;
+    const panel = e.currentTarget as HTMLElement;
+    const rect = panel.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const edge = 8;
+    const hitLeft = x <= edge;
+    const hitRight = rect.width - x <= edge;
+    const hitTop = y <= edge;
+    const hitBottom = rect.height - y <= edge;
+    if (!(hitLeft || hitRight || hitTop || hitBottom)) return;
+    e.preventDefault();
+    resizing.value = true;
+    resizeOrigin.mx = e.clientX;
+    resizeOrigin.my = e.clientY;
+    resizeOrigin.w = panelPos.width;
+    resizeOrigin.h = panelPos.height;
+    resizeOrigin.right = panelPos.right;
+    resizeOrigin.bottom = panelPos.bottom;
+    resizeOrigin.edge = `${hitLeft ? 'l' : ''}${hitRight ? 'r' : ''}${hitTop ? 't' : ''}${hitBottom ? 'b' : ''}`;
+    window.addEventListener('mousemove', onResizeMove);
+    window.addEventListener('mouseup', onResizeEnd);
+};
+const onResizeMove = (e: MouseEvent) => {
+    if (!resizing.value) return;
+    const dx = e.clientX - resizeOrigin.mx;
+    const dy = e.clientY - resizeOrigin.my;
+    if (resizeOrigin.edge.includes('l')) panelPos.width = Math.max(260, round2(resizeOrigin.w - dx));
+    if (resizeOrigin.edge.includes('r')) {
+        panelPos.width = Math.max(260, round2(resizeOrigin.w + dx));
+        panelPos.right = Math.max(0, round2(resizeOrigin.right - dx));
+    }
+    if (resizeOrigin.edge.includes('t')) panelPos.height = Math.max(220, round2(resizeOrigin.h - dy));
+    if (resizeOrigin.edge.includes('b')) {
+        panelPos.height = Math.max(220, round2(resizeOrigin.h + dy));
+        panelPos.bottom = Math.max(0, round2(resizeOrigin.bottom - dy));
+    }
+};
+const onResizeEnd = () => {
+    resizing.value = false;
+    window.removeEventListener('mousemove', onResizeMove);
+    window.removeEventListener('mouseup', onResizeEnd);
+    persist();
+};
+
+const startDrag = (e: MouseEvent) => {
+    if ((e.target as HTMLElement).tagName === 'BUTTON') return;
+    dragging.value = true;
+    dragOrigin.mx = e.clientX;
+    dragOrigin.my = e.clientY;
+    dragOrigin.right = panelPos.right;
+    dragOrigin.bottom = panelPos.bottom;
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragEnd);
+};
+const onDragMove = (e: MouseEvent) => {
+    if (!dragging.value) return;
+    // 右下角定位：鼠标右移 → right 减小
+    panelPos.right = Math.max(0, dragOrigin.right - (e.clientX - dragOrigin.mx));
+    panelPos.bottom = Math.max(0, dragOrigin.bottom - (e.clientY - dragOrigin.my));
+};
+const onDragEnd = () => {
+    dragging.value = false;
+    window.removeEventListener('mousemove', onDragMove);
+    window.removeEventListener('mouseup', onDragEnd);
+    persist();
+};
+
+const onKeydown = (e: KeyboardEvent) => {
+    if (!active.value) return;
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        nudgeOffset(e.key === 'ArrowLeft' ? -step.value : step.value);
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        nudgeOffsetY(e.key === 'ArrowUp' ? -step.value : step.value);
+    } else if (plain && e.code === 'KeyA') {
+        e.preventDefault();
+        nudgeKeyline('left', -step.value);
+    } else if (plain && e.code === 'KeyD') {
+        e.preventDefault();
+        nudgeKeyline('left', step.value);
+    } else if (plain && e.code === 'KeyW') {
+        e.preventDefault();
+        nudgeKeyline('top', -step.value);
+    } else if (plain && e.code === 'KeyS') {
+        e.preventDefault();
+        nudgeKeyline('top', step.value);
+    } else if (e.key === '[') { e.preventDefault(); nudgeWidth(-step.value); }
+    else if (e.key === ']') { e.preventDefault(); nudgeWidth(step.value); }
+    else if (e.key === ';') { e.preventDefault(); nudgeHeight(-step.value); }
+    else if (e.key === "'") { e.preventDefault(); nudgeHeight(step.value); }
+    else if (plain && e.code === 'KeyB') { e.preventDefault(); setTextTone('text-black-1'); }
+    else if (plain && e.code === 'KeyV') { e.preventDefault(); setTextTone('text-white-1'); }
+    else if (e.key === 'Escape') { clearSelection(); }
+};
+
+onMounted(() => {
+    if (!isDev) return;
+    restore();
+    window.addEventListener('click', onCaptureClick, true);
+    window.addEventListener('keydown', onKeydown);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener('click', onCaptureClick, true);
+    window.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('mousemove', onDragMove);
+    window.removeEventListener('mouseup', onDragEnd);
+    window.removeEventListener('mousemove', onResizeMove);
+    window.removeEventListener('mouseup', onResizeEnd);
+    close();
+});
+
+watch(active, (v) => {
+    document.body.classList.toggle('rk-align-mode', v);
+});
+</script>
+
+<style>
+.rk-align-toggle {
+    position: fixed;
+    right: 12px;
+    bottom: 4px;
+    z-index: 100000;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #888;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+}
+.rk-align-panel {
+    position: fixed;
+    z-index: 100001;
+    width: 320px;
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    padding: 10px;
+    background: rgba(20, 20, 24, 0.96);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    text-align: left;
+    box-sizing: border-box;
+}
+.rk-align-panel button {
+    border: 1px solid #777;
+    background: #333;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    margin: 0 2px;
+}
+.rk-align-panel button.on { background: #4743a7; border-color: #7a76d8; }
+.rk-align-panel button.primary { background: #2d8a4e; border-color: #3cb371; font-weight: 600; }
+.rk-align-panel input[type='number'] {
+    width: 64px;
+    margin: 0 4px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+.rk-align-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: move;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #444;
+}
+.rk-align-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0;
+}
+.rk-align-card {
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 8px;
+    margin: 8px 0;
+    line-height: 1.45;
+}
+.rk-align-panel .hint { opacity: 0.8; font-size: 11px; margin: 4px 0; }
+
+/* 对齐时半透明紫底，方便对照底图看键帽边界 */
+body.rk-align-mode .keybox .key,
+body.rk-align-mode .keybox .key_jp {
+    background: rgba(185, 92, 188, 0.35) !important;
+}
+.rk-align-selected {
+    outline: 2px solid #ffd666 !important;
+    outline-offset: -2px;
+    z-index: 6 !important;
+}
+body.rk-align-mode .keybox .disabled {
+    pointer-events: auto !important;
+}
+</style>
