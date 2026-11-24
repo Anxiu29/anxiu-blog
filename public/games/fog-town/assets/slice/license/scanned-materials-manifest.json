@@ -1,0 +1,195 @@
+{
+  "downloadedAt": "2026-11-12",
+  "description": "Scanned 1k JPG PBR color, OpenGL normal and roughness materials, plus matching stone displacement, for the throwaway offline alley spike.",
+  "assets": [
+    {
+      "role": "wood",
+      "id": "weathered_brown_planks",
+      "name": "Weathered Brown Planks",
+      "authors": {
+        "Dimitrios Savva": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "source": "https://polyhaven.com/a/weathered_brown_planks",
+      "api": "https://api.polyhaven.com/files/weathered_brown_planks",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "physicalTileMetres": 2,
+      "maps": [
+        {
+          "kind": "Diffuse",
+          "local": "scannedtextures/wood-Diffuse.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_brown_planks/weathered_brown_planks_diff_1k.jpg",
+          "bytes": 226049,
+          "md5": "e2fbdf7ed402e272e33e3f7ba707cf69"
+        },
+        {
+          "kind": "nor_gl",
+          "local": "scannedtextures/wood-nor_gl.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_brown_planks/weathered_brown_planks_nor_gl_1k.jpg",
+          "bytes": 223250,
+          "md5": "1180a2ce3566529b25128252e02bd049"
+        },
+        {
+          "kind": "Rough",
+          "local": "scannedtextures/wood-Rough.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_brown_planks/weathered_brown_planks_rough_1k.jpg",
+          "bytes": 234672,
+          "md5": "4893f3ee360a4e1e30b96a157e65e50a"
+        }
+      ]
+    },
+    {
+      "role": "plaster",
+      "id": "plastered_wall_04",
+      "name": "Plastered Wall 04",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "source": "https://polyhaven.com/a/plastered_wall_04",
+      "api": "https://api.polyhaven.com/files/plastered_wall_04",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "physicalTileMetres": 2,
+      "maps": [
+        {
+          "kind": "Diffuse",
+          "local": "scannedtextures/plaster-Diffuse.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_04/plastered_wall_04_diff_1k.jpg",
+          "bytes": 299230,
+          "md5": "3a45e9e3ff0c6aa179371dff02bded1f"
+        },
+        {
+          "kind": "nor_gl",
+          "local": "scannedtextures/plaster-nor_gl.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_04/plastered_wall_04_nor_gl_1k.jpg",
+          "bytes": 427268,
+          "md5": "f18e649235bb688732fb0ef1d61a5286"
+        },
+        {
+          "kind": "Rough",
+          "local": "scannedtextures/plaster-Rough.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_04/plastered_wall_04_rough_1k.jpg",
+          "bytes": 243061,
+          "md5": "66c89044921accf705665e4ea9ba1d66"
+        }
+      ]
+    },
+    {
+      "role": "stone",
+      "id": "cobblestone_floor_03",
+      "name": "Cobblestone Floor 03",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "source": "https://polyhaven.com/a/cobblestone_floor_03",
+      "api": "https://api.polyhaven.com/files/cobblestone_floor_03",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "physicalTileMetres": 2,
+      "maps": [
+        {
+          "kind": "Diffuse",
+          "local": "scannedtextures/stone-Diffuse.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_03/cobblestone_floor_03_diff_1k.jpg",
+          "bytes": 531203,
+          "md5": "d5e23f634ea666527747ea22734d1984"
+        },
+        {
+          "kind": "nor_gl",
+          "local": "scannedtextures/stone-nor_gl.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_03/cobblestone_floor_03_nor_gl_1k.jpg",
+          "bytes": 531882,
+          "md5": "714091302c0177ff073ee385a07800e5"
+        },
+        {
+          "kind": "Rough",
+          "local": "scannedtextures/stone-Rough.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_03/cobblestone_floor_03_rough_1k.jpg",
+          "bytes": 251847,
+          "md5": "e136999af6faa42d51aef4ddfe9e7b87"
+        },
+        {
+          "kind": "Displacement",
+          "local": "scannedtextures/stone-Displacement.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_03/cobblestone_floor_03_disp_1k.jpg",
+          "bytes": 165742,
+          "md5": "788d11ca385c423438dab5870f91fbfd"
+        }
+      ]
+    },
+    {
+      "role": "roof",
+      "id": "grey_roof_tiles",
+      "name": "Grey Roof Tiles",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "source": "https://polyhaven.com/a/grey_roof_tiles",
+      "api": "https://api.polyhaven.com/files/grey_roof_tiles",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "physicalTileMetres": 2,
+      "maps": [
+        {
+          "kind": "Diffuse",
+          "local": "scannedtextures/roof-Diffuse.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grey_roof_tiles/grey_roof_tiles_diff_1k.jpg",
+          "bytes": 596156,
+          "md5": "9a0d2c1ca66e79972c7c35cefa238cf7"
+        },
+        {
+          "kind": "nor_gl",
+          "local": "scannedtextures/roof-nor_gl.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grey_roof_tiles/grey_roof_tiles_nor_gl_1k.jpg",
+          "bytes": 522186,
+          "md5": "95003919cdb2fcb2f499594bdf0ee827"
+        },
+        {
+          "kind": "Rough",
+          "local": "scannedtextures/roof-Rough.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grey_roof_tiles/grey_roof_tiles_rough_1k.jpg",
+          "bytes": 260780,
+          "md5": "19961a96ab55dfe97dd76981c59ccb1a"
+        }
+      ]
+    },
+    {
+      "role": "brick",
+      "id": "brick_wall_001",
+      "name": "Brick Wall 001",
+      "authors": {
+        "Rob Tuytel": "Processing",
+        "Dimitrios Savva": "Photography"
+      },
+      "source": "https://polyhaven.com/a/brick_wall_001",
+      "api": "https://api.polyhaven.com/files/brick_wall_001",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "physicalTileMetres": 2,
+      "maps": [
+        {
+          "kind": "Diffuse",
+          "local": "scannedtextures/brick-Diffuse.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_diffuse_1k.jpg",
+          "bytes": 574381,
+          "md5": "955d2d4500eb549be0f2873305782798"
+        },
+        {
+          "kind": "nor_gl",
+          "local": "scannedtextures/brick-nor_gl.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_nor_gl_1k.jpg",
+          "bytes": 295279,
+          "md5": "be151875ed0897fc716aeef6daac8bd5"
+        },
+        {
+          "kind": "Rough",
+          "local": "scannedtextures/brick-Rough.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_rough_1k.jpg",
+          "bytes": 211093,
+          "md5": "618ceca60a4321aecc6d61eebe53d551"
+        }
+      ]
+    }
+  ]
+}
