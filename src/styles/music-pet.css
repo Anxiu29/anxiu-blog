@@ -82,3 +82,6 @@
  .pet-lyric > [hidden] { display:none!important; }
 }
 @media(min-width:901px) and (max-width:1400px) { .music-pet { height:284px; } .pet-lyric > [data-pet-next] { font-size:10px; } }
+
+/* Optical alignment of the four music buttons beneath Xiaohei. */
+.music-pet .pet-controls { translate: 12px 0; }
