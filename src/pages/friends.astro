@@ -7,7 +7,7 @@ import JournalLayout from "@/layouts/JournalLayout.astro";
 import "@/styles/journal-discovery-completion.css";
 
 const tags = [...new Set(bookmarks.flatMap((b) => b.tags))];
-const siteInfo = `名称：${siteConfig.title}\n地址：${siteConfig.site_url}\n简介：${siteConfig.description}\n订阅：${new URL('/rss.xml', siteConfig.site_url).href}`;
+const siteInfo = `名称：${siteConfig.title}\n地址：${siteConfig.site_url}\n简介：${siteConfig.description}\n订阅：${new URL("/rss.xml", siteConfig.site_url).href}`;
 ---
 <JournalLayout title="友链与站点收藏" description="收藏值得再访的博客和开源站点，按主题寻找，也可以随机逛逛。" active="逛逛">
   <section class="page-intro"><h1>友链与站点收藏</h1><p>收集一些值得逛逛的博客和开源站点。目前这里是站点收藏，尚未互换友链。</p></section>

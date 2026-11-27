@@ -1,6 +1,6 @@
-import { transformAuthoringDirectives } from "./remark-authoring.js";
 import { h } from "hastscript";
 import { visit } from "unist-util-visit";
+import { transformAuthoringDirectives } from "./remark-authoring.js";
 
 const ADMONITION_TYPES = [
 	"note",

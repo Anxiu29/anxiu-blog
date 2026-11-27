@@ -1,6 +1,5 @@
-import { prepareLocalVideo } from "./background-local-video";
-import { createBackgroundVideo } from "./background-video";
 import { backgroundImages, backgroundVideos } from "@/data/background-images";
+import { prepareLocalVideo } from "./background-local-video";
 import {
 	BACKGROUND_KEY,
 	type BackgroundImageId,
@@ -10,18 +9,20 @@ import {
 	saveBackground,
 } from "./background-settings";
 import {
-	type BackgroundPhoto,
 	type BackgroundLocalVideo,
-	readLocalVideo,
-	storeLocalVideo,
+	type BackgroundPhoto,
 	deleteLocalVideo,
-	MAX_BACKGROUND_VIDEO_BYTES,
 	deletePhoto,
 	isBackgroundPhotoType,
 	MAX_BACKGROUND_BYTES,
+	MAX_BACKGROUND_VIDEO_BYTES,
+	readLocalVideo,
 	readPhoto,
+	storeLocalVideo,
 	storePhoto,
 } from "./background-storage";
+import { createBackgroundVideo } from "./background-video";
+
 const initialized = new WeakSet<HTMLDialogElement>();
 export function initializeAppearance() {
 	const dialog =

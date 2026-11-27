@@ -92,7 +92,11 @@ export function initializeBookmarkDiscovery(
 		filter();
 	});
 	browser.addEventListener("popstate", readUrl);
-	root.addEventListener?.("astro:before-swap", () => browser.removeEventListener("popstate", readUrl), { once: true });
+	root.addEventListener?.(
+		"astro:before-swap",
+		() => browser.removeEventListener("popstate", readUrl),
+		{ once: true },
+	);
 	pick?.addEventListener("click", () => {
 		const visible = cards.filter((card) => !card.hidden);
 		const chosen = visible[

@@ -117,7 +117,11 @@ export function initializeArchiveFilter() {
 		filter(false);
 	};
 	window.addEventListener("popstate", onPopstate);
-	document.addEventListener("astro:before-swap", () => window.removeEventListener("popstate", onPopstate), { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => window.removeEventListener("popstate", onPopstate),
+		{ once: true },
+	);
 	readURL();
 	filter(false);
 }

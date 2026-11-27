@@ -1,15 +1,16 @@
 ---
-import type { GetStaticPaths, Page } from 'astro';
-import LeftSidebar from '@/components/journal/LeftSidebar.astro';
-import RightSidebar from '@/components/journal/RightSidebar.astro';
-import CategoryBar from '@/components/journal/CategoryBar.astro';
-import PostList from '@/components/journal/PostList.astro';
-import Icon from '@/components/journal/Icon.astro';
-import HomeFeatured from '@/components/journal/HomeFeatured.astro';
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import { getSortedPosts, type PostForList } from '@/utils/content-utils';
-export const getStaticPaths = (async({paginate})=>paginate(await getSortedPosts(),{pageSize:6})) satisfies GetStaticPaths;
-const { page } = Astro.props as {page:Page<PostForList>};
+import type { GetStaticPaths, Page } from "astro";
+import CategoryBar from "@/components/journal/CategoryBar.astro";
+import HomeFeatured from "@/components/journal/HomeFeatured.astro";
+import Icon from "@/components/journal/Icon.astro";
+import LeftSidebar from "@/components/journal/LeftSidebar.astro";
+import PostList from "@/components/journal/PostList.astro";
+import RightSidebar from "@/components/journal/RightSidebar.astro";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import { getSortedPosts, type PostForList } from "@/utils/content-utils";
+export const getStaticPaths = (async ({ paginate }) =>
+	paginate(await getSortedPosts(), { pageSize: 6 })) satisfies GetStaticPaths;
+const { page } = Astro.props as { page: Page<PostForList> };
 ---
 <JournalLayout title={page.currentPage>1?`文章 · 第 ${page.currentPage} 页`:undefined} active="首页">
  <div class="journal-home-grid"><LeftSidebar/><div class="journal-feed"><CategoryBar/>

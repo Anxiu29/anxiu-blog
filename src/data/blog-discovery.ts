@@ -187,7 +187,18 @@ export const bookmarks = [
 ];
 
 export const updates = [
- {id:'reading-and-search',date:'2026-11-26',category:'博客',title:'让阅读和查找更顺手',text:'增加本机文章收藏、按内容类型查找和搜索失败重试；搜索全文索引改为打开时加载。音乐在博客页面之间连续播放，手机菜单与阅读工具也补了一轮检查。',links:[{title:'我的收藏',href:'/saved/'},{title:'搜索全站',href:'/search/'},{title:'音乐角落',href:'/music/'}]},
+	{
+		id: "reading-and-search",
+		date: "2026-11-26",
+		category: "博客",
+		title: "让阅读和查找更顺手",
+		text: "增加本机文章收藏、按内容类型查找和搜索失败重试；搜索全文索引改为打开时加载。音乐在博客页面之间连续播放，手机菜单与阅读工具也补了一轮检查。",
+		links: [
+			{ title: "我的收藏", href: "/saved/" },
+			{ title: "搜索全站", href: "/search/" },
+			{ title: "音乐角落", href: "/music/" },
+		],
+	},
 	{
 		id: "local-gallery-entry",
 		date: "2026-11-25",
@@ -254,7 +265,13 @@ export const updates = [
 ];
 
 export const discoveryRecords = [
- {title:'我的收藏',description:'留在此浏览器里的文章阅读清单。',url:'/saved/',type:'页面',text:'收藏 稍后阅读 本机 阅读清单 saved'},
+	{
+		title: "我的收藏",
+		description: "留在此浏览器里的文章阅读清单。",
+		url: "/saved/",
+		type: "页面",
+		text: "收藏 稍后阅读 本机 阅读清单 saved",
+	},
 	{
 		title: "音乐角落",
 		description: "同一标签页听音乐，切换文章时继续播放。",

@@ -12,8 +12,9 @@ import "@/styles/journal-discovery-completion.css";
 
 const posts = await getSortedPosts();
 const categories = await getCategoryList();
-const tags = (await getTagList())
-	.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+const tags = (await getTagList()).sort(
+	(a, b) => b.count - a.count || a.name.localeCompare(b.name),
+);
 const choices = [
 	"webhid-tool-guide",
 	"webhid-workbench",

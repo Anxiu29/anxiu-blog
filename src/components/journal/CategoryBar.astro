@@ -1,6 +1,7 @@
 ---
-import { getCategoryList, getSortedPosts } from '@/utils/content-utils';
-import Icon from './Icon.astro';
+import { getCategoryList, getSortedPosts } from "@/utils/content-utils";
+import Icon from "./Icon.astro";
+
 const categories = await getCategoryList();
 const posts = await getSortedPosts();
 ---

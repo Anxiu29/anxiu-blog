@@ -12,8 +12,17 @@ interface Props {
 	showCovers?: boolean;
 	headingLevel?: "h2" | "h3";
 }
-const { posts, filterable = false, showCovers = true, headingLevel: Heading = "h3" } = Astro.props;
-const covers = await Promise.all(posts.map(post => showCovers ? getPostMedia(post.id, post.data) : undefined));
+const {
+	posts,
+	filterable = false,
+	showCovers = true,
+	headingLevel: Heading = "h3",
+} = Astro.props;
+const covers = await Promise.all(
+	posts.map((post) =>
+		showCovers ? getPostMedia(post.id, post.data) : undefined,
+	),
+);
 ---
 <div class="post-list">{posts.map((post, index) => {
   const entryMedia = covers[index];

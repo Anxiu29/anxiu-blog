@@ -1,8 +1,23 @@
 ---
-import Icon from './Icon.astro';
+import Icon from "./Icon.astro";
 import "@/styles/journal-reading-completion.css";
-interface Props { title: string; url: string; date: string; licenseName?: string; licenseUrl?: string; sourceLink?: string; }
-const {title,url,date,licenseName='',licenseUrl='',sourceLink=''}=Astro.props;
+
+interface Props {
+	title: string;
+	url: string;
+	date: string;
+	licenseName?: string;
+	licenseUrl?: string;
+	sourceLink?: string;
+}
+const {
+	title,
+	url,
+	date,
+	licenseName = "",
+	licenseUrl = "",
+	sourceLink = "",
+} = Astro.props;
 ---
 <section class="article-share-card" aria-labelledby="share-heading" data-share-widget><div><span class="share-round"><Icon name="book"/></span><h2 id="share-heading">读到这里，谢谢你。</h2><p>如果这篇记录对你有用，欢迎收藏，或分享给刚好需要的人。</p><div><button type="button" class="j-button primary" data-article-share data-native-share data-title={title} data-url={url}><Icon name="share"/>分享文章</button><a class="j-button subtle" href="/rss/"><Icon name="rss"/>订阅更新</a></div><p class="share-status" data-share-status role="status" aria-live="polite"></p><div class="article-share-fallback" data-share-fallback hidden><label for="article-share-footer-url">复制下方文章地址</label><input id="article-share-footer-url" data-share-address value={url} readonly/><button type="button" data-share-dismiss>收起地址</button></div></div></section>
 <section class="article-attribution" aria-label="文章信息"><h2>{title}</h2><a href={url}>{url}</a><dl><div><dt>作者</dt><dd><a href="/about/">安秀</a></dd></div><div><dt>发布于</dt><dd><time datetime={date}>{date}</time></dd></div>{licenseName&&<div><dt>许可</dt><dd>{licenseUrl?<a href={licenseUrl} target="_blank" rel="noopener noreferrer">{licenseName}</a>:licenseName}</dd></div>}{sourceLink&&<div><dt>来源</dt><dd><a href={sourceLink} target="_blank" rel="noopener noreferrer">原文链接</a></dd></div>}</dl></section>

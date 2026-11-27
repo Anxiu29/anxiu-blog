@@ -3,7 +3,8 @@ type CalendarEntry = { date: string; title: string; url: string };
 const initialized = new WeakSet<HTMLElement>();
 export function initializeJournalWidgets() {
 	const clock = document.querySelector<HTMLTimeElement>("#sidebar-clock");
-	const owner = clock || document.querySelector<HTMLElement>("#calendar-post-data");
+	const owner =
+		clock || document.querySelector<HTMLElement>("#calendar-post-data");
 	if (!owner || initialized.has(owner)) return;
 	initialized.add(owner);
 	const date = document.querySelector("#sidebar-date");
@@ -46,14 +47,21 @@ export function initializeJournalWidgets() {
 	start();
 	window.addEventListener("pagehide", stop);
 	window.addEventListener("pageshow", start);
-	const onVisibility = () => { if (document.hidden) stop(); else start(); };
+	const onVisibility = () => {
+		if (document.hidden) stop();
+		else start();
+	};
 	document.addEventListener("visibilitychange", onVisibility);
-	document.addEventListener("astro:before-swap", () => {
-		stop();
-		window.removeEventListener("pagehide", stop);
-		window.removeEventListener("pageshow", start);
-		document.removeEventListener("visibilitychange", onVisibility);
-	}, { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => {
+			stop();
+			window.removeEventListener("pagehide", stop);
+			window.removeEventListener("pageshow", start);
+			document.removeEventListener("visibilitychange", onVisibility);
+		},
+		{ once: true },
+	);
 	const data = document.querySelector<HTMLElement>("#calendar-post-data");
 	const days = document.querySelector<HTMLElement>("[data-calendar-days]");
 	const label = document.querySelector("[data-calendar-label]");

@@ -1,10 +1,16 @@
 ---
-import Icon from './Icon.astro';
-import { dailyQuotes } from '@/data/daily-quotes';
-import '@/styles/daily-quote.css';
-interface Props { title?: string; description?: string; home?: boolean; article?: boolean; }
+import { dailyQuotes } from "@/data/daily-quotes";
+import Icon from "./Icon.astro";
+import "@/styles/daily-quote.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+	home?: boolean;
+	article?: boolean;
+}
 const { title, description, home = false, article = false } = Astro.props;
-const Title = home || article ? 'h1' : 'p';
+const Title = home || article ? "h1" : "p";
 ---
 <section class:list={['site-banner',{'home-banner':home,'article-banner':article}]} aria-label="博客横幅">
  <div class="banner-copy">

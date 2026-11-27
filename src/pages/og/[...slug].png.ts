@@ -115,7 +115,11 @@ export async function GET({
 			? `./public${profileConfig.avatar}`
 			: `./src/${profileConfig.avatar}`;
 		const avatarBuffer = fs.readFileSync(avatarPath);
-		const avatarMime = /\.jpe?g$/i.test(avatarPath) ? "image/jpeg" : /\.webp$/i.test(avatarPath) ? "image/webp" : "image/png";
+		const avatarMime = /\.jpe?g$/i.test(avatarPath)
+			? "image/jpeg"
+			: /\.webp$/i.test(avatarPath)
+				? "image/webp"
+				: "image/png";
 		avatarBase64 = `data:${avatarMime};base64,${avatarBuffer.toString("base64")}`;
 	}
 

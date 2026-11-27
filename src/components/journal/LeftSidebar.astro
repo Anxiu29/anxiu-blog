@@ -1,12 +1,19 @@
 ---
-import { getCategoryList, getSortedPosts, getTagList } from '@/utils/content-utils';
-import Icon from './Icon.astro';
-import FireflyMusicWidget from './FireflyMusicWidget.astro';
-import '@/styles/journal-discovery-completion.css';
+import {
+	getCategoryList,
+	getSortedPosts,
+	getTagList,
+} from "@/utils/content-utils";
+import FireflyMusicWidget from "./FireflyMusicWidget.astro";
+import Icon from "./Icon.astro";
+import "@/styles/journal-discovery-completion.css";
+
 const posts = await getSortedPosts();
 const categories = await getCategoryList();
 const allTags = await getTagList();
-const tags = [...allTags].sort((a,b)=>b.count-a.count || a.name.localeCompare(b.name));
+const tags = [...allTags].sort(
+	(a, b) => b.count - a.count || a.name.localeCompare(b.name),
+);
 ---
 <aside class="journal-left" aria-label="博主与分类">
  <section class="j-card author-card">

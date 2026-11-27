@@ -1,11 +1,43 @@
 ---
 import Icon from "./Icon.astro";
-interface Props { active?: string; }
-const {active='文章'}=Astro.props;
-const groups=[
- {label:'文章',icon:'book',links:[['全部文章','/archive/','按时间阅读所有文章'],['文章分类','/categories/','从你感兴趣的话题开始'],['全部标签','/tags/','按具体话题查找'],['专题阅读','/series/','把相关的文章连起来'],['我的收藏','/saved/','只保存在此浏览器的阅读清单']]},
- {label:'动手',icon:'keyboard',links:[['开发工具','/tools/','WebHID 与键位调试'],['个人作品','/projects/','自己做的小工具和实验'],['我的待办','/todo/','只保存在当前浏览器的任务清单'],['小站建设清单','/posts/site-notebook/','记录已经完成和准备做的事']]},
- {label:'逛逛',icon:'compass',links:[['私人相册','/photos/','独立的本机照片库，查看接入状态'],['音乐角落','/music/','边听音乐，边逛博客'],['开发动态','/updates/','最近在折腾什么'],['站点收藏','/friends/','去其他博客走走'],['RSS 订阅','/rss/','在阅读器里保持联系']]},
+
+interface Props {
+	active?: string;
+}
+const { active = "文章" } = Astro.props;
+const groups = [
+	{
+		label: "文章",
+		icon: "book",
+		links: [
+			["全部文章", "/archive/", "按时间阅读所有文章"],
+			["文章分类", "/categories/", "从你感兴趣的话题开始"],
+			["全部标签", "/tags/", "按具体话题查找"],
+			["专题阅读", "/series/", "把相关的文章连起来"],
+			["我的收藏", "/saved/", "只保存在此浏览器的阅读清单"],
+		],
+	},
+	{
+		label: "动手",
+		icon: "keyboard",
+		links: [
+			["开发工具", "/tools/", "WebHID 与键位调试"],
+			["个人作品", "/projects/", "自己做的小工具和实验"],
+			["我的待办", "/todo/", "只保存在当前浏览器的任务清单"],
+			["小站建设清单", "/posts/site-notebook/", "记录已经完成和准备做的事"],
+		],
+	},
+	{
+		label: "逛逛",
+		icon: "compass",
+		links: [
+			["私人相册", "/photos/", "独立的本机照片库，查看接入状态"],
+			["音乐角落", "/music/", "边听音乐，边逛博客"],
+			["开发动态", "/updates/", "最近在折腾什么"],
+			["站点收藏", "/friends/", "去其他博客走走"],
+			["RSS 订阅", "/rss/", "在阅读器里保持联系"],
+		],
+	},
 ];
 ---
 <header id="journal-header" class="site-header" transition:persist="journal-header"><div class="header-inner"><a class="wordmark" href="/" aria-label="安秀首页"><span class="brand-symbol" aria-hidden="true"><img class="brand-clover" src="/branding/site-clover.svg" width="128" height="128" alt="" decoding="async"/></span><span>安秀<small>开发手记</small></span></a><nav class="desktop-navigation" aria-label="主导航"><a class:list={{selected:active==='首页'}} href="/"><Icon name="home"/>首页</a>{groups.map(group=><details class:list={["explore-menu",{selected:group.label===active||(group.label==='逛逛'&&['相册','音乐'].includes(active))||(group.label==='动手'&&['待办','工具','作品'].includes(active))}]}><summary><Icon name={group.icon}/>{group.label}<Icon name="down"/></summary><div class="explore-dropdown">{group.links.map(([label,href,description])=><a href={href} aria-current={Astro.url.pathname===href?'page':undefined}><strong>{label}</strong><span>{description}</span></a>)}</div></details>)}<a class:list={{selected:active==='关于'}} href="/about/"><Icon name="person"/>关于</a></nav><div class="header-actions"><button id="open-search" class="header-search" aria-label="搜索文章和工具" aria-haspopup="dialog" aria-keyshortcuts="Control+k Meta+k"><Icon name="search"/><span>搜索文章与工具</span><kbd data-search-shortcut>Ctrl K</kbd></button><button id="open-music" class="icon-button" type="button" popovertarget="music-panel" aria-label="打开音乐播放器" aria-controls="music-panel" aria-expanded="false"><Icon name="music"/></button><button id="open-appearance" class="icon-button" aria-label="自定义背景与外观" aria-haspopup="dialog"><Icon name="palette"/></button><button id="theme-toggle" class="icon-button" aria-label="切换深浅色主题"><span class="light-icon"><Icon name="sun"/></span><span class="dark-icon"><Icon name="moon"/></span></button><button id="open-navigation" class="icon-button" type="button" aria-label="打开导航" aria-controls="mobile-navigation" aria-haspopup="dialog" aria-expanded="false"><Icon name="menu"/></button></div></div></header>

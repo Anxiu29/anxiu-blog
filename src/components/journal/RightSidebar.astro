@@ -1,14 +1,22 @@
 ---
-import { updates } from '@/data/blog-discovery';
-import { getSortedPosts, getCategoryList, getTagList } from '@/utils/content-utils';
-import { getReadingStats } from '@/utils/reading-stats';
-import { getPostUrlBySlug } from '@/utils/url-utils';
-import Icon from './Icon.astro';
-import TodoBoard from './apps/TodoBoard.svelte';
+import { updates } from "@/data/blog-discovery";
+import {
+	getCategoryList,
+	getSortedPosts,
+	getTagList,
+} from "@/utils/content-utils";
+import { getReadingStats } from "@/utils/reading-stats";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import TodoBoard from "./apps/TodoBoard.svelte";
+import Icon from "./Icon.astro";
+
 const posts = await getSortedPosts();
 const categories = await getCategoryList();
 const tags = await getTagList();
-const count = posts.reduce((sum,post)=>sum+getReadingStats(post.body).count,0);
+const count = posts.reduce(
+	(sum, post) => sum + getReadingStats(post.body).count,
+	0,
+);
 ---
 <aside class="journal-right" aria-label="动态与日常">
  <section class="j-card greeting-card"><div><p id="sidebar-greeting">你好，欢迎来访。</p><time id="sidebar-clock">--:--</time><span id="sidebar-date">今天也留下一点记录。</span></div><img src="/images/backgrounds/mist-lake-thumb.webp" alt="湖面与远山" width="480" height="270" loading="lazy"/></section>

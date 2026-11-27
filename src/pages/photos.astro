@@ -1,10 +1,13 @@
 ---
-import Icon from '@/components/journal/Icon.astro';
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import {getChronoframeEntry} from '@/data/chronoframe';
-import '@/styles/journal-photos.css';
+import Icon from "@/components/journal/Icon.astro";
+import { getChronoframeEntry } from "@/data/chronoframe";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import "@/styles/journal-photos.css";
+
 const publicDeployment = process.env.VERCEL === "1";
-const entry=getChronoframeEntry(publicDeployment ? undefined : import.meta.env.CHRONOFRAME_LOCAL_URL);
+const entry = getChronoframeEntry(
+	publicDeployment ? undefined : import.meta.env.CHRONOFRAME_LOCAL_URL,
+);
 ---
 <JournalLayout title="私人相册" description="日常的片刻，旅行的风景，还有想留住的小事。给回忆一个安静的地方。" active="相册" noindex>
  <h1 class="sr-only">私人相册</h1>

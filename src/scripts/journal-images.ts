@@ -161,8 +161,12 @@ export function initializeArticleImages() {
 			attributeFilter: ["src", "srcset"],
 		});
 	document.addEventListener("password:decrypted", prepare);
-	document.addEventListener("astro:before-swap", () => {
-		observer?.disconnect();
-		document.removeEventListener("password:decrypted", prepare);
-	}, { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => {
+			observer?.disconnect();
+			document.removeEventListener("password:decrypted", prepare);
+		},
+		{ once: true },
+	);
 }

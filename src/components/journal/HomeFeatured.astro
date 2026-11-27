@@ -1,20 +1,40 @@
 ---
-import { getSortedPosts } from '@/utils/content-utils';
-import { getPostMedia } from '@/data/post-media';
-import { getPostUrlBySlug } from '@/utils/url-utils';
-import Icon from './Icon.astro';
+import { getPostMedia } from "@/data/post-media";
+import { getSortedPosts } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+import Icon from "./Icon.astro";
 
 const posts = await getSortedPosts();
 const selections = [
-  { id: 'anxiu-demo', title: '在浏览器里配置一把键盘', label: 'Anxiu · 设备与浏览器', description: '不用连接设备，从演示模式了解改键、宏和配置管理。' },
-  { id: 'fog-town-nightwalk', title: '走进一个雨夜古镇', label: '雾镇夜行 · 网页游戏原型', description: '把 Three.js 场景、探索与线索，串成一段可以试玩的夜行。' },
+	{
+		id: "anxiu-demo",
+		title: "在浏览器里配置一把键盘",
+		label: "Anxiu · 设备与浏览器",
+		description: "不用连接设备，从演示模式了解改键、宏和配置管理。",
+	},
+	{
+		id: "fog-town-nightwalk",
+		title: "走进一个雨夜古镇",
+		label: "雾镇夜行 · 网页游戏原型",
+		description: "把 Three.js 场景、探索与线索，串成一段可以试玩的夜行。",
+	},
 ];
-const entries = (await Promise.all(selections.map(async selection => {
-  const post = posts.find(p => p.id.replace(/\.(md|mdx)$/, '') === selection.id && !p.data.password && !p.data.templateDemo && !p.data.draft);
-  if (!post) return undefined;
-  const media = await getPostMedia(post.id, post.data);
-  return media ? { ...selection, post, media } : undefined;
-}))).filter(entry => entry !== undefined);
+const entries = (
+	await Promise.all(
+		selections.map(async (selection) => {
+			const post = posts.find(
+				(p) =>
+					p.id.replace(/\.(md|mdx)$/, "") === selection.id &&
+					!p.data.password &&
+					!p.data.templateDemo &&
+					!p.data.draft,
+			);
+			if (!post) return undefined;
+			const media = await getPostMedia(post.id, post.data);
+			return media ? { ...selection, post, media } : undefined;
+		}),
+	)
+).filter((entry) => entry !== undefined);
 ---
 {entries.length > 0 && <section class="home-featured-work" aria-labelledby="featured-work-heading">
   <div class="featured-work-heading"><div><p>PROJECT NOTES</p><h2 id="featured-work-heading">做过的一些东西</h2></div><a href="/projects/">全部作品 <Icon name="arrow"/></a></div>

@@ -178,15 +178,22 @@ export function initializeReadingTools() {
 	document.addEventListener("keydown", onKeydown);
 	document.addEventListener("scroll", schedule, { passive: true });
 	window.addEventListener("resize", schedule);
-	const resize = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : undefined;
+	const resize =
+		typeof ResizeObserver !== "undefined"
+			? new ResizeObserver(schedule)
+			: undefined;
 	resize?.observe(body);
-	document.addEventListener("astro:before-swap", () => {
-		disposed = true;
-		document.removeEventListener("keydown", onKeydown);
-		document.removeEventListener("scroll", schedule);
-		window.removeEventListener("resize", schedule);
-		resize?.disconnect();
-	}, { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => {
+			disposed = true;
+			document.removeEventListener("keydown", onKeydown);
+			document.removeEventListener("scroll", schedule);
+			window.removeEventListener("resize", schedule);
+			resize?.disconnect();
+		},
+		{ once: true },
+	);
 	schedule();
 }
 
@@ -262,12 +269,16 @@ export function initializeArticleToc() {
 		attributes: true,
 		attributeFilter: ["hidden"],
 	});
-	document.addEventListener("astro:before-swap", () => {
-		disposed = true;
-		observer.disconnect();
-		document.removeEventListener("scroll", schedule);
-		window.removeEventListener("resize", schedule);
-		document.removeEventListener("password:decrypted", schedule);
-	}, { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => {
+			disposed = true;
+			observer.disconnect();
+			document.removeEventListener("scroll", schedule);
+			window.removeEventListener("resize", schedule);
+			document.removeEventListener("password:decrypted", schedule);
+		},
+		{ once: true },
+	);
 	schedule();
 }

@@ -1,9 +1,10 @@
 ---
-import JournalLayout from '@/layouts/JournalLayout.astro';
-import Icon from '@/components/journal/Icon.astro';
-import {getSortedPosts} from '@/utils/content-utils';
-import {getPostUrlBySlug} from '@/utils/url-utils';
-const posts=(await getSortedPosts()).filter(post=>!post.data.password);
+import Icon from "@/components/journal/Icon.astro";
+import JournalLayout from "@/layouts/JournalLayout.astro";
+import { getSortedPosts } from "@/utils/content-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+
+const posts = (await getSortedPosts()).filter((post) => !post.data.password);
 ---
 <JournalLayout title="我的收藏" description="把想读和想回看的文章留在本机收藏清单，按自己的节奏慢慢读。" active="文章" noindex>
  <section class="page-intro"><span class="saved-eyebrow">READ IT LATER</span><h1>想读的，慢慢读。</h1><p>在文章里点一下收藏，把值得回看的记录留在这里。</p></section>

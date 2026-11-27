@@ -1,10 +1,13 @@
 ---
+import { Icon as MaterialIcon } from "astro-icon/components";
 import { journalMusic } from "@/data/journal-music";
 import Icon from "./Icon.astro";
 import MusicPet from "./MusicPet.astro";
-import { Icon as MaterialIcon } from "astro-icon/components";
 import "@/styles/journal-music-desktop.css";
-interface Props { embedded?: boolean; }
+
+interface Props {
+	embedded?: boolean;
+}
 const { embedded = false } = Astro.props;
 const Heading = embedded ? "h1" : "h2";
 const PlaylistHeading = embedded ? "h2" : "h3";

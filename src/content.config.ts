@@ -11,11 +11,13 @@ const postsCollection = defineCollection({
 		draft: z.boolean().optional().default(false),
 		templateDemo: z.boolean().optional().default(false),
 		description: z.string().optional().default(""),
-		readingGuide: z.object({
-			audience: z.string().trim().min(1),
-			preparation: z.array(z.string().trim().min(1)).min(1),
-			outcome: z.string().trim().min(1),
-		}).optional(),
+		readingGuide: z
+			.object({
+				audience: z.string().trim().min(1),
+				preparation: z.array(z.string().trim().min(1)).min(1),
+				outcome: z.string().trim().min(1),
+			})
+			.optional(),
 		image: z.string().optional().default(""),
 		imageAlt: z.string().optional().default(""),
 		imagePosition: z

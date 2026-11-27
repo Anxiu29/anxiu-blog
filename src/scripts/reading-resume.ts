@@ -100,16 +100,22 @@ export function initializeReadingResume() {
 		if (timer !== undefined) clearTimeout(timer);
 		timer = setTimeout(flush, 500);
 	};
-	const onVisibility = () => { if (document.hidden) flush(); };
+	const onVisibility = () => {
+		if (document.hidden) flush();
+	};
 	document.addEventListener("scroll", onScroll, { passive: true });
 	window.addEventListener("pagehide", flush);
 	document.addEventListener("visibilitychange", onVisibility);
-	document.addEventListener("astro:before-swap", () => {
-		flush();
-		document.removeEventListener("scroll", onScroll);
-		document.removeEventListener("visibilitychange", onVisibility);
-		window.removeEventListener("pagehide", flush);
-	}, { once: true });
+	document.addEventListener(
+		"astro:before-swap",
+		() => {
+			flush();
+			document.removeEventListener("scroll", onScroll);
+			document.removeEventListener("visibilitychange", onVisibility);
+			window.removeEventListener("pagehide", flush);
+		},
+		{ once: true },
+	);
 	resume.addEventListener("click", () => {
 		if (!saved) return;
 		root.hidden = true;

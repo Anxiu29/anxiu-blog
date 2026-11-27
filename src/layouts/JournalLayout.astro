@@ -1,15 +1,15 @@
 ---
-import { getJournalSearchIndex } from '@/data/journal-search';
 import { ClientRouter } from "astro:transitions";
 import AuthoringBlocks from "@/components/authoring/AuthoringBlocks.astro";
-import BlogHeader from "@/components/journal/BlogHeader.astro";
-import SiteBanner from "@/components/journal/SiteBanner.astro";
 import BackgroundSettings from "@/components/journal/BackgroundSettings.astro";
+import BlogHeader from "@/components/journal/BlogHeader.astro";
 import Icon from "@/components/journal/Icon.astro";
 import JournalMusic from "@/components/journal/JournalMusic.astro";
 import MobileNavigation from "@/components/journal/MobileNavigation.astro";
 import SearchPanel from "@/components/journal/SearchPanel.astro";
+import SiteBanner from "@/components/journal/SiteBanner.astro";
 import { siteConfig } from "@/config/siteConfig";
+import { getJournalSearchIndex } from "@/data/journal-search";
 import "@/styles/journal.css";
 import "@/styles/sky-blog.css";
 import "@/styles/blog-discovery.css";
@@ -33,7 +33,7 @@ interface Props {
 	article?: boolean;
 	musicPage?: boolean;
 	image?: string;
- imageAlt?: string;
+	imageAlt?: string;
 }
 const {
 	title,
@@ -43,11 +43,10 @@ const {
 	article = false,
 	musicPage = false,
 	image = "/images/backgrounds/anime-live-poster.webp",
- imageAlt = "安秀的开发手记",
+	imageAlt = "安秀的开发手记",
 } = Astro.props;
 const { version: searchVersion, articlePaths } = await getJournalSearchIndex();
 const canonical = new URL(Astro.url.pathname, siteConfig.site_url);
-
 ---
 <!doctype html>
 <html lang="zh-CN"><head>

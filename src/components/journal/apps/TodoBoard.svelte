@@ -1,99 +1,307 @@
 <script lang="ts">
- import { onMount, tick } from 'svelte';
- import AppIcon from './AppIcon.svelte';
- import { createTodoStore, localDay, makeBackup, MAX_BACKUP_BYTES, mergeTasks, parseBackup, selectTasks, TASK_STORAGE_KEY, TodoError, type Task, type TaskFilter, type TodoStore } from '@/scripts/todo-store';
- import '@/styles/journal-todo.css';
- let { compact=false }: {compact?:boolean}=$props();
- let store:TodoStore;
- let tasks:Task[]=$state([]);
- let ready=$state(false);
- let busy=$state(false);
- let title=$state('');
- let due=$state('');
- let priority=$state<Task['priority']>('normal');
- let filter=$state<TaskFilter>('active');
- let query=$state('');
- let today=$state(localDay());
- let message=$state('');
- let messageError=$state(false);
- let loadError=$state('');
- let corrupt=$state(false);
- let hasRecovery=$state(false);
- let pendingRecovery=$state(false);
- let editing=$state('');
- let editTitle=$state('');
- let editDue=$state('');
- let editPriority=$state<Task['priority']>('normal');
- let pendingImport:Task[]|null=$state(null);
- let importSummary=$state({added:0,updated:0,kept:0});
- let importName=$state('');
- let fileInput:HTMLInputElement;
- let boardElement:HTMLDivElement;
- const prefix=$derived(compact?'quick-task':'full-task');
- const active=$derived(tasks.filter(t=>!t.done&&!t.deletedAt));
- const completed=$derived(tasks.filter(t=>t.done&&!t.deletedAt));
- const trashed=$derived(tasks.filter(t=>!!t.deletedAt));
- const overdue=$derived(active.filter(t=>t.due&&t.due<today));
- const visible=$derived(selectTasks(tasks,compact?'active':filter,compact?'':query));
- const tabs=$derived([{value:'active',label:'进行中',count:active.length},{value:'all',label:'全部',count:active.length+completed.length},{value:'done',label:'已完成',count:completed.length},{value:'trash',label:'回收站',count:trashed.length}]);
- function readable(error:unknown){return error instanceof TodoError?error.message:'操作未完成，请重试。原有待办没有被清空。';}
- function say(text:string,error=false){message=text;messageError=error;}
- function load(){
-  try{tasks=store.read();hasRecovery=store.readRecovery()!==null;loadError='';corrupt=false;}
-  catch(error){loadError=readable(error);corrupt=error instanceof TodoError&&error.code==='corrupt';}
-  today=localDay();ready=true;
- }
- onMount(()=>{
-  store=createTodoStore({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)}, {
-   exclusive:operation=>navigator.locks?navigator.locks.request(TASK_STORAGE_KEY,operation):Promise.resolve().then(operation),
-   notify:()=>window.dispatchEvent(new Event('anxiu:tasks-updated')),
-  });
-  load();
-  const sync=(event:StorageEvent)=>{if(event.key===null||event.key===TASK_STORAGE_KEY)load();};
-  const resume=()=>{if(!document.hidden)load();};
-  const timer=setInterval(()=>today=localDay(),60_000);
-  window.addEventListener('storage',sync);window.addEventListener('anxiu:tasks-updated',load);window.addEventListener('pageshow',load);document.addEventListener('visibilitychange',resume);
-  return()=>{clearInterval(timer);window.removeEventListener('storage',sync);window.removeEventListener('anxiu:tasks-updated',load);window.removeEventListener('pageshow',load);document.removeEventListener('visibilitychange',resume);};
- });
- async function write(operation:()=>Promise<Task[]>,success:string|(()=>string),allowRecovery=false){
-  if(!ready||busy||(loadError&&!allowRecovery))return false;
-  const previousFocus=document.activeElement;
-  busy=true;
-  try{tasks=await operation();say(typeof success==='function'?success():success);return true;}
-  catch(error){if(error instanceof TodoError&&error.code==='corrupt')load();say(readable(error),true);return false;}
-  finally{busy=false;await tick();if(previousFocus instanceof HTMLElement&&document.activeElement===document.body){const target=previousFocus.isConnected&&!previousFocus.matches(':disabled')?previousFocus:boardElement?.querySelector<HTMLElement>('.todo-filters [aria-pressed=true]')||boardElement?.querySelector<HTMLElement>('.todo-add input:not(:disabled), .todo-load-error button');target?.focus();}}
- }
- async function add(event:SubmitEvent){
-  event.preventDefault();
-  if(await write(()=>store.add({title,due:compact?'':due,priority:compact?'normal':priority}),'已保存这条待办。')){title='';due='';priority='normal';}
- }
- async function changeDone(event:Event,task:Task){
-  const box=event.currentTarget as HTMLInputElement;
-  const done=box.checked;
-  if(!await write(()=>store.setDone(task.id,done),done?'已标记完成。':'已恢复为进行中。'))box.checked=tasks.find(t=>t.id===task.id)?.done??task.done;
- }
- async function beginEdit(task:Task){editing=task.id;editTitle=task.title;editDue=task.due;editPriority=task.priority;await tick();boardElement.querySelector<HTMLTextAreaElement>('#edit-task-title')?.focus();}
- async function cancelEdit(){const row=boardElement.querySelector('#edit-task-title')?.closest('li');editing='';await tick();row?.querySelector<HTMLButtonElement>('.todo-row-actions button')?.focus();}
- async function finishEdit(event:SubmitEvent){event.preventDefault();const row=(event.currentTarget as HTMLFormElement).closest('li');if(await write(()=>store.update(editing,{title:editTitle,due:editDue,priority:editPriority}),'修改已保存。')){editing='';await tick();row?.querySelector<HTMLButtonElement>('.todo-row-actions button')?.focus();}}
- function download(text:string,name:string,type='application/json'){
-  const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- }
- function backup(){try{download(makeBackup(store.read()),`安秀待办-${localDay()}.json`);say('已生成备份文件，请留意浏览器下载。');}catch(error){say(readable(error),true);}}
- function rawBackup(){try{download(store.readRaw(),`安秀待办-原始数据-${localDay()}.txt`,'text/plain');say('已下载原始数据，当前存储未改变。');}catch(error){say(readable(error),true);}}
- function recoveryBackup(){try{const raw=store.readRecovery();if(raw===null)throw new TodoError('没有可下载的修复前数据。');download(raw,`安秀待办-修复前数据-${localDay()}.txt`,'text/plain');say('已下载修复前的原始数据。');}catch(error){say(readable(error),true);}}
- async function inspectBackup(event:Event){
-  const input=event.currentTarget as HTMLInputElement;const file=input.files?.[0];if(!file)return;
-  pendingImport=null;
-  try{if(file.size>MAX_BACKUP_BYTES)throw new TodoError('备份文件不能超过 16 MB。');const imported=parseBackup(await file.text());pendingRecovery=corrupt;const preview=corrupt?{added:imported.length,updated:0,kept:0}:mergeTasks(store.read(),imported);importSummary={added:preview.added,updated:preview.updated,kept:preview.kept};pendingImport=imported;importName=file.name;say('备份已读取，请核对预览。');}
-  catch(error){say(readable(error),true);}
-  input.value='';
- }
- async function commitImport(){
-  const incoming=pendingImport;if(!incoming)return;
-  let summary='';
-  const saved=await write(async()=>{if(pendingRecovery){const tasks=await store.recover(incoming);summary=`已从备份恢复 ${tasks.length} 条待办，修复前的数据已另存，可随时下载。`;return tasks;}const result=await store.import(incoming);summary=`已合并：新增 ${result.added} 条，更新 ${result.updated} 条，保留 ${result.kept} 条较新或相同的本地记录。`;return result.tasks;},()=>summary,pendingRecovery);
-  if(saved){pendingImport=null;editing='';await tick();boardElement.querySelector<HTMLInputElement>('.todo-add>input')?.focus();}
- }
+import { onMount, tick } from "svelte";
+import {
+	createTodoStore,
+	localDay,
+	MAX_BACKUP_BYTES,
+	makeBackup,
+	mergeTasks,
+	parseBackup,
+	selectTasks,
+	TASK_STORAGE_KEY,
+	type Task,
+	type TaskFilter,
+	TodoError,
+	type TodoStore,
+} from "@/scripts/todo-store";
+import AppIcon from "./AppIcon.svelte";
+import "@/styles/journal-todo.css";
+
+let { compact = false }: { compact?: boolean } = $props();
+let store: TodoStore;
+let tasks: Task[] = $state([]);
+let ready = $state(false);
+let busy = $state(false);
+let title = $state("");
+let due = $state("");
+let priority = $state<Task["priority"]>("normal");
+let filter = $state<TaskFilter>("active");
+let query = $state("");
+let today = $state(localDay());
+let message = $state("");
+let messageError = $state(false);
+let loadError = $state("");
+let corrupt = $state(false);
+let hasRecovery = $state(false);
+let pendingRecovery = $state(false);
+let editing = $state("");
+let editTitle = $state("");
+let editDue = $state("");
+let editPriority = $state<Task["priority"]>("normal");
+let pendingImport: Task[] | null = $state(null);
+let importSummary = $state({ added: 0, updated: 0, kept: 0 });
+let importName = $state("");
+let fileInput: HTMLInputElement;
+let boardElement: HTMLDivElement;
+const prefix = $derived(compact ? "quick-task" : "full-task");
+const active = $derived(tasks.filter((t) => !t.done && !t.deletedAt));
+const completed = $derived(tasks.filter((t) => t.done && !t.deletedAt));
+const trashed = $derived(tasks.filter((t) => !!t.deletedAt));
+const overdue = $derived(active.filter((t) => t.due && t.due < today));
+const visible = $derived(
+	selectTasks(tasks, compact ? "active" : filter, compact ? "" : query),
+);
+const tabs = $derived([
+	{ value: "active", label: "进行中", count: active.length },
+	{ value: "all", label: "全部", count: active.length + completed.length },
+	{ value: "done", label: "已完成", count: completed.length },
+	{ value: "trash", label: "回收站", count: trashed.length },
+]);
+function readable(error: unknown) {
+	return error instanceof TodoError
+		? error.message
+		: "操作未完成，请重试。原有待办没有被清空。";
+}
+function say(text: string, error = false) {
+	message = text;
+	messageError = error;
+}
+function load() {
+	try {
+		tasks = store.read();
+		hasRecovery = store.readRecovery() !== null;
+		loadError = "";
+		corrupt = false;
+	} catch (error) {
+		loadError = readable(error);
+		corrupt = error instanceof TodoError && error.code === "corrupt";
+	}
+	today = localDay();
+	ready = true;
+}
+onMount(() => {
+	store = createTodoStore(
+		{
+			getItem: (key) => localStorage.getItem(key),
+			setItem: (key, value) => localStorage.setItem(key, value),
+		},
+		{
+			exclusive: (operation) =>
+				navigator.locks
+					? navigator.locks.request(TASK_STORAGE_KEY, operation)
+					: Promise.resolve().then(operation),
+			notify: () => window.dispatchEvent(new Event("anxiu:tasks-updated")),
+		},
+	);
+	load();
+	const sync = (event: StorageEvent) => {
+		if (event.key === null || event.key === TASK_STORAGE_KEY) load();
+	};
+	const resume = () => {
+		if (!document.hidden) load();
+	};
+	const timer = setInterval(() => (today = localDay()), 60_000);
+	window.addEventListener("storage", sync);
+	window.addEventListener("anxiu:tasks-updated", load);
+	window.addEventListener("pageshow", load);
+	document.addEventListener("visibilitychange", resume);
+	return () => {
+		clearInterval(timer);
+		window.removeEventListener("storage", sync);
+		window.removeEventListener("anxiu:tasks-updated", load);
+		window.removeEventListener("pageshow", load);
+		document.removeEventListener("visibilitychange", resume);
+	};
+});
+async function write(
+	operation: () => Promise<Task[]>,
+	success: string | (() => string),
+	allowRecovery = false,
+) {
+	if (!ready || busy || (loadError && !allowRecovery)) return false;
+	const previousFocus = document.activeElement;
+	busy = true;
+	try {
+		tasks = await operation();
+		say(typeof success === "function" ? success() : success);
+		return true;
+	} catch (error) {
+		if (error instanceof TodoError && error.code === "corrupt") load();
+		say(readable(error), true);
+		return false;
+	} finally {
+		busy = false;
+		await tick();
+		if (
+			previousFocus instanceof HTMLElement &&
+			document.activeElement === document.body
+		) {
+			const target =
+				previousFocus.isConnected && !previousFocus.matches(":disabled")
+					? previousFocus
+					: boardElement?.querySelector<HTMLElement>(
+							".todo-filters [aria-pressed=true]",
+						) ||
+						boardElement?.querySelector<HTMLElement>(
+							".todo-add input:not(:disabled), .todo-load-error button",
+						);
+			target?.focus();
+		}
+	}
+}
+async function add(event: SubmitEvent) {
+	event.preventDefault();
+	if (
+		await write(
+			() =>
+				store.add({
+					title,
+					due: compact ? "" : due,
+					priority: compact ? "normal" : priority,
+				}),
+			"已保存这条待办。",
+		)
+	) {
+		title = "";
+		due = "";
+		priority = "normal";
+	}
+}
+async function changeDone(event: Event, task: Task) {
+	const box = event.currentTarget as HTMLInputElement;
+	const done = box.checked;
+	if (
+		!(await write(
+			() => store.setDone(task.id, done),
+			done ? "已标记完成。" : "已恢复为进行中。",
+		))
+	)
+		box.checked = tasks.find((t) => t.id === task.id)?.done ?? task.done;
+}
+async function beginEdit(task: Task) {
+	editing = task.id;
+	editTitle = task.title;
+	editDue = task.due;
+	editPriority = task.priority;
+	await tick();
+	boardElement.querySelector<HTMLTextAreaElement>("#edit-task-title")?.focus();
+}
+async function cancelEdit() {
+	const row = boardElement.querySelector("#edit-task-title")?.closest("li");
+	editing = "";
+	await tick();
+	row?.querySelector<HTMLButtonElement>(".todo-row-actions button")?.focus();
+}
+async function finishEdit(event: SubmitEvent) {
+	event.preventDefault();
+	const row = (event.currentTarget as HTMLFormElement).closest("li");
+	if (
+		await write(
+			() =>
+				store.update(editing, {
+					title: editTitle,
+					due: editDue,
+					priority: editPriority,
+				}),
+			"修改已保存。",
+		)
+	) {
+		editing = "";
+		await tick();
+		row?.querySelector<HTMLButtonElement>(".todo-row-actions button")?.focus();
+	}
+}
+function download(text: string, name: string, type = "application/json") {
+	const url = URL.createObjectURL(new Blob([text], { type }));
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = name;
+	document.body.append(a);
+	a.click();
+	a.remove();
+	setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function backup() {
+	try {
+		download(makeBackup(store.read()), `安秀待办-${localDay()}.json`);
+		say("已生成备份文件，请留意浏览器下载。");
+	} catch (error) {
+		say(readable(error), true);
+	}
+}
+function rawBackup() {
+	try {
+		download(
+			store.readRaw(),
+			`安秀待办-原始数据-${localDay()}.txt`,
+			"text/plain",
+		);
+		say("已下载原始数据，当前存储未改变。");
+	} catch (error) {
+		say(readable(error), true);
+	}
+}
+function recoveryBackup() {
+	try {
+		const raw = store.readRecovery();
+		if (raw === null) throw new TodoError("没有可下载的修复前数据。");
+		download(raw, `安秀待办-修复前数据-${localDay()}.txt`, "text/plain");
+		say("已下载修复前的原始数据。");
+	} catch (error) {
+		say(readable(error), true);
+	}
+}
+async function inspectBackup(event: Event) {
+	const input = event.currentTarget as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) return;
+	pendingImport = null;
+	try {
+		if (file.size > MAX_BACKUP_BYTES)
+			throw new TodoError("备份文件不能超过 16 MB。");
+		const imported = parseBackup(await file.text());
+		pendingRecovery = corrupt;
+		const preview = corrupt
+			? { added: imported.length, updated: 0, kept: 0 }
+			: mergeTasks(store.read(), imported);
+		importSummary = {
+			added: preview.added,
+			updated: preview.updated,
+			kept: preview.kept,
+		};
+		pendingImport = imported;
+		importName = file.name;
+		say("备份已读取，请核对预览。");
+	} catch (error) {
+		say(readable(error), true);
+	}
+	input.value = "";
+}
+async function commitImport() {
+	const incoming = pendingImport;
+	if (!incoming) return;
+	let summary = "";
+	const saved = await write(
+		async () => {
+			if (pendingRecovery) {
+				const tasks = await store.recover(incoming);
+				summary = `已从备份恢复 ${tasks.length} 条待办，修复前的数据已另存，可随时下载。`;
+				return tasks;
+			}
+			const result = await store.import(incoming);
+			summary = `已合并：新增 ${result.added} 条，更新 ${result.updated} 条，保留 ${result.kept} 条较新或相同的本地记录。`;
+			return result.tasks;
+		},
+		() => summary,
+		pendingRecovery,
+	);
+	if (saved) {
+		pendingImport = null;
+		editing = "";
+		await tick();
+		boardElement.querySelector<HTMLInputElement>(".todo-add>input")?.focus();
+	}
+}
 </script>
 
 <div class:compact class="todo-board" data-todo-app data-pagefind-ignore aria-busy={busy} bind:this={boardElement}>

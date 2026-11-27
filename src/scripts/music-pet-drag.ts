@@ -15,13 +15,23 @@ export function initializeMusicPetDrag() {
 	function setControls(open: boolean) {
 		pet.dataset.controlsOpen = String(open);
 		menu?.setAttribute("aria-expanded", String(open));
-		menu?.setAttribute("aria-label", open ? "收起宠物音乐控制" : "展开宠物音乐控制");
+		menu?.setAttribute(
+			"aria-label",
+			open ? "收起宠物音乐控制" : "展开宠物音乐控制",
+		);
 	}
-	menu?.addEventListener("click", () => setControls(pet.dataset.controlsOpen !== "true"));
+	menu?.addEventListener("click", () =>
+		setControls(pet.dataset.controlsOpen !== "true"),
+	);
 	pet.addEventListener("keydown", (event: KeyboardEvent) => {
-		if (event.key === "Escape") { setControls(false); menu?.focus(); }
+		if (event.key === "Escape") {
+			setControls(false);
+			menu?.focus();
+		}
 	});
-	pet.querySelector('[data-pet-action="lyrics"]')?.addEventListener("click", () => setControls(false));
+	pet
+		.querySelector('[data-pet-action="lyrics"]')
+		?.addEventListener("click", () => setControls(false));
 	let position: PetPosition | undefined;
 	let gesture:
 		| {
@@ -46,7 +56,8 @@ export function initializeMusicPetDrag() {
 	function place(next: PetPosition) {
 		const rect = pet.getBoundingClientRect();
 		if (rect.width <= 0 || rect.height <= 0) return;
-		const viewportWidth = document.documentElement?.clientWidth || window.innerWidth;
+		const viewportWidth =
+			document.documentElement?.clientWidth || window.innerWidth;
 		const minX = Math.min(12, Math.max(0, viewportWidth - rect.width));
 		const minY = Math.min(12, Math.max(0, window.innerHeight - rect.height));
 		const maxX = Math.max(minX, viewportWidth - rect.width - 12);

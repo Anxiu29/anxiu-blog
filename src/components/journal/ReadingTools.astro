@@ -2,7 +2,9 @@
 import Icon from "./Icon.astro";
 import "@/styles/journal-reading-completion.css";
 
-interface Props { url: string; }
+interface Props {
+	url: string;
+}
 const { url } = Astro.props;
 ---
 <div class="reading-progress" aria-hidden="true"><span id="reading-progress-fill"></span></div>

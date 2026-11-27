@@ -13,7 +13,9 @@ export const siteConfig: SiteConfig = {
 	subtitle: "技术、工具与记录",
 
 	// 站点 URL（域名确定后请替换为正式地址）
-	site_url: resolveSiteOrigin(typeof process === "undefined" ? {} : process.env),
+	site_url: resolveSiteOrigin(
+		typeof process === "undefined" ? {} : process.env,
+	),
 
 	// 站点描述
 	description:
