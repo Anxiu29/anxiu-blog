@@ -1,0 +1,12 @@
+---
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import Icon from '@/components/journal/Icon.astro';
+import '@/styles/journal-music-page.css';
+---
+<JournalLayout title="音乐角落" description="选一首歌，给阅读留一点背景声。" active="音乐" musicPage>
+  <aside class="music-page-guide" aria-labelledby="listen-and-read">
+    <div><span class="music-page-kicker">READ & LISTEN</span><h2 id="listen-and-read">听着喜欢的歌，继续逛小站。</h2><p>同一标签页切换文章、归档与音乐页，播放会继续。刷新后会再次尝试播放；关闭标签或进入独立工具页面会停止。</p></div>
+    <a class="j-button subtle music-read-link" href="/"><Icon name="book"/>打开博客，继续阅读</a>
+    <p class="music-page-note">公开歌单通过第三方接口读取，部分歌曲可能无法播放；也可以通过歌曲的官方收听入口继续播放。</p>
+  </aside>
+</JournalLayout>

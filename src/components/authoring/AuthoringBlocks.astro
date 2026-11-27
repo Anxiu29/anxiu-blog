@@ -1,0 +1,10 @@
+---
+import "../../styles/authoring-blocks.css";
+---
+<script>
+  import { initAuthoringTabs } from "../../scripts/authoring-tabs.mjs";
+  initAuthoringTabs();
+  document.addEventListener("astro:page-load", () => initAuthoringTabs());
+  document.addEventListener("password:decrypted", () => initAuthoringTabs());
+  document.addEventListener("swup:contentReplaced", () => initAuthoringTabs());
+</script>

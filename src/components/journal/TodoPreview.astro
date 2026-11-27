@@ -7,5 +7,15 @@ import Icon from "./Icon.astro";
   <p class="todo-sample-progress" role="status" aria-live="polite">完成 <span data-todo-count>1</span> / 3</p>
 </div><p class="preview-caption">交互示例，数据仅用于展示。</p></div>
 <script>
+const initialized = new WeakSet<Element>();
+function initializePageControls() {
+ const owner = document.querySelector("[data-todo-sample]");
+ if (!owner || initialized.has(owner)) return;
+ initialized.add(owner);
+
 for(const sample of document.querySelectorAll<HTMLElement>('[data-todo-sample]')){sample.addEventListener('change',()=>{const count=sample.querySelector('[data-todo-count]');if(count)count.textContent=String(sample.querySelectorAll('input:checked').length);});}
+
+}
+initializePageControls();
+document.addEventListener('astro:page-load', initializePageControls);
 </script>

@@ -1,0 +1,30 @@
+---
+import { getCategoryList, getSortedPosts, getTagList } from '@/utils/content-utils';
+import Icon from './Icon.astro';
+import FireflyMusicWidget from './FireflyMusicWidget.astro';
+import '@/styles/journal-discovery-completion.css';
+const posts = await getSortedPosts();
+const categories = await getCategoryList();
+const allTags = await getTagList();
+const tags = [...allTags].sort((a,b)=>b.count-a.count || a.name.localeCompare(b.name));
+---
+<aside class="journal-left" aria-label="博主与分类">
+ <section class="j-card author-card">
+  <div class="author-cover"><img src="/images/backgrounds/full-moon-thumb.webp" width="480" height="270" alt="" loading="lazy"/></div>
+  <a class="author-avatar" href="/about/" aria-label="关于安秀"><img src="/branding/avatar-photo.jpg" width="128" height="128" alt="" decoding="async"/></a>
+  <h2>安秀</h2><p>前端开发、设备联调，<br/>还有一些自己做的小工具。</p>
+  <nav class="author-social" aria-label="博主社交链接"><a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer" aria-label="安秀的 GitHub"><Icon name="github"/></a><a href="/rss/" aria-label="RSS 订阅"><Icon name="rss"/></a><a href="/posts/site-notebook/" aria-label="小站建设清单"><Icon name="todo"/></a></nav>
+  <div class="author-counts"><a href="/archive/"><strong>{posts.length}</strong><span>文章</span></a><a href="/categories/"><strong>{categories.length}</strong><span>分类</span></a><a href="/tags/"><strong>{allTags.length}</strong><span>标签</span></a></div>
+ </section>
+ <section class="j-card welcome-card" data-discovery-notice="welcome-2026-11"><div class="j-card-heading"><h2><Icon name="megaphone"/>欢迎来访</h2><button type="button" data-dismiss-discovery-notice aria-label="关闭欢迎公告"><Icon name="close"/></button></div><p>这里记录做过的项目、遇到的问题，和那些值得留下的方法。</p><a href="/posts/site-notebook/">看看小站在做什么</a></section>
+ <FireflyMusicWidget/>
+ <section class="j-card"><h2><Icon name="folder"/>文章分类</h2><nav class="j-category-list" aria-label="侧栏文章分类">{categories.slice(0,6).map(c=><a href={`/archive/?category=${encodeURIComponent(c.name)}`}><span>{c.name}</span><small>{c.count}</small></a>)}</nav>{categories.length>6&&<details class="discovery-overflow"><summary>展开其余 {categories.length-6} 个分类</summary><nav class="j-category-list" aria-label="更多侧栏分类">{categories.slice(6).map(c=><a href={`/archive/?category=${encodeURIComponent(c.name)}`}><span>{c.name}</span><small>{c.count}</small></a>)}</nav></details>}</section>
+ <section class="j-card"><h2><Icon name="tag"/>常用话题</h2><nav class="j-tags discovery-tags" aria-label="侧栏文章标签">{tags.slice(0,8).map(t=><a href={`/archive/?tag=${encodeURIComponent(t.name)}`}><span>{t.name}</span><small aria-label={`${t.count} 篇文章`}>{t.count}</small></a>)}</nav>{tags.length>8&&<details class="discovery-overflow"><summary>展开其余 {tags.length-8} 个标签</summary><nav class="j-tags discovery-tags" aria-label="更多侧栏标签">{tags.slice(8).map(t=><a href={`/archive/?tag=${encodeURIComponent(t.name)}`}><span>{t.name}</span><small aria-label={`${t.count} 篇文章`}>{t.count}</small></a>)}</nav></details>}<a class="j-more-link" href="/tags/">查看全部标签</a></section>
+ <section class="j-card sidebar-tools"><h2><Icon name="keyboard"/>动手试试</h2><a href="/tools/hid/">WebHID 调试工具</a><a href="/tools/key-align/">RK 键位对齐</a><a href="/projects/">查看个人作品</a></section>
+</aside>
+
+
+<script>
+import { initializeDiscoveryNotices } from '@/scripts/discovery-notice';
+initializeDiscoveryNotices();
+</script>

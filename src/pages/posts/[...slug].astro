@@ -3,10 +3,14 @@ import { type CollectionEntry, render } from "astro:content";
 import Comment from "@/components/comment/index.astro";
 import EncryptedPost from "@/components/features/EncryptedPost.astro";
 import KatexManager from "@/components/features/KatexManager.astro";
+import LeftSidebar from "@/components/journal/LeftSidebar.astro";
+import SeriesOverview from "@/components/journal/SeriesOverview.astro";
+import ArticleDetails from "@/components/journal/ArticleDetails.astro";
 import ImageViewer from "@/components/journal/ImageViewer.astro";
 import PostList from "@/components/journal/PostList.astro";
 import ReadingTools from "@/components/journal/ReadingTools.astro";
 import SeriesNavigation from "@/components/journal/SeriesNavigation.astro";
+import Icon from "@/components/journal/Icon.astro";
 import { siteConfig } from "@/config/siteConfig";
 import { series } from "@/data/blog-discovery";
 import { getPostMedia } from "@/data/post-media";
@@ -14,6 +18,7 @@ import JournalLayout from "@/layouts/JournalLayout.astro";
 import { getRelatedPosts, getSortedPosts } from "@/utils/content-utils";
 import { getReadingStats } from "@/utils/reading-stats";
 import { removeFileExtension } from "@/utils/url-utils";
+import "@/styles/journal-reading-completion.css";
 
 interface Props {
 	entry: CollectionEntry<"posts">;
@@ -28,11 +33,11 @@ export async function getStaticPaths() {
 }
 const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
-const toc = headings
+const toc = (entry.data.password ? [] : headings)
 	.filter((h) => h.depth === 2 || h.depth === 3)
 	.map((h) => ({ ...h, text: h.text.replace(/#$/, "") }));
 const date = entry.data.published.toISOString().slice(0, 10);
-const media = getPostMedia(entry.id);
+const media = await getPostMedia(entry.id, entry.data);
 const stats = getReadingStats(entry.body);
 const modified = entry.data.updated?.toISOString().slice(0, 10);
 const structuredData = {
@@ -59,42 +64,36 @@ const related =
 		? await getRelatedPosts(entry, 2)
 		: [];
 ---
-<JournalLayout title={entry.data.title} description={entry.data.description} noindex={entry.data.templateDemo} article image={media?.src}>
+<JournalLayout title={entry.data.title} description={entry.data.description} noindex={entry.data.templateDemo || !!entry.data.password} article image={media?.src} imageAlt={media?.caption}>
   <KatexManager slot="head"/>
   {!entry.data.password && <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}
-  <div class="article-layout">
+  <div class="article-layout"><LeftSidebar/>
     <article class="article-column">
       <nav class="article-breadcrumb" aria-label="面包屑"><a href="/">首页</a><span aria-hidden="true">/</span><a href="/archive/">文章</a>{entry.data.category&&<><span aria-hidden="true">/</span><a href={'/archive/?category='+encodeURIComponent(entry.data.category)}>{entry.data.category}</a></>}</nav>
       <header class="article-header">
-        <div class="article-meta">{entry.data.templateDemo?<span>原主题模板示例</span>:<><span>安秀</span><span aria-hidden="true">·</span><time datetime={date}>{date.replaceAll('-','.')}</time><span>约 {stats.minutes} 分钟</span>{modified && modified !== date && <span>更新于 <time datetime={modified}>{modified.replaceAll('-', '.')}</time></span>}</>}</div>
-        <h1>{entry.data.title}</h1><p class="article-description">{entry.data.description}</p>
+        <div class="article-meta">{entry.data.templateDemo?<span>原主题模板示例</span>:<><span>安秀</span><span aria-hidden="true">·</span><time datetime={date}>{date.replaceAll('-','.')}</time>{modified && modified !== date && <span>更新于 <time datetime={modified}>{modified.replaceAll('-', '.')}</time></span>}</>}</div>
+        <p class="article-byline">共 {stats.count.toLocaleString()} 字 · 约 {stats.minutes} 分钟读完</p>
         {!entry.data.templateDemo&&entry.data.tags.length>0&&<nav class="article-tags" aria-label="文章标签">{entry.data.tags.map(tag=><a href={'/archive/?tag='+encodeURIComponent(tag)}># {tag}</a>)}</nav>}
       </header>
       {!entry.data.templateDemo&&!entry.data.password&&<ReadingTools url={new URL(Astro.url.pathname,siteConfig.site_url).href}/>}
-      {media&&!entry.id.startsWith('fog-town-nightwalk')&&<figure class="article-project-cover"><img src={media.src} alt={media.caption} width={media.width} height={media.height}/><figcaption>{media.caption}</figcaption></figure>}
-      {toc.length>0&&<details class="mobile-toc"><summary>本文目录</summary><nav aria-label="本文目录">{toc.map(h=><a class:list={{nested:h.depth===3}} href={'#'+h.slug} data-toc-link>{h.text}</a>)}</nav></details>}
+      {media&&(media.frontmatter||!entry.id.startsWith('fog-town-nightwalk'))&&<figure class="article-project-cover" style={media.position ? `--post-image-position: ${media.position}` : undefined}><img src={media.src} alt={media.caption} width={media.width} height={media.height}/><figcaption>{media.caption}</figcaption></figure>}
+      {!entry.data.password&&(entry.data.readingGuide || entry.data.description)&&<section class="article-guide" aria-label="文章导读"><span><Icon name="book"/>{entry.data.readingGuide ? '开始之前' : '文章导读'}</span>{entry.data.readingGuide ? <dl class="reading-guide-facts"><div><dt>适合谁</dt><dd>{entry.data.readingGuide.audience}</dd></div><div><dt>先准备</dt><dd><ul>{entry.data.readingGuide.preparation.map(item => <li>{item}</li>)}</ul></dd></div><div><dt>读完以后</dt><dd>{entry.data.readingGuide.outcome}</dd></div></dl> : <p>{entry.data.description}</p>}</section>}
+      {topic&&<SeriesOverview entryId={entry.id}/>}
+      {(toc.length>0||entry.data.password)&&<details class="mobile-toc" data-toc-region hidden={!!entry.data.password}><summary>本文目录</summary><nav aria-label="本文目录" data-toc-items>{toc.map(h=><a class:list={{nested:h.depth===3}} href={'#'+h.slug} data-toc-link>{h.text}</a>)}</nav></details>}
       {entry.data.password?<EncryptedPost password={entry.data.password} slug={entry.id} hint={entry.data.passwordHint}><div class="article-body"><Content/></div></EncryptedPost>:<div class="article-body"><Content/></div>}
       {topic&&<a class="article-series-link" href={'/series/'+topic.slug+'/'}><span>所属专题</span><strong>{topic.title}</strong><span aria-hidden="true">→</span></a>}
       {!entry.data.templateDemo&&!entry.data.password&&<SeriesNavigation entryId={entry.id}/>}
+      {!entry.data.templateDemo&&!entry.data.password&&<ArticleDetails title={entry.data.title} url={new URL(Astro.url.pathname,siteConfig.site_url).href} date={date} licenseName={entry.data.licenseName} licenseUrl={entry.data.licenseUrl} sourceLink={entry.data.sourceLink}/>}
       <div class="article-feedback">发现内容有误，或工具用起来有问题？<a href="https://github.com/Anxiu29/anxiu-blog/issues" target="_blank" rel="noopener noreferrer">在 GitHub 留个问题</a>。</div>
       <footer class="article-end"><a href="/archive/">← 全部文章</a><a href="#top">返回顶部 ↑</a><a href="/rss/">订阅更新 →</a></footer>
-      {related.length>0&&<section class="related-posts" aria-labelledby="related-heading"><div class="section-heading"><h2 id="related-heading">接着读</h2><a href="/archive/">全部文章 →</a></div><PostList posts={related}/></section>}
+      {related.length>0&&<section class="related-posts" aria-labelledby="related-heading"><div class="section-heading"><h2 id="related-heading">接着读</h2><a href="/archive/">全部文章 →</a></div><PostList posts={related} showCovers={false}/></section>}
       {entry.data.comment&&<Comment post={entry}/>}
     </article>
-    {toc.length>0&&<aside class="article-toc"><nav aria-label="本文目录"><h2>本文目录</h2>{toc.map(h=><a class:list={{nested:h.depth===3}} href={'#'+h.slug} data-toc-link>{h.text}</a>)}</nav><div class="article-author"><strong>安秀</strong><p>前端开发与设备联调</p><a href="/about/">关于作者 →</a></div></aside>}
+    {(toc.length>0||entry.data.password)&&<aside class="article-toc" data-toc-region hidden={!!entry.data.password}><nav aria-label="本文目录"><h2>本文目录</h2><div data-toc-items>{toc.map(h=><a class:list={{nested:h.depth===3}} href={'#'+h.slug} data-toc-link>{h.text}</a>)}</div></nav><div class="article-author"><strong>安秀</strong><p>前端开发与设备联调</p><a href="/about/">关于作者 →</a></div></aside>}
   </div>
 <ImageViewer/>
 </JournalLayout>
 <script>
-const links=[...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
-const headings=[...document.querySelectorAll<HTMLElement>('.article-body h2[id],.article-body h3[id]')];
-let scheduled=false;
-function updateToc(){
-  const offset=(Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop)||110)+20;
-  let current=headings[0]?.id;
-  for(const heading of headings){if(heading.getBoundingClientRect().top<=offset)current=heading.id;else break;}
-  for(const link of links){const selected=decodeURIComponent(link.hash.slice(1))===current;if(selected)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}
-  scheduled=false;
-}
-if(links.length){updateToc();document.addEventListener('scroll',()=>{if(!scheduled){scheduled=true;requestAnimationFrame(updateToc);}},{passive:true});window.addEventListener('resize',updateToc);}
+import { initializeArticleToc } from "@/scripts/journal-reading";
+initializeArticleToc();
 </script>

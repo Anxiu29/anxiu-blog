@@ -4,7 +4,7 @@ import JournalLayout from "@/layouts/JournalLayout.astro";
 
 const feedUrl = new URL("/rss.xml", siteConfig.site_url).href;
 ---
-<JournalLayout title="RSS 订阅" active="">
+<JournalLayout title="RSS 订阅" description="用 RSS 阅读器订阅安秀的公开文章，让更新按自己的阅读节奏到来。" active="">
   <section class="page-intro"><h1>在阅读器里见。</h1><p>通过 RSS 订阅，收到这里的新文章。</p></section>
   <div class="subscription-panel">
     <label for="feed-address">RSS 订阅地址</label>
@@ -15,8 +15,18 @@ const feedUrl = new URL("/rss.xml", siteConfig.site_url).href;
   <div class="reading-block"><h2>会收到什么</h2><p>订阅包含这里公开发布的文章与开发记录。草稿和原主题模板示例会被排除；游戏试玩、工具下载等入口会保留在对应文章中。</p><p>也可以从<a href="/archive/">全部文章</a>开始，或<a href="/tags/">按标签阅读</a>。</p></div>
 </JournalLayout>
 <script>
+const initialized = new WeakSet<Element>();
+function initializePageControls() {
+ const owner = document.querySelector("[data-copy-feed]");
+ if (!owner || initialized.has(owner)) return;
+ initialized.add(owner);
+
 const button=document.querySelector<HTMLButtonElement>('[data-copy-feed]');
 const address=document.querySelector<HTMLInputElement>('#feed-address');
 const status=document.querySelector<HTMLElement>('[data-copy-status]');
 button?.addEventListener('click',async()=>{if(!address||!status)return;try{await navigator.clipboard.writeText(address.value);status.textContent='订阅地址已复制，可以粘贴到阅读器。';}catch{address.focus();address.select();status.textContent='未能自动复制，地址已选中，可以手动复制。';}});
+
+}
+initializePageControls();
+document.addEventListener('astro:page-load', initializePageControls);
 </script>

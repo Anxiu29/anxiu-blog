@@ -1,0 +1,5 @@
+/* The home scene carries only one softly typed sentence. */
+.hyde-shell .banner-quote { margin:0 auto; max-width:960px; }
+.hyde-shell .banner-quote .banner-description { display:flex; align-items:center; justify-content:center; margin:0; max-width:none; min-height:3.6em; font-family:"Kaiti SC","STKaiti","KaiTi","楷体","Songti SC","Noto Serif SC",serif; font-size:clamp(24px,2.2vw,34px); font-weight:400; line-height:1.95; letter-spacing:.08em; text-wrap:balance; text-shadow:0 1px 3px #102b4373,0 3px 16px #102b4380; }
+.quote-typing::after { content:""; display:inline-block; width:1px; height:.82em; margin-left:8px; vertical-align:-.08em; background:currentColor; opacity:.85; }
+[data-daily-quote][data-state="holding"] .quote-typing::after { visibility:hidden; }

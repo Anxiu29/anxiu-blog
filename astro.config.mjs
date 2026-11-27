@@ -149,8 +149,6 @@ export default defineConfig({
 		svelte(),
 		sitemap({
 			filter: (page) => {
-				if (new URL(page).pathname.startsWith("/tools/source/") || new URL(page).pathname === "/search/") return false;
-				if (["/posts/code-examples/", "/posts/draft/", "/posts/encrypted-demo/", "/posts/firefly-layout-system/", "/posts/firefly/", "/posts/katex-math-example/", "/posts/markdown-extended/", "/posts/markdown-mermaid/", "/posts/markdown-plantuml/", "/posts/markdown-tutorial/", "/posts/mdx-example/", "/posts/video/", "/posts/guide/"].includes(new URL(page).pathname)) return false;
 				// 根据页面开关配置过滤sitemap
 				const url = new URL(page);
 				const pathname = url.pathname;

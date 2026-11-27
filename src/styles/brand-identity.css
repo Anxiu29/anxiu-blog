@@ -1,0 +1,10 @@
+/* User-selected blue clover mark and separate photo avatar. */
+.brand-clover { display: block; width: 100%; height: 100%; object-fit: contain; flex-shrink: 0; }
+.hyde-shell .brand-symbol { padding: 3px; background: var(--soft); border: 1px solid var(--line); border-radius: 11px; box-shadow: none; letter-spacing: normal; }
+.hyde-shell .author-avatar, .profile-card .profile-initial { position: relative; overflow: hidden; background: var(--soft); }
+.author-avatar > img, .profile-initial > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: inherit; }
+.footer-name { display: inline-flex; align-items: center; gap: 8px; }
+.footer-name > .brand-clover { width: 30px; height: 30px; }
+.brand-about-avatar { display: block; object-fit: cover; object-position: center; width: 80px; height: 80px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 22px; }
+.dark .brand-symbol, .dark .author-avatar, .dark .profile-initial { background: var(--soft); border-color: var(--line); }
+@media(max-width: 600px) { .hyde-shell .brand-symbol { padding: 2px; border-radius: 9px; } .brand-about-avatar { width: 68px; height: 68px; border-radius: 18px; } }

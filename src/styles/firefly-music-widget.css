@@ -1,0 +1,85 @@
+/* MIT: adapted from Firefly-hyde MusicPlayer.astro and WidgetLayout.astro.
+   Original utility dimensions are expressed here without a global Tailwind reset. */
+.hyde-shell .firefly-music.sidebar-music-card { --ff-primary: #8593e5; --ff-button: #edf0ff; --ff-text: #30343b; --ff-muted: #969ba5; padding: 16px; text-align: left; border-radius: 16px; background: var(--panel); }
+.dark .hyde-shell .firefly-music.sidebar-music-card { --ff-primary: #b0bdff; --ff-button: #353e5c; --ff-text: #edf0f6; --ff-muted: #99a1b2; }
+.firefly-music [hidden] { display: none !important; }
+.hyde-shell .firefly-music .ff-widget-title { display: block; position: relative; margin: 0 0 8px; padding-left: 16px; font-size: 18px; font-weight: 700; line-height: 1.5; color: var(--ff-text); }
+.firefly-music .ff-widget-title::before { content: ""; position: absolute; left: 0; top: 5.5px; width: 4px; height: 16px; border-radius: 4px; background: var(--ff-primary); }
+.firefly-music .ff-widget-title button { display: block; width: 100%; min-height: 28px; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.firefly-music .music-player-widget { min-width: 0; }
+.firefly-music .ff-top-row { display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-bottom: 8px; }
+.firefly-music .ff-cover-shell { flex: none; display: grid; place-items: center; position: relative; width: 56px; height: 56px; border-radius: 50%; border: 2px solid #fff; overflow: hidden; background: color-mix(in srgb,var(--ff-primary) 10%,transparent); box-shadow: 0 5px 12px #00000016; }
+.dark .firefly-music .ff-cover-shell { border-color: #454b55; }
+.firefly-music .ff-cover-shell > svg { width: 24px; height: 24px; color: var(--ff-primary); opacity: .4; }
+.firefly-music .music-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: ff-music-spin 10s linear infinite paused; }
+.firefly-music[data-playing="true"] .music-cover { animation-play-state: running; }
+.firefly-music .ff-info { flex: 1; min-width: 0; }
+.firefly-music .ff-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.firefly-music .music-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ff-text); font-size: 16px; font-weight: 700; line-height: 1.25; }
+.firefly-music .music-artist { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; color: #6b7280; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.dark .firefly-music .music-artist { color: #a1a8b4; }
+.firefly-music button { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.firefly-music :is(.ff-controls,.ff-title-row,.ff-volume) button > span { display: grid; place-items: center; }
+.firefly-music .btn-lrc-toggle { flex: none; padding: 2px 0; color: var(--ff-muted); background: transparent; }
+.firefly-music .btn-lrc-toggle svg { display: block; width: 20px; height: 20px; }
+.firefly-music .ff-time-volume { display: flex; align-items: center; gap: 8px; height: 20px; color: var(--ff-muted); }
+.firefly-music .ff-time { flex: none; display: flex; align-items: center; gap: 3px; font-family: ui-monospace,SFMono-Regular,Consolas,monospace; font-size: 10px; line-height: 1; font-variant-numeric: tabular-nums; }
+.firefly-music .ff-divider { opacity: .5; }
+.firefly-music .ff-volume { display: flex; align-items: center; gap: 4px; min-width: 0; margin-left: auto; flex: 1; }
+.firefly-music .btn-mute { display: grid; place-items: center; padding: 2px 0; background: transparent; color: var(--ff-muted); }
+.firefly-music .btn-mute svg { width: 18px; height: 18px; }
+.firefly-music input[type="range"] { display: block; appearance: none; -webkit-appearance: none; margin: 0; padding: 0; height: 16px; min-width: 0; background: transparent; cursor: pointer; }
+.firefly-music [data-widget-volume] { width: 64px; max-width: 100%; flex: 1; }
+.firefly-music [data-widget-volume]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right,var(--ff-primary) var(--ff-volume,35%),#d1d5db80 var(--ff-volume,35%)); }
+.firefly-music [data-widget-seek]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right,var(--ff-primary) var(--ff-progress,0%),#d1d5db99 var(--ff-progress,0%)); }
+.firefly-music input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border: 2px solid var(--panel); border-radius: 50%; background: var(--ff-primary); opacity: 0; transition: opacity .15s; }
+.firefly-music input[type="range"]:is(:hover,:focus-visible)::-webkit-slider-thumb { opacity: 1; }
+.firefly-music input[type="range"]::-moz-range-track { height: 4px; border-radius: 4px; background: #d1d5db99; }
+.firefly-music input[type="range"]::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--ff-primary); }
+.firefly-music input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 2px solid var(--panel); border-radius: 50%; background: var(--ff-primary); }
+.firefly-music .ff-progress { padding: 0 4px; margin-top: 2px; }
+.firefly-music [data-widget-seek] { width: 100%; }
+.firefly-music input:disabled { cursor: default; }
+.firefly-music .ff-controls { display: flex; align-items: center; justify-content: space-between; gap: 0; padding: 6px 4px; user-select: none; }
+.firefly-music .ff-controls button { display: grid; place-items: center; flex: none; width: 32px; height: 40px; padding: 6px; color: #5d626c; background: transparent; transition: color .15s,background-color .15s; }
+.dark .firefly-music .ff-controls button { color: #d1d5db; }
+.firefly-music .ff-controls :is(.btn-repeat,.btn-drawer-toggle) { color: var(--ff-muted); }
+.firefly-music .ff-controls :is(.btn-repeat,.btn-drawer-toggle) svg { width: 20px; height: 20px; }
+.firefly-music .ff-controls :is(.btn-prev,.btn-next) svg { width: 28px; height: 28px; }
+.firefly-music .ff-controls .btn-play { width: 48px; height: 48px; padding: 9px; border-radius: 50%; background: var(--ff-button); color: var(--ff-primary); }
+.firefly-music .btn-play svg { width: 30px; height: 30px; }
+.firefly-music[data-playing="true"] .ff-controls .btn-play { background: var(--ff-primary); color: #fff; }
+.firefly-music [aria-expanded="true"],.firefly-music .ff-controls [data-mode="one"],.firefly-music .ff-controls [data-mode="shuffle"] { color: var(--ff-primary); }
+.firefly-music button:hover { color: var(--ff-primary); }
+.firefly-music :is(button,input):focus-visible { outline: 2px solid var(--ff-primary); outline-offset: 3px; border-radius: 5px; }
+.firefly-music :is(.lrc-drawer,.playlist-drawer) { min-width: 0; margin: 8px 4px 0; padding-top: 8px; border-top: 1px solid color-mix(in srgb,var(--line) 55%,transparent); }
+.firefly-music .ff-drawer-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0 7px; color: var(--ff-muted); font-size: 12px; }
+.firefly-music .ff-drawer-heading small { font-size: 11px; }
+.firefly-music :is(.lrc-container,.playlist-container) { position: relative; list-style: none; padding: 0; margin: 0; max-height: 192px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.firefly-music .lrc-container { height: 192px; padding-block: 72px; text-align: center; }
+.firefly-music .lrc-container:empty { display: none; }
+.firefly-music .lrc-container button { display: block; width: 100%; min-height: 36px; padding: 7px 4px; color: var(--ff-muted); background: transparent; font-size: 13px; line-height: 1.6; }
+.firefly-music .lrc-container [aria-current="true"] { color: var(--ff-primary); font-weight: 700; }
+.firefly-music .playlist-container button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px; text-align: left; border-radius: 8px; background: transparent; }
+.firefly-music .playlist-container button[aria-pressed="true"] { background: color-mix(in srgb,var(--ff-primary) 9%,var(--panel)); }
+.firefly-music .ff-list-art { display: grid; place-items: center; position: relative; flex: none; width: 32px; height: 32px; overflow: hidden; border-radius: 6px; background: var(--soft); color: var(--ff-primary); }
+.firefly-music .ff-list-art img { width: 100%; height: 100%; object-fit: cover; }
+.firefly-music .ff-list-text { flex: 1; min-width: 0; }
+.firefly-music .ff-list-text :is(strong,small) { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.firefly-music .ff-list-text strong { font-size: 12px; color: var(--ff-text); line-height: 1.5; }
+.firefly-music .ff-list-text small { font-size: 10px; color: var(--ff-muted); line-height: 1.5; }
+.firefly-music .playlist-container [aria-pressed="true"] strong { color: var(--ff-primary); }
+.firefly-music .ff-no-lyrics { padding: 16px 0; text-align: center; color: var(--ff-muted); font-size: 13px; }
+.firefly-music .ff-status { display: none; }
+.firefly-music[data-error="true"] .ff-status { display: block; padding: 7px 0; color: #b54030; font-size: 12px; line-height: 1.6; }
+@keyframes ff-music-spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .firefly-music .music-cover { animation: none; } .firefly-music button { transition: none; } }
+@media(hover:none) { .firefly-music input[type="range"]::-webkit-slider-thumb { opacity: .75; } }
+
+/* Match the upstream 280px sidebar where the desktop has room. */
+@media(min-width:1351px) { .hyde-shell .journal-home-grid:has(.firefly-music) { grid-template-columns: 280px minmax(0,1fr) 250px; } }
+
+/* The Journal shell normally hides sidebar widgets on phones. Keep music available. */
+@media(max-width:900px) { .hyde-shell .journal-home-grid > .journal-left > .firefly-music.sidebar-music-card { display: block; grid-column: 1 / -1; } .firefly-music .ff-controls button { min-width: 44px; min-height: 44px; } }
+
+.firefly-music[data-autoplay="waiting"] .ff-status { display: block; padding: 4px 0 0; font-size: 11px; line-height: 1.6; color: var(--ff-muted); }

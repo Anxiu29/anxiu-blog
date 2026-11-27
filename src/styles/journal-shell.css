@@ -1,0 +1,1887 @@
+/* Shared Hyde-inspired composition. Content-specific styles stay in their components. */
+:root {
+	--bg: #edf1f6;
+	--panel: #fff;
+	--ink: #293747;
+	--muted: #647487;
+	--accent: #247da9;
+	--soft: #edf5fb;
+	--line: #dce5ee;
+	--card-radius: 18px;
+	--shell-shadow: 0 3px 18px #263f5706;
+	--scene-height: 420px;
+}
+:root.dark {
+	--bg: #131b26;
+	--panel: #202b39;
+	--ink: #e6edf5;
+	--muted: #acbacb;
+	--accent: #8ecff5;
+	--soft: #293c50;
+	--line: #354659;
+	--shell-shadow: 0 4px 18px #00000015;
+}
+html {
+	scrollbar-gutter: stable;
+	scroll-padding-top: 96px;
+}
+html:has(dialog[open]),
+html.navigation-open {
+	overflow: hidden;
+}
+.hyde-shell {
+	background: var(--bg);
+	font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.hyde-shell :is(a, button, summary) {
+	touch-action: manipulation;
+}
+.hyde-shell :is(button, a, input, select, summary):focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 4px;
+}
+.hyde-shell [hidden] {
+	display: none !important;
+}
+.hyde-shell .site-header {
+	position: sticky;
+	top: 0;
+	z-index: 30;
+	background: color-mix(in srgb, var(--panel) 94%, transparent);
+	border: 0;
+	border-bottom: 1px solid var(--line);
+	backdrop-filter: blur(14px);
+}
+.hyde-shell .header-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 22px;
+	min-height: 70px;
+	max-width: 1480px;
+	width: calc(100% - 48px);
+	padding: 0;
+	margin: auto;
+	border: 0;
+}
+.hyde-shell .wordmark {
+	display: flex;
+	gap: 10px;
+	padding: 0;
+	flex-shrink: 0;
+	font-size: 23px;
+}
+.hyde-shell .brand-symbol {
+	width: 35px;
+	height: 35px;
+	border-radius: 11px 11px 11px 3px;
+	font-size: 31px;
+}
+.hyde-shell .wordmark > span:last-child {
+	display: flex;
+	gap: 10px;
+}
+.hyde-shell .wordmark small {
+	display: none;
+}
+.hyde-shell .desktop-navigation {
+	display: flex;
+	gap: 7px;
+	align-items: center;
+}
+.hyde-shell .desktop-navigation > a,
+.hyde-shell .explore-menu summary {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 11px 12px;
+	font-size: 15px;
+	white-space: nowrap;
+	border: 0;
+	border-radius: 9px;
+	background: transparent;
+}
+.hyde-shell .desktop-navigation > a:after {
+	display: none;
+}
+.hyde-shell .desktop-navigation > a.selected,
+.hyde-shell .desktop-navigation > a:hover,
+.hyde-shell .explore-menu[open] > summary {
+	color: var(--accent);
+	background: var(--soft);
+}
+.hyde-shell .desktop-navigation svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .explore-menu {
+	position: relative;
+}
+.hyde-shell .explore-menu summary {
+	cursor: pointer;
+	list-style: none;
+}
+.hyde-shell .explore-menu summary::-webkit-details-marker {
+	display: none;
+}
+.hyde-shell .explore-menu summary > svg:last-child {
+	width: 12px;
+	height: 12px;
+	transition: transform 0.18s;
+}
+.hyde-shell .explore-menu[open] summary > svg:last-child {
+	transform: rotate(180deg);
+}
+.hyde-shell .explore-dropdown {
+	position: absolute;
+	top: calc(100% + 12px);
+	left: 0;
+	width: 250px;
+	padding: 8px;
+	background: var(--panel);
+	color: var(--ink);
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	box-shadow: 0 12px 35px #152d4a20;
+	z-index: 31;
+}
+.hyde-shell .explore-menu:not([open]) .explore-dropdown {
+	display: none;
+}
+.hyde-shell .explore-dropdown a {
+	display: block;
+	padding: 11px 13px;
+	border-radius: 8px;
+}
+.hyde-shell .explore-dropdown a:hover {
+	background: var(--soft);
+}
+.hyde-shell .explore-dropdown strong {
+	display: block;
+	font-size: 15px;
+	font-weight: 600;
+}
+.hyde-shell .explore-dropdown span {
+	display: block;
+	margin-top: 3px;
+	font-size: 13px;
+	color: var(--muted);
+}
+.hyde-shell .header-actions {
+	display: flex;
+	gap: 5px;
+	margin: 0;
+	padding: 0;
+}
+.hyde-shell .icon-button {
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	padding: 8px;
+	border: 0;
+	border-radius: 10px;
+	background: transparent;
+}
+.hyde-shell .icon-button:hover {
+	background: var(--soft);
+}
+.hyde-shell .icon-button svg {
+	width: 21px;
+	height: 21px;
+}
+.hyde-shell .header-search {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 11px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--bg);
+	color: var(--muted);
+	font-size: 13px;
+}
+.hyde-shell .header-search svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .header-search kbd {
+	font: 11px / 1.5 inherit;
+	color: var(--muted);
+}
+.hyde-shell #open-navigation {
+	display: none;
+}
+.hyde-shell .mobile-navigation,
+.hyde-shell .no-script-navigation {
+	display: none;
+}
+
+/* Existing wallpaper preferences drive this banner; no second background state. */
+.hyde-shell #site-wallpaper {
+	position: absolute;
+	height: var(--scene-height);
+	bottom: auto;
+	background: var(--bg);
+}
+.hyde-shell .wallpaper-layer {
+	inset: 0 0 auto;
+	height: var(--scene-height);
+	background-position: center 45%;
+}
+.hyde-shell .wallpaper-shade {
+	opacity: 1;
+	background: linear-gradient(
+		180deg,
+		#162c4240,
+		color-mix(
+				in srgb,
+				var(--bg) calc(var(--wallpaper-mask, 0.4) * 100%),
+				transparent
+			)
+			180px,
+		var(--bg) var(--scene-height)
+	);
+}
+.hyde-shell .site-banner {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 225px;
+	padding: 32px 90px 72px;
+	text-align: center;
+	isolation: isolate;
+}
+.hyde-shell .site-banner:before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(180deg, #102b4359, #102b431a 70%, transparent);
+	z-index: -1;
+}
+.hyde-shell .home-banner {
+	min-height: 330px;
+}
+/* Let the desktop homepage show the scene before the reading cards begin. */
+@media (min-width: 1025px) {
+ .hyde-shell.home-page {
+  --scene-height: clamp(480px, 65dvh, 760px);
+ }
+ .hyde-shell.home-page .home-banner {
+  min-height: calc(var(--scene-height) - 72px - 40px);
+  padding-block: 64px 84px;
+ }
+ .hyde-shell.home-page .wallpaper-layer {
+  background-position: center 42%;
+ }
+ .hyde-shell.home-page .wallpaper-video {
+  object-position: center 42%;
+ }
+ .hyde-shell.home-page .wallpaper-shade {
+  background: linear-gradient(180deg,
+   color-mix(in srgb, var(--bg) calc(var(--wallpaper-mask, .4) * 20%), transparent),
+   color-mix(in srgb, var(--bg) calc(var(--wallpaper-mask, .4) * 45%), transparent) 72%,
+   var(--bg) 100%);
+ }
+ .hyde-shell.home-page .home-banner:before {
+  background: linear-gradient(180deg, #102b4333, #102b431a 70%, transparent);
+ }
+}
+.hyde-shell .banner-copy {
+	max-width: 900px;
+	color: #fff;
+	text-shadow: 0 2px 16px #0b213d60;
+}
+.hyde-shell .banner-eyebrow {
+	font:
+		600 12px / 1.5 ui-monospace,
+		monospace;
+	letter-spacing: 0.22em;
+	margin-bottom: 12px;
+	color: #e9f7ff;
+}
+.hyde-shell .banner-title {
+	color: #fff;
+	font-size: clamp(29px, 3.3vw, 44px);
+	font-weight: 700;
+	line-height: 1.5;
+	margin: 0;
+	overflow-wrap: anywhere;
+	letter-spacing: 0.025em;
+}
+.hyde-shell .article-banner .banner-title {
+	font-size: clamp(25px, 2.7vw, 37px);
+}
+.hyde-shell .banner-description {
+	margin: 12px auto 0;
+	max-width: 650px;
+	color: #fff;
+	font-size: 16px;
+	line-height: 1.8;
+}
+.hyde-shell .banner-social {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 13px;
+	margin-top: 21px;
+}
+.hyde-shell .banner-social a {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-width: 38px;
+	min-height: 38px;
+	color: white;
+	padding: 7px 10px;
+	border-radius: 20px;
+	background: #18364b4d;
+	backdrop-filter: blur(6px);
+	font-size: 14px;
+	text-shadow: none;
+}
+.hyde-shell .banner-social svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .banner-social a:hover {
+	background: #18364bb3;
+}
+.hyde-shell .banner-change {
+	position: absolute;
+	bottom: 54px;
+	right: 26px;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 8px 13px;
+	font-size: 13px;
+	background: #16344980;
+	color: white;
+	border: 1px solid #ffffff66;
+	border-radius: 20px;
+}
+.hyde-shell .banner-change svg {
+	width: 16px;
+	height: 16px;
+}
+.hyde-shell .banner-waves {
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+	height: 44px;
+	fill: var(--bg);
+	pointer-events: none;
+}
+.hyde-shell .site-banner :is(a, button):focus-visible {
+	outline-color: #fff;
+}
+.hyde-shell .site-main {
+	width: calc(100% - 48px);
+	max-width: 1480px;
+	margin: -12px auto 0;
+	padding: 0;
+	position: relative;
+	min-height: calc(100vh - 400px);
+}
+.hyde-shell .journal-home-grid {
+	display: grid;
+	grid-template-columns: 230px minmax(0, 1fr) 250px;
+	gap: 22px;
+	align-items: start;
+}
+.hyde-shell :is(.journal-left, .journal-right) {
+	display: grid;
+	gap: 18px;
+	min-width: 0;
+}
+.hyde-shell .journal-feed {
+	min-width: 0;
+}
+.hyde-shell .j-card {
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: var(--card-radius);
+	padding: 21px;
+	box-shadow: var(--shell-shadow);
+	min-width: 0;
+}
+.hyde-shell .j-card h2 {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin: 0 0 16px;
+	font-size: 16px;
+	line-height: 1.6;
+	font-weight: 650;
+	letter-spacing: 0;
+}
+.hyde-shell .j-card h2 > svg {
+	width: 19px;
+	height: 19px;
+	color: var(--accent);
+}
+.hyde-shell .j-card p {
+	font-size: 14px;
+	line-height: 1.9;
+	color: var(--muted);
+}
+.hyde-shell .j-card-heading {
+	display: flex;
+	align-items: start;
+	justify-content: space-between;
+	gap: 8px;
+}
+.hyde-shell .j-card-heading > button {
+	padding: 3px;
+	border: 0;
+	color: var(--muted);
+	border-radius: 5px;
+}
+.hyde-shell .j-card-heading > button svg {
+	width: 17px;
+	height: 17px;
+}
+.hyde-shell .author-card {
+	text-align: center;
+	padding: 0 0 20px;
+	overflow: hidden;
+}
+.hyde-shell .author-cover {
+	height: 100px;
+	overflow: hidden;
+	background: var(--soft);
+}
+.hyde-shell .author-cover img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center 58%;
+}
+.hyde-shell .author-avatar {
+	display: grid;
+	place-items: center;
+	position: relative;
+	width: 76px;
+	height: 76px;
+	margin: -37px auto 12px;
+	border: 5px solid var(--panel);
+	border-radius: 50%;
+	background: linear-gradient(140deg, #afd8ed, #3183b0);
+	color: white;
+	font-size: 30px;
+	font-weight: 500;
+	box-shadow: 0 3px 9px #1b364c19;
+}
+.hyde-shell .author-card h2 {
+	display: block;
+	font-size: 23px;
+	margin-bottom: 6px;
+}
+.hyde-shell .author-card > p {
+	padding: 0 15px;
+	line-height: 1.9;
+}
+.hyde-shell .author-social {
+	display: flex;
+	justify-content: center;
+	gap: 9px;
+	margin: 14px 0;
+}
+.hyde-shell .author-social a {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border-radius: 50%;
+	background: var(--soft);
+	color: var(--accent);
+}
+.hyde-shell .author-social svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .author-counts {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	margin: 0 16px;
+	padding-top: 13px;
+	border-top: 1px solid var(--line);
+}
+.hyde-shell .author-counts a {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.hyde-shell .author-counts strong {
+	font-size: 20px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.hyde-shell .author-counts span {
+	font-size: 13px;
+	color: var(--muted);
+}
+.hyde-shell .welcome-card > a {
+	display: inline-block;
+	margin-top: 12px;
+	font-size: 14px;
+	color: var(--accent);
+}
+.hyde-shell .sidebar-music-card {
+	text-align: center;
+}
+.hyde-shell .sidebar-music-record {
+	display: grid;
+	place-items: center;
+	width: 68px;
+	height: 68px;
+	margin: 2px auto 14px;
+	border: 9px solid #263d50;
+	border-radius: 50%;
+	background: linear-gradient(130deg, #69adc9, #286992);
+	box-shadow: 0 0 0 4px var(--soft);
+	color: white;
+	font:
+		bold 23px / 1 Georgia,
+		serif;
+}
+.hyde-shell .sidebar-music-card > strong {
+	display: block;
+	font-size: 14px;
+}
+.hyde-shell .sidebar-music-card > p {
+	font-size: 13px;
+	margin-top: 5px;
+}
+.hyde-shell .j-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 9px 14px;
+	min-height: 39px;
+	font-size: 14px;
+	border: 1px solid var(--line);
+	border-radius: 9px;
+}
+.hyde-shell .j-button svg {
+	width: 17px;
+	height: 17px;
+}
+.hyde-shell .j-button.subtle {
+	background: var(--soft);
+	color: var(--accent);
+}
+.hyde-shell .j-button.primary {
+	background: var(--accent);
+	color: var(--panel);
+	border-color: transparent;
+}
+.hyde-shell .sidebar-music-card > .j-button {
+	margin-top: 15px;
+}
+.hyde-shell .j-category-list {
+	display: grid;
+	gap: 5px;
+}
+.hyde-shell .j-category-list a {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 0;
+	font-size: 14px;
+}
+.hyde-shell .j-category-list small {
+	display: grid;
+	place-items: center;
+	min-width: 25px;
+	padding: 0 6px;
+	border-radius: 6px;
+	background: var(--soft);
+	color: var(--accent);
+	font-size: 12px;
+}
+.hyde-shell .j-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 6px;
+}
+.hyde-shell .j-tags a {
+	padding: 4px 9px;
+	border-radius: 7px;
+	background: var(--soft);
+	color: var(--accent);
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+.hyde-shell .j-more-link {
+	display: block;
+	margin-top: 16px;
+	font-size: 14px;
+	color: var(--accent);
+}
+.hyde-shell .sidebar-tools > a {
+	display: block;
+	font-size: 14px;
+	padding: 8px 0;
+}
+.hyde-shell .greeting-card {
+	padding: 0;
+	overflow: hidden;
+}
+.hyde-shell .greeting-card > div {
+	padding: 20px 21px 16px;
+}
+.hyde-shell .greeting-card > div > p {
+	color: var(--ink);
+	font-size: 14px;
+}
+.hyde-shell #sidebar-clock {
+	display: block;
+	color: var(--accent);
+	font-size: 37px;
+	font-weight: 500;
+	letter-spacing: 0.03em;
+	line-height: 1.7;
+	font-variant-numeric: tabular-nums;
+}
+.hyde-shell #sidebar-date {
+	color: var(--muted);
+	font-size: 13px;
+}
+.hyde-shell .greeting-card > img {
+	display: block;
+	width: 100%;
+	height: 96px;
+	object-fit: cover;
+}
+.hyde-shell .j-updates > a:not(.j-more-link) {
+	display: block;
+	padding: 0 0 14px;
+	margin: 0 0 14px;
+	border-bottom: 1px solid var(--line);
+}
+.hyde-shell .j-updates time {
+	font-size: 12px;
+	color: var(--muted);
+}
+.hyde-shell .j-updates strong {
+	display: block;
+	font-size: 14px;
+	font-weight: 550;
+	line-height: 1.8;
+	margin: 5px 0;
+}
+.hyde-shell .j-updates p {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	font-size: 13px;
+}
+.hyde-shell .j-site-stats {
+	margin: 0;
+	display: grid;
+	gap: 11px;
+}
+.hyde-shell .j-site-stats > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 14px;
+	font-size: 14px;
+}
+.hyde-shell .j-site-stats dt {
+	color: var(--muted);
+}
+.hyde-shell .j-site-stats dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+.hyde-shell .calendar-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 -5px 13px;
+}
+.hyde-shell .calendar-head button {
+	display: grid;
+	place-items: center;
+	min-height: 34px;
+	min-width: 30px;
+	padding: 4px;
+	border: 0;
+	border-radius: 7px;
+	font-size: 13px;
+}
+.hyde-shell .calendar-head button:hover {
+	background: var(--soft);
+}
+.hyde-shell .calendar-head svg {
+	width: 16px;
+	height: 16px;
+}
+.hyde-shell :is(.calendar-week, .calendar-days) {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	text-align: center;
+	gap: 5px 2px;
+}
+.hyde-shell .calendar-week {
+	color: var(--muted);
+	font-size: 12px;
+	margin-bottom: 6px;
+}
+.hyde-shell .calendar-days > * {
+	display: grid;
+	place-items: center;
+	min-height: 28px;
+	font-size: 12px;
+	padding: 2px;
+	border: 0;
+	border-radius: 7px;
+	position: relative;
+}
+.hyde-shell .calendar-days .has-post {
+	color: var(--accent);
+	background: var(--soft);
+	font-weight: 650;
+}
+.hyde-shell .calendar-days .has-post:after {
+	content: "";
+	position: absolute;
+	bottom: 2px;
+	width: 3px;
+	height: 3px;
+	background: currentColor;
+	border-radius: 50%;
+}
+.hyde-shell .calendar-days .is-today {
+	outline: 1px solid var(--accent);
+	outline-offset: -2px;
+}
+.hyde-shell .calendar-days [aria-pressed="true"] {
+	background: var(--accent);
+	color: var(--panel);
+}
+.hyde-shell .calendar-hint {
+	font-size: 12px !important;
+	margin-top: 14px;
+}
+.hyde-shell [data-calendar-selection] {
+	border-top: 1px solid var(--line);
+	margin-top: 12px;
+	padding-top: 12px;
+}
+.hyde-shell [data-calendar-selection] h3 {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--muted);
+}
+.hyde-shell [data-calendar-selection] ul {
+	margin: 8px 0 0;
+	padding-left: 17px;
+	font-size: 13px;
+}
+.hyde-shell [data-calendar-selection] li + li {
+	margin-top: 8px;
+}
+.hyde-shell .site-note .j-button {
+	margin-top: 14px;
+}
+
+/* Feed and page navigation */
+.hyde-shell .journal-category-bar {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 10px 12px;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+.hyde-shell .journal-category-bar a {
+	display: flex;
+	gap: 7px;
+	align-items: center;
+	padding: 7px 9px;
+	white-space: nowrap;
+	font-size: 14px;
+	border-radius: 7px;
+}
+.hyde-shell .journal-category-bar a[aria-current],
+.hyde-shell .journal-category-bar a:hover {
+	color: var(--accent);
+	background: var(--soft);
+}
+.hyde-shell .journal-category-bar svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .journal-category-bar small {
+	color: var(--muted);
+	font-size: 12px;
+}
+.hyde-shell .journal-category-bar > div {
+	display: flex;
+	gap: 3px;
+	border-left: 1px solid var(--line);
+	padding-left: 6px;
+}
+.hyde-shell .journal-category-bar > a:last-child {
+	margin-left: auto;
+}
+.hyde-shell .home-reading-links {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	margin-top: 17px;
+}
+.hyde-shell .home-reading-links > a {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 19px 16px;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	min-width: 0;
+}
+.hyde-shell .home-reading-links > a > span:nth-child(2) {
+	min-width: 0;
+}
+.hyde-shell .life-icon {
+	display: grid;
+	place-items: center;
+	width: 41px;
+	height: 41px;
+	flex-shrink: 0;
+	border-radius: 12px;
+	background: var(--soft);
+	color: var(--accent);
+}
+.hyde-shell .life-icon svg {
+	width: 21px;
+	height: 21px;
+}
+.hyde-shell .home-reading-links strong {
+	display: block;
+	font-size: 15px;
+	font-weight: 600;
+}
+.hyde-shell .home-reading-links small {
+	display: block;
+	font-size: 12px;
+	color: var(--muted);
+	margin-top: 4px;
+}
+.hyde-shell .home-reading-links > a > svg {
+	margin-left: auto;
+	width: 15px;
+	height: 15px;
+	color: var(--muted);
+}
+.hyde-shell .recent-posts {
+	padding: 0;
+	margin: 21px 0 0;
+	background: none;
+	border: 0;
+	box-shadow: none;
+}
+.hyde-shell .feed-heading {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin: 0 1px 15px;
+	gap: 12px;
+}
+.hyde-shell .feed-heading h2 {
+	font-size: 19px;
+	font-weight: 600;
+}
+.hyde-shell .feed-heading small {
+	font-size: 13px;
+	font-weight: 400;
+	color: var(--muted);
+	margin-left: 5px;
+}
+.hyde-shell .feed-heading > a {
+	color: var(--muted);
+	font-size: 13px;
+}
+.hyde-shell :is(.recent-posts, .archive-content) > .post-list {
+	display: grid;
+	gap: 20px;
+	background: none;
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+}
+.hyde-shell :is(.recent-posts, .archive-content) > .post-list > .post-row {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: start;
+	gap: 0;
+	padding: 25px 27px 22px;
+	margin: 0;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: var(--card-radius);
+	overflow: hidden;
+	box-shadow: var(--shell-shadow);
+	min-width: 0;
+}
+.hyde-shell :is(.recent-posts, .archive-content) .post-cover {
+	display: block;
+	order: -2;
+	width: calc(100% + 54px);
+	height: auto;
+	min-height: 0;
+	aspect-ratio: 2.05;
+	margin: -25px -27px 22px;
+	border: 0;
+	border-radius: 0;
+	overflow: hidden;
+	background: var(--soft);
+}
+.hyde-shell .post-cover { position: relative; }
+.hyde-shell .post-cover-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 18px; color: var(--muted); background: var(--soft); font-size: 13px; line-height: 1.7; text-align: center; }
+.hyde-shell .post-cover-fallback > svg { width: 28px; height: 28px; opacity: .7; }
+.hyde-shell .related-posts .post-row { flex-direction: column; align-items: stretch; gap: 9px; min-width: 0; }
+.hyde-shell .related-posts .post-meta { margin-bottom: 0; }
+.hyde-shell .post-cover img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 0.35s;
+}
+@media (hover: hover) {
+	.hyde-shell .post-cover:hover img {
+		transform: scale(1.025);
+	}
+}
+.hyde-shell .post-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px 12px;
+	font-size: 13px;
+	line-height: 1.7;
+	margin-bottom: 12px;
+}
+.hyde-shell .post-meta .category-tag {
+	padding: 1px 7px;
+	background: var(--soft);
+	color: var(--accent);
+	border-radius: 5px;
+}
+.hyde-shell .pinned-note {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--accent);
+	font-size: 12px;
+}
+.hyde-shell .pinned-note svg {
+	width: 13px;
+	height: 13px;
+}
+.hyde-shell .post-summary {
+	width: auto;
+	flex: initial;
+	min-width: 0;
+}
+.hyde-shell .post-summary :is(h2, h3) {
+	font-size: 23px;
+	font-weight: 600;
+	line-height: 1.65;
+	letter-spacing: 0;
+	overflow-wrap: anywhere;
+}
+.hyde-shell .post-summary p {
+	font-size: 15px;
+	color: var(--muted);
+	line-height: 1.95;
+	margin-top: 12px;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	overflow: hidden;
+}
+.hyde-shell .post-bottom {
+	display: flex;
+	justify-content: space-between;
+	gap: 14px;
+	align-items: center;
+	border-top: 1px solid var(--line);
+	padding-top: 14px;
+	margin-top: 19px;
+}
+.hyde-shell .post-topics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 13px;
+	font-size: 13px;
+}
+.hyde-shell .post-read {
+	display: block;
+	white-space: nowrap;
+	color: var(--accent);
+	font-size: 13px;
+}
+.hyde-shell .feed-pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+	flex-wrap: wrap;
+	margin: 26px 0 10px;
+}
+.hyde-shell .feed-pagination > :is(a, .page-boundary) {
+	display: grid;
+	place-items: center;
+	min-width: 38px;
+	height: 38px;
+	padding: 5px 10px;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	font-size: 14px;
+}
+.hyde-shell .feed-pagination [aria-current] {
+	background: var(--accent);
+	color: var(--panel);
+	border-color: transparent;
+}
+.hyde-shell .feed-pagination svg {
+	width: 17px;
+	height: 17px;
+}
+.hyde-shell .feed-pagination .page-boundary {
+	opacity: 0.45;
+}
+.hyde-shell .feed-pagination > span:last-child:not(.page-boundary) {
+	font-size: 13px;
+	color: var(--muted);
+	margin-left: 7px;
+}
+
+/* Shared reading surface and tutorial details */
+.hyde-shell .article-layout {
+	display: grid;
+	grid-template-columns: 230px minmax(0, 1fr) 220px;
+	align-items: start;
+	gap: 22px;
+	padding-top: 0;
+}
+.hyde-shell .article-column {
+	min-width: 0;
+	padding: 32px 36px;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: var(--card-radius);
+}
+.hyde-shell .article-breadcrumb {
+	margin-bottom: 20px;
+	font-size: 13px;
+	flex-wrap: wrap;
+}
+.hyde-shell .article-meta {
+	flex-wrap: wrap;
+	gap: 7px 12px;
+	font-size: 13px;
+}
+.hyde-shell .article-byline {
+	font-size: 14px;
+	color: var(--muted);
+	margin-top: 10px;
+}
+.hyde-shell .article-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 15px 0 8px;
+}
+.hyde-shell .article-tags > a {
+	font-size: 13px;
+	background: var(--soft);
+	border-radius: 6px;
+	padding: 4px 9px;
+}
+.hyde-shell .reading-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 16px;
+	border-block: 1px solid var(--line);
+	padding: 13px 0;
+	margin: 20px 0;
+	font-size: 14px;
+}
+.hyde-shell .reading-tools button {
+	font-size: 13px;
+	min-height: 35px;
+	padding: 4px 7px;
+	border: 0;
+}
+.hyde-shell .reading-tools select {
+	background: var(--soft);
+	padding: 5px 8px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	min-height: 35px;
+	font-size: 14px;
+}
+.hyde-shell .reading-tools [aria-pressed="true"] {
+	color: var(--accent);
+	background: var(--soft);
+	border-radius: 6px;
+}
+.hyde-shell .article-guide {
+	padding: 19px 21px;
+	border: 1px solid var(--line);
+	border-left: 3px solid var(--accent);
+	border-radius: 10px;
+	background: var(--soft);
+	margin: 24px 0;
+}
+.hyde-shell .article-guide > span {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--accent);
+}
+.hyde-shell .article-guide svg {
+	width: 18px;
+	height: 18px;
+}
+.hyde-shell .article-guide p {
+	font-size: 15px;
+	line-height: 1.95;
+	margin-top: 9px;
+	color: var(--ink);
+}
+.hyde-shell .article-series-overview {
+	margin: 20px 0;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	padding: 13px 16px;
+	font-size: 14px;
+}
+.hyde-shell .article-series-overview summary {
+	color: var(--accent);
+	cursor: pointer;
+}
+.hyde-shell .article-series-overview .series-navigation {
+	margin: 17px 0 0;
+}
+.hyde-shell .article-series-overview:not([open]) > .series-navigation {
+	display: none;
+}
+.hyde-shell .article-series-overview:not([open]) > nav {
+	display: none;
+}
+.hyde-shell .article-series-overview nav {
+	display: grid;
+	gap: 7px;
+	margin-top: 14px;
+}
+.hyde-shell .article-series-overview nav a {
+	display: flex;
+	gap: 12px;
+	padding: 7px 10px;
+	border-radius: 7px;
+	line-height: 1.8;
+}
+.hyde-shell .article-series-overview nav small {
+	color: var(--muted);
+}
+.hyde-shell .article-series-overview nav [aria-current] {
+	background: var(--soft);
+	color: var(--accent);
+}
+@media (hover: none) {
+}
+.hyde-shell .content-scroll {
+	max-width: 100%;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	border-radius: 8px;
+	margin: 22px 0;
+}
+.hyde-shell .content-scroll table {
+	margin: 0;
+	min-width: 100%;
+}
+.hyde-shell .content-scroll:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 4px;
+}
+.hyde-shell .article-toc {
+	display: block;
+	position: sticky;
+	top: 92px;
+	min-width: 0;
+}
+.hyde-shell .article-toc nav {
+	position: static;
+	padding: 20px 18px;
+	border: 1px solid var(--line);
+	border-radius: 15px;
+	background: var(--panel);
+	max-height: calc(100dvh - 260px);
+	overflow: auto;
+}
+.hyde-shell .article-toc h2 {
+	font-size: 16px;
+	margin-bottom: 13px;
+}
+.hyde-shell .article-toc a {
+	font-size: 13px;
+	padding: 7px 9px;
+	line-height: 1.8;
+	border-radius: 6px;
+	overflow-wrap: anywhere;
+}
+.hyde-shell .article-toc a[aria-current] {
+	color: var(--accent);
+	background: var(--soft);
+	border-left-color: var(--accent);
+}
+.hyde-shell .article-author {
+	background: var(--panel);
+	padding: 19px;
+	margin-top: 17px;
+	border: 1px solid var(--line);
+	border-radius: 15px;
+}
+.hyde-shell .article-project-cover {
+	margin: 25px 0;
+}
+.hyde-shell .article-project-cover figcaption {
+	margin-top: 9px;
+	font-size: 13px;
+	color: var(--muted);
+	text-align: center;
+}
+.hyde-shell .article-share-card {
+	margin: 32px 0 20px;
+	text-align: center;
+	padding: 29px 22px;
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	background: var(--soft);
+}
+.hyde-shell .share-round {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	margin: 0 auto 12px;
+	border-radius: 50%;
+	color: var(--accent);
+	background: var(--panel);
+}
+.hyde-shell .article-share-card h2 {
+	font-size: 21px;
+	margin: 0;
+}
+.hyde-shell .article-share-card p {
+	color: var(--muted);
+	font-size: 14px;
+	margin: 10px 0 17px;
+	line-height: 1.9;
+}
+.hyde-shell .article-share-card > div > div {
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.hyde-shell .article-share-card .share-status:empty {
+	display: none;
+}
+.hyde-shell .article-attribution {
+	position: relative;
+	margin: 20px 0 28px;
+	padding: 22px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	font-size: 13px;
+}
+.hyde-shell .article-attribution h2 {
+	font-size: 16px;
+	line-height: 1.8;
+	margin-bottom: 7px;
+}
+.hyde-shell .article-attribution > a {
+	color: var(--accent);
+	overflow-wrap: anywhere;
+}
+.hyde-shell .article-attribution dl {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 25px;
+	margin: 17px 0 0;
+}
+.hyde-shell .article-attribution dl > div {
+	display: flex;
+	gap: 9px;
+}
+.hyde-shell .article-attribution dt {
+	color: var(--muted);
+}
+.hyde-shell .article-attribution dd {
+	margin: 0;
+}
+.hyde-shell .mobile-toc {
+	display: none;
+}
+.hyde-shell.reading-focus .article-layout {
+	grid-template-columns: minmax(0, 880px);
+	justify-content: center;
+}
+.hyde-shell.reading-focus :is(.journal-left, .article-toc) {
+	display: none;
+}
+.hyde-shell.reading-focus .mobile-toc {
+	display: block;
+}
+
+/* Existing content pages keep their tools and layouts inside the new shell. */
+.hyde-shell .page-intro {
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: var(--card-radius);
+	padding: 28px 30px;
+	margin: 0 0 22px;
+}
+.hyde-shell .page-intro h1 {
+	font-size: 28px;
+}
+.hyde-shell .blog-columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 270px;
+	gap: 24px;
+}
+.hyde-shell .blog-sidebar {
+	gap: 18px;
+}
+.hyde-shell .sidebar-card {
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: var(--card-radius);
+}
+.hyde-shell .site-footer {
+	max-width: 1480px;
+	width: calc(100% - 48px);
+	padding: 28px 24px 12px;
+	margin: 38px auto 0;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 18px 18px 0 0;
+}
+.hyde-shell .footer-top {
+	padding: 0 0 25px;
+}
+.hyde-shell .footer-top nav h2 {
+	font-size: 15px;
+}
+.hyde-shell .footer-top nav a {
+	font-size: 14px;
+}
+.hyde-shell .footer-bottom {
+	padding: 18px 0;
+}
+.hyde-shell .back-top {
+	border: 1px solid var(--line);
+	color: var(--accent);
+	background: var(--panel);
+	border-radius: 12px;
+	z-index: 20;
+}
+.hyde-shell .skip-link {
+	z-index: 100;
+}
+.hyde-shell #search-dialog {
+	border-radius: 16px;
+}
+
+@media (min-width: 1500px) {
+	.hyde-shell .wordmark small {
+		display: inline;
+	}
+}
+@media (max-width: 1350px) {
+	.hyde-shell .journal-home-grid {
+		grid-template-columns: 215px minmax(0, 1fr) 225px;
+		gap: 19px;
+	}
+	.hyde-shell .article-layout {
+		grid-template-columns: 205px minmax(0, 1fr) 200px;
+		gap: 19px;
+	}
+	.hyde-shell .article-column {
+		padding: 28px;
+	}
+	.hyde-shell .header-search span,
+	.hyde-shell .header-search kbd {
+		display: none;
+	}
+	.hyde-shell .header-search {
+		width: 38px;
+		height: 38px;
+		padding: 9px;
+		border: 0;
+		background: transparent;
+	}
+}
+@media (max-width: 1199px) {
+	.hyde-shell .journal-home-grid {
+		grid-template-columns: 215px minmax(0, 1fr);
+	}
+	.hyde-shell .journal-right {
+		display: none;
+	}
+	.hyde-shell .article-layout {
+		grid-template-columns: minmax(0, 1fr) 210px;
+	}
+	.hyde-shell .article-layout > .journal-left {
+		display: none;
+	}
+}
+@media (max-width: 1050px) {
+	.hyde-shell .header-inner .desktop-navigation {
+		display: none;
+	}
+	.hyde-shell #open-navigation {
+		display: grid;
+	}
+	.hyde-shell .mobile-navigation[open] {
+		display: block;
+		inset: 12px 12px auto auto;
+		width: min(380px, calc(100% - 24px));
+		max-height: calc(100dvh - 24px);
+		box-sizing: border-box;
+		margin: 0;
+		padding: 20px;
+		overflow: auto;
+		color: var(--ink);
+		background: var(--panel);
+		border: 1px solid var(--line);
+		border-radius: 18px;
+		box-shadow: 0 20px 80px #102b4533;
+	}
+	.hyde-shell .mobile-navigation::backdrop {
+		background: #10243366;
+		backdrop-filter: blur(4px);
+	}
+	.hyde-shell .mobile-navigation-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		padding-bottom: 14px;
+		border-bottom: 1px solid var(--line);
+		font-weight: 600;
+	}
+	.hyde-shell .mobile-navigation nav {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+		padding: 16px 0;
+	}
+	.hyde-shell .mobile-navigation nav a {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 44px;
+		padding: 10px;
+		border-radius: 10px;
+		font-size: 15px;
+	}
+	.hyde-shell .mobile-navigation nav svg {
+		width: 20px;
+		height: 20px;
+		color: var(--accent);
+	}
+	.hyde-shell .mobile-navigation nav a:is([aria-current], :hover, :focus-visible) {
+		color: var(--accent);
+		background: var(--soft);
+	}
+	.hyde-shell .mobile-navigation-more {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px 18px;
+		padding: 16px 0;
+		border-top: 1px solid var(--line);
+		font-size: 14px;
+	}
+	.hyde-shell .mobile-navigation > p {
+		font-size: 13px;
+		color: var(--muted);
+	}
+	.hyde-shell .no-script-navigation {
+		display: flex;
+		flex-wrap: wrap;
+	}
+	.hyde-shell .wordmark small {
+		display: inline;
+	}
+	.hyde-shell .header-inner {
+		min-height: 66px;
+	}
+}
+@media (max-width: 900px) {
+	.hyde-shell .journal-home-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 22px;
+	}
+	.hyde-shell .journal-feed {
+		order: -1;
+		width: 100%;
+	}
+	.hyde-shell .journal-home-grid > .journal-left {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		width: 100%;
+	}
+	.hyde-shell .journal-home-grid > .journal-left > .author-card {
+		grid-row: span 2;
+	}
+	.hyde-shell .journal-home-grid > .journal-left > .sidebar-music-card {
+		display: none;
+	}
+	.hyde-shell .article-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.hyde-shell .article-toc {
+		display: none;
+	}
+	.hyde-shell .mobile-toc {
+		display: block;
+		background: var(--soft);
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		padding: 13px 16px;
+		margin: 22px 0;
+	}
+	.hyde-shell .mobile-toc summary {
+		cursor: pointer;
+		font-size: 14px;
+		color: var(--accent);
+	}
+	.hyde-shell .mobile-toc:not([open]) > nav {
+		display: none;
+	}
+	.hyde-shell .mobile-toc nav {
+		max-height: 50dvh;
+		overflow: auto;
+		margin-top: 12px;
+	}
+	.hyde-shell .mobile-toc a {
+		display: block;
+		font-size: 14px;
+		padding: 7px 0;
+	}
+	.hyde-shell .mobile-toc a.nested {
+		padding-left: 15px;
+	}
+	.hyde-shell .site-banner {
+		padding-inline: 30px;
+	}
+	.hyde-shell .home-banner {
+		min-height: 300px;
+	}
+	.hyde-shell .blog-columns {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.hyde-shell .blog-sidebar {
+		display: none;
+	}
+}
+@media (max-width: 600px) {
+	.hyde-shell .header-inner {
+		width: calc(100% - 28px);
+		gap: 9px;
+	}
+	.hyde-shell .wordmark {
+		font-size: 20px;
+		gap: 7px;
+	}
+	.hyde-shell .wordmark small {
+		display: none;
+	}
+	.hyde-shell .brand-symbol {
+		width: 30px;
+		height: 30px;
+		font-size: 27px;
+	}
+	.hyde-shell .header-actions {
+		gap: 1px;
+	}
+	.hyde-shell .icon-button,
+	.hyde-shell .header-search {
+		width: 35px;
+		height: 38px;
+		padding: 8px;
+	}
+	.hyde-shell .header-actions svg {
+		width: 19px;
+		height: 19px;
+	}
+	.hyde-shell .site-main,
+	.hyde-shell .site-footer {
+		width: calc(100% - 24px);
+	}
+	.hyde-shell .site-banner {
+		min-height: 210px;
+		padding: 30px 22px 64px;
+	}
+	.hyde-shell .home-banner {
+		min-height: 285px;
+		padding-top: 30px;
+	}
+	.hyde-shell .banner-title {
+		font-size: 29px;
+	}
+	.hyde-shell .banner-eyebrow {
+		margin-bottom: 9px;
+		font-size: 11px;
+	}
+	.hyde-shell .banner-description {
+		font-size: 14px;
+		margin-top: 10px;
+	}
+	.hyde-shell .banner-social {
+		margin-top: 16px;
+	}
+	.hyde-shell .banner-change {
+		right: 14px;
+		bottom: 25px;
+		padding: 7px;
+		border: 0;
+	}
+	.hyde-shell .banner-change span {
+		display: none;
+	}
+	.hyde-shell .banner-waves {
+		height: 30px;
+	}
+	.hyde-shell .journal-category-bar {
+		padding: 8px;
+		border-radius: 12px;
+		gap: 1px;
+	}
+	.hyde-shell .journal-category-bar a {
+		font-size: 13px;
+		padding: 6px 8px;
+	}
+	.hyde-shell .journal-category-bar > div {
+		display: none;
+	}
+	.hyde-shell .home-reading-links {
+		gap: 10px;
+		margin-top: 12px;
+	}
+	.hyde-shell .home-reading-links > a {
+		padding: 14px 11px;
+		gap: 8px;
+		border-radius: 12px;
+	}
+	.hyde-shell .life-icon {
+		width: 32px;
+		height: 36px;
+		border-radius: 9px;
+	}
+	.hyde-shell .life-icon svg {
+		width: 19px;
+		height: 19px;
+	}
+	.hyde-shell .home-reading-links strong {
+		font-size: 14px;
+	}
+	.hyde-shell .home-reading-links small {
+		display: none;
+	}
+	.hyde-shell .home-reading-links > a > svg {
+		display: none;
+	}
+	.hyde-shell .feed-heading {
+		margin-bottom: 12px;
+	}
+	.hyde-shell .feed-heading h2 {
+		font-size: 18px;
+	}
+	.hyde-shell :is(.recent-posts, .archive-content) > .post-list {
+		gap: 15px;
+	}
+	.hyde-shell :is(.recent-posts, .archive-content) > .post-list > .post-row {
+		padding: 21px 20px 18px;
+		border-radius: 15px;
+	}
+	.hyde-shell :is(.recent-posts, .archive-content) .post-cover {
+		width: calc(100% + 40px);
+		margin: -21px -20px 18px;
+		aspect-ratio: 1.85;
+	}
+	.hyde-shell .post-summary :is(h2, h3) {
+		font-size: 20px;
+		line-height: 1.7;
+	}
+	.hyde-shell .post-summary p {
+		font-size: 14px;
+		line-height: 1.95;
+		margin-top: 10px;
+	}
+	.hyde-shell .post-meta {
+		font-size: 12px;
+		gap: 7px 9px;
+		margin-bottom: 10px;
+	}
+	.hyde-shell .post-reading-time {
+		display: none;
+	}
+	.hyde-shell .post-topics {
+		font-size: 12px;
+		gap: 5px 9px;
+	}
+	.hyde-shell .post-bottom {
+		margin-top: 15px;
+		padding-top: 12px;
+	}
+	.hyde-shell .post-read {
+		font-size: 12px;
+	}
+	.hyde-shell .journal-home-grid > .journal-left {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.hyde-shell .journal-home-grid > .journal-left > .author-card {
+		grid-row: auto;
+	}
+	.hyde-shell
+		.journal-home-grid
+		> .journal-left
+		> :is(.welcome-card, .sidebar-tools) {
+		display: none;
+	}
+	.hyde-shell .author-cover {
+		height: 120px;
+	}
+	.hyde-shell .article-column {
+		padding: 22px 20px;
+		border-radius: 15px;
+	}
+	.hyde-shell .article-meta {
+		font-size: 12px;
+	}
+	.hyde-shell .article-byline {
+		font-size: 13px;
+	}
+	.hyde-shell .article-guide {
+		padding: 16px;
+	}
+	.hyde-shell .article-guide p {
+		font-size: 14px;
+	}
+	.hyde-shell .reading-tools {
+		gap: 7px 10px;
+		margin: 17px 0;
+	}
+	.hyde-shell .reading-percent {
+		margin-left: auto;
+	}
+	.hyde-shell .article-share-card {
+		padding: 23px 16px;
+	}
+	.hyde-shell .article-share-card h2 {
+		font-size: 19px;
+	}
+	.hyde-shell .article-attribution {
+		padding: 18px;
+	}
+	.hyde-shell .page-intro {
+		padding: 23px 20px;
+	}
+	.hyde-shell .page-intro h1 {
+		font-size: 25px;
+	}
+	.hyde-shell .site-footer {
+		padding: 24px 20px 6px;
+	}
+	.hyde-shell .footer-top {
+		gap: 23px;
+	}
+	.hyde-shell .back-top {
+		right: 17px;
+		bottom: 22px;
+	}
+}
+@media (max-width: 360px) {
+	.hyde-shell .header-inner {
+		width: calc(100% - 20px);
+	}
+	.hyde-shell .wordmark {
+		font-size: 18px;
+		gap: 5px;
+	}
+	.hyde-shell .header-actions {
+		gap: 0;
+	}
+	.hyde-shell .icon-button,
+	.hyde-shell .header-search {
+		width: 32px;
+	}
+	.hyde-shell .post-bottom {
+		align-items: start;
+	}
+	.hyde-shell .post-read {
+		display: none;
+	}
+	.hyde-shell .home-reading-links > a {
+		padding: 12px 8px;
+		gap: 6px;
+	}
+	.hyde-shell .life-icon {
+		width: 27px;
+	}
+	.hyde-shell .home-reading-links strong {
+		font-size: 13px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.hyde-shell *,
+	.hyde-shell *:before,
+	.hyde-shell *:after {
+		scroll-behavior: auto !important;
+		animation: none !important;
+		transition: none !important;
+	}
+}
+
+.hyde-shell .explore-menu.selected > summary,
+.hyde-shell .explore-dropdown a[aria-current] {
+	color: var(--accent);
+	background: var(--soft);
+}
+
+/* Archive state controls belong to the active journal shell. */
+.hyde-shell .archive-filter { flex-wrap: wrap; gap: 10px; }
+.hyde-shell .archive-filter input { flex: 1 1 220px; min-width: 0; }
+.hyde-shell .archive-filter select { flex: 0 1 180px; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+.hyde-shell .archive-filter button { min-height: 44px; }
+.hyde-shell .archive-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0; }
+.hyde-shell .archive-filter-summary .result-count { margin: 0; }
+.hyde-shell #archive-clear-tag { max-width: 100%; min-height: 44px; border: 1px solid var(--line); background: var(--soft); color: var(--accent); font-size: 13px; line-height: 1.7; border-radius: 7px; padding: 8px 12px; white-space: normal; overflow-wrap: anywhere; }
+.hyde-shell .archive-filter-note { color: var(--muted); font-size: 13px; line-height: 1.8; margin-block: 16px; }
+@media (max-width: 600px) {
+  .hyde-shell .archive-filter input { flex-basis: 100%; }
+  .hyde-shell .archive-filter select { flex: 1 1 0; }
+}

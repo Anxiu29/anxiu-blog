@@ -1,0 +1,36 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const root = process.env.BLOG_ROOT || path.resolve(__dirname,'..');
+const ts = require(path.join(root,'node_modules/typescript'));
+const source = ts.transpileModule(fs.readFileSync(path.join(root,'src/scripts/post-view.ts'),'utf8'),{compilerOptions:{target:99,module:1}}).outputText;
+function setup(saved='compact',blocked=false) {
+ const values=new Map([['anxiu-post-view-v1',saved],['anxiu-todo-v1','keep-private-tasks']]);
+ const storage={getItem(k){if(blocked)throw Error('denied');return values.get(k)||null;},setItem(k,v){if(blocked)throw Error('denied');values.set(k,v);},removeItem(k){if(blocked)throw Error('denied');values.delete(k);}};
+ const element = value=>({value,checked:false,events:{},addEventListener(k,fn){(this.events[k]||=[]).push(fn);},emit(k){for(const f of this.events[k]||[])f();}});
+ const radios=[element('cards'),element('compact')],reset=element(),status={textContent:''};
+ const panel={querySelectorAll(){return radios;},querySelector(s){return s==='[data-post-view-status]'?status:reset;}};
+ const document={documentElement:{dataset:{}},querySelector(){return panel;}};
+ const window={events:{},addEventListener(k,f){this.events[k]=f;}};
+ const exports={};vm.runInNewContext(source,{exports,document,window,localStorage:storage});
+ exports.initializePostView();exports.initializePostView();
+ return {exports,radios,reset,status,document,window,values,storage};
+}
+const restored=setup();
+assert.equal(restored.document.documentElement.dataset.postView,'compact');
+assert.equal(restored.radios[1].checked,true);
+assert.equal(restored.radios[1].events.change.length,1);
+restored.radios[0].checked=true;restored.radios[0].emit('change');
+assert.equal(restored.values.get('anxiu-post-view-v1'),'cards');
+restored.reset.emit('click');
+assert.equal(restored.values.has('anxiu-post-view-v1'),false);
+assert.equal(restored.values.get('anxiu-todo-v1'),'keep-private-tasks');
+restored.values.set('anxiu-post-view-v1','compact');restored.window.events.storage({key:'anxiu-post-view-v1'});
+assert.equal(restored.document.documentElement.dataset.postView,'compact');
+const invalid=setup('unsupported');assert.equal(invalid.document.documentElement.dataset.postView,'cards');
+const denied=setup('compact',true);assert.equal(denied.document.documentElement.dataset.postView,'cards');
+denied.radios[1].checked=true;denied.radios[1].emit('change');
+assert.equal(denied.document.documentElement.dataset.postView,'compact');assert.match(denied.status.textContent,/无法保存/);
+denied.reset.emit('click');assert.equal(denied.document.documentElement.dataset.postView,'cards');
+console.log('PASS article-view restore, invalid/blocked storage, cross-tab updates, idempotence, and reset preserves task data');

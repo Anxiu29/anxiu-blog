@@ -1,0 +1,57 @@
+---
+import { journalMusic } from "@/data/journal-music";
+import Icon from "./Icon.astro";
+import MusicPet from "./MusicPet.astro";
+import { Icon as MaterialIcon } from "astro-icon/components";
+import "@/styles/journal-music-desktop.css";
+interface Props { embedded?: boolean; }
+const { embedded = false } = Astro.props;
+const Heading = embedded ? "h1" : "h2";
+const PlaylistHeading = embedded ? "h2" : "h3";
+---
+<div id="journal-player" style="display: contents" transition:persist="journal-player">
+<section id="music-panel" class="journal-music" popover={embedded ? undefined : "auto"} data-mode={embedded ? "page" : "popover"} aria-labelledby="music-heading">
+  <div class="music-heading"><div><span class="music-eyebrow">READ & LISTEN</span><Heading id="music-heading">{embedded ? "音乐角落" : "听点音乐"}</Heading></div><button type="button" class="icon-button" data-music-close hidden={embedded} popovertarget="music-panel" popovertargetaction="hide" aria-label="收起音乐播放器"><Icon name="close"/></button></div>
+  <div class="music-room"><div class="music-transport">
+  <div class="music-now"><div class="music-record" aria-hidden="true"><span><MaterialIcon name="material-symbols:music-note-rounded"/></span><img data-music-cover hidden alt="" referrerpolicy="no-referrer" /></div><div class="music-now-meta"><div class="music-title-row"><p class="music-now-title" data-music-title>{journalMusic.tracks[0].title}</p><button type="button" class="music-quick-lyrics" data-music-lyrics-toggle aria-label="同步歌词" aria-expanded="false" aria-controls="music-inline-lyrics"><MaterialIcon name="material-symbols:subtitles-outline-rounded"/></button></div><p class="music-now-artist" data-music-artist>{journalMusic.tracks[0].artist}</p><div class="music-quick-volume"><button type="button" data-music-quick-mute aria-label="静音" aria-pressed="false"><span data-quick-volume-on><MaterialIcon name="material-symbols:volume-up-rounded"/></span><span data-quick-volume-off hidden><MaterialIcon name="material-symbols:volume-off-rounded"/></span></button><input type="range" min="0" max="100" step="1" value="35" data-music-quick-volume aria-label="播放器音量"/></div></div></div>
+  <div class="music-progress"><input id="music-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="音乐播放进度" aria-valuetext="尚未播放" disabled/><div><span data-music-elapsed>0:00</span><span data-music-duration>0:00</span></div></div>
+  <div class="music-controls"><button type="button" class="music-repeat" data-music-repeat aria-label="切换为单曲循环" aria-pressed="false"><span data-music-mode-icon="list"><MaterialIcon name="material-symbols:repeat-rounded"/></span><span data-music-mode-icon="one" hidden><MaterialIcon name="material-symbols:repeat-one-rounded"/></span><span data-music-mode-icon="shuffle" hidden><MaterialIcon name="material-symbols:shuffle-rounded"/></span><span data-music-mode-label>列表循环</span></button><button type="button" class="icon-button" data-music-prev aria-label="上一首"><MaterialIcon name="material-symbols:skip-previous-rounded"/></button><button type="button" class="music-play" data-music-toggle aria-label="播放音乐"><span class="music-play-icon"><MaterialIcon name="material-symbols:play-arrow-rounded"/></span><span class="music-pause-icon" hidden><MaterialIcon name="material-symbols:pause-rounded"/></span></button><button type="button" class="icon-button" data-music-next aria-label="下一首"><MaterialIcon name="material-symbols:skip-next-rounded"/></button><button type="button" class="icon-button music-quick-queue" data-music-queue-toggle aria-label="播放列表与设置" aria-expanded="false" aria-controls="music-queue"><MaterialIcon name="mdi:playlist-music"/></button><button type="button" class="music-page-stop" data-music-stop hidden={!embedded}><Icon name="close"/><span>停止</span></button></div>
+
+  <p class="music-status" data-music-status role="status" aria-live="polite">正在准备音乐…</p>
+  <div class="music-recovery" data-music-recovery hidden><button type="button" data-music-retry>重新播放</button><button type="button" data-music-skip>听下一首</button></div>
+  </div><details id="music-inline-lyrics" class="music-lyrics" data-music-lyrics-panel open={embedded}><summary>同步歌词<span data-music-lyric-preview>播放后显示同步歌词</span></summary><div class="music-lyric-toolbar"><p data-music-lyric-status role="status">播放时加载同步歌词。</p><button type="button" data-music-lyric-follow hidden>回到当前句</button></div><ol class="music-lyric-lines" data-music-lyric-lines aria-label="同步歌词" tabindex="0"></ol></details></div>
+  <details id="music-queue" class="music-queue" data-music-queue-panel open={embedded}><summary class="music-queue-summary">歌单与设置<span>展开选曲</span></summary>
+  <div class="music-listening-options"><button type="button" data-music-floating-toggle hidden={!embedded} aria-pressed="false" aria-controls="music-lyric-strip">显示底部歌词</button><a data-music-official hidden target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">在网易云收听</a></div>
+  <p class="music-active-source" data-music-active-source>正在使用：默认歌单</p>
+  <div class="music-source-picker" role="group" aria-label="音乐来源">
+    <button type="button" data-music-curated aria-pressed="true">默认歌单</button>
+    <button type="button" data-music-online aria-pressed="false" aria-expanded="false" aria-controls="music-online-form">在线歌单</button>
+  </div>
+  <form id="music-online-form" class="music-online-form" hidden>
+    <div class="music-online-fields"><label>音乐平台<select name="platform" data-music-platform><option value="netease">网易云音乐</option><option value="tencent">QQ 音乐</option></select></label><label for="music-playlist-input">歌单链接或 ID<input id="music-playlist-input" name="playlist" type="text" inputmode="url" maxlength="600" placeholder="粘贴公开歌单链接或数字 ID" autocomplete="off" aria-describedby="music-online-help music-source-status" /></label></div>
+    <div class="music-online-actions"><button class="music-load-list" type="submit" data-music-load>加载歌单</button><button type="button" data-music-example>填入默认歌单</button><button type="button" data-music-cancel hidden>取消加载</button></div>
+    <p id="music-online-help">手动加载后连接第三方音乐接口；部分歌曲可能无法播放。加载成功后，选一首开始听；刷新后回到默认歌单。</p>
+    <p id="music-source-status" data-music-source-status role="status" aria-live="polite"></p>
+  </form>
+  <div class="music-playlist-heading"><PlaylistHeading>播放列表</PlaylistHeading><div class="music-queue-tools"><span data-music-count>{journalMusic.tracks.length} 首</span><button type="button" data-music-locate aria-label="在歌单中定位当前曲目">定位当前</button></div></div>
+  <div class="music-queue-search"><label for="music-track-search"><Icon name="search"/><span class="sr-only">搜索当前歌单</span><input id="music-track-search" type="search" placeholder="在歌单里找歌名或歌手" autocomplete="off" maxlength="100"/></label><button type="button" data-music-search-clear hidden aria-label="清除歌单搜索"><Icon name="close"/></button><span data-music-filter-count role="status" aria-live="polite"></span></div>
+  <p class="music-queue-empty" data-music-queue-empty hidden>这张歌单里暂时没找到，试试其他歌名或歌手。</p>
+  <ol class="music-track-list" aria-label="音乐播放列表">{journalMusic.tracks.map((track, index)=><li><button type="button" data-music-track={index} aria-label={'播放 '+track.title} aria-pressed={index===0?'true':'false'}><span class="music-track-symbol" aria-hidden="true"><Icon name="music"/></span><span><strong>{track.title}</strong><small>{track.artist}</small></span><Icon name="play"/></button></li>)}</ol>
+  <details class="music-preferences"><summary>音量与收听说明</summary><div class="music-volume"><button type="button" class="icon-button" data-music-mute aria-label="静音" aria-pressed="false"><span data-volume-on><Icon name="volume"/></span><span data-volume-off hidden><Icon name="muted"/></span></button><label for="music-volume" class="sr-only">音乐音量</label><input id="music-volume" type="range" min="0" max="100" step="1" value="35"/><output for="music-volume" data-music-volume>35%</output></div>
+  <p class="music-member-note" data-music-member-note hidden>部分歌曲可前往网易云官方登录收听；官方播放时，请使用网易云自身的歌词。</p>
+</details>
+  <p class="music-source">选曲来自 <a data-music-source-link href={journalMusic.sourceUrl} target="_blank" rel="noopener noreferrer">{journalMusic.sourceTitle}<Icon name="arrow"/></a><span data-music-source-note>默认歌单 · 在线播放</span></p>
+  </details>
+  <a class="music-page-link" data-music-page-link hidden={embedded} href="/music/">前往音乐页<Icon name="arrow"/></a>
+  <audio id="journal-audio" preload="none" aria-label="博客音乐"></audio>
+</section>
+<button type="button" id="music-lyric-strip" class="music-lyric-strip" aria-label="隐藏底部歌词" title="点击隐藏歌词，可在音乐页恢复" data-pagefind-ignore hidden>
+  <span class="music-floating-current" data-floating-current></span><span class="music-floating-next" data-floating-next></span>
+</button>
+<MusicPet/>
+<div id="music-config" hidden data-auto-play="false" data-tracks={JSON.stringify(journalMusic.tracks)}></div>
+</div>
+<script>
+  import { initializeJournalMusic } from "@/scripts/journal-music";
+  initializeJournalMusic();
+</script>

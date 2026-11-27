@@ -1,0 +1,40 @@
+.music-page { --scene-height: 220px; }
+.hyde-shell.music-page .site-main { display: grid; grid-template-columns: minmax(0,1fr); gap: 20px; max-width: 900px; }
+.music-page .journal-music { position: static; inset: auto; width: 100%; max-width: none; max-height: none; margin: 0; padding: 24px; overflow: visible; border-radius: var(--card-radius); box-shadow: var(--shell-shadow); }
+.music-page .music-heading :is(h1,h2) { font-size: 23px; }
+.music-page .music-room { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; margin-top: 16px; }
+.music-page .music-room:has(.music-lyrics[hidden]) { grid-template-columns: minmax(0,1fr); }
+.music-page .music-room:has(.music-lyrics[hidden]) .music-transport { max-width: 520px; width: 100%; }
+.music-page .music-transport { min-width: 0; }
+.music-page .music-now { grid-template-columns: 86px minmax(0,1fr); gap: 18px; margin: 0 0 12px; }
+.music-page .music-record { width: 86px; height: 86px; }
+.music-page .music-record > span { width: 34px; height: 34px; }
+.music-page .music-now-title { font-size: 20px; }
+.music-page .music-controls { flex-wrap: wrap; row-gap: 8px; }
+.music-page .music-repeat { margin-left: auto; }
+.music-page .music-page-stop { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 8px; border: 0; border-radius: 8px; color: var(--muted); background: var(--soft); font-size: 12px; }
+.music-page .music-page-stop svg { width: 15px; height: 15px; }
+.music-page .music-lyrics { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+.music-page .music-lyric-lines { height: 230px; max-height: 230px; padding-block: 12px 50px; }
+.music-page .music-lyric-lines button { font-size: 15px; min-height: 46px; }
+.music-page .music-lyric-lines button[aria-current="true"] { background: var(--panel); color: var(--accent); font-weight: 650; }
+.music-page .music-queue { margin-top: 14px; }
+.music-page .music-source-picker { max-width: 340px; }
+.music-page .music-online-fields { grid-template-columns: 150px minmax(0,1fr); }
+.music-page .music-queue-search { max-width: 520px; }
+.music-page .music-track-list { max-height: 330px; }
+.music-page .music-track-list button { min-height: 62px; }
+.music-page-guide { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 14px 24px; padding: 22px; border: 1px solid var(--line); border-radius: var(--card-radius); background: var(--panel); }
+.music-page-kicker { font-size: 11px; letter-spacing: .1em; color: var(--muted); }
+.music-page-guide h2 { margin: 7px 0; font-size: 18px; font-weight: 650; line-height: 1.7; color: var(--ink); }
+.music-page-guide p { color: var(--muted); font-size: 13px; line-height: 1.9; }
+.music-page-guide .music-read-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 12px; font-size: 13px; }
+.music-read-link svg { width: 17px; height: 17px; }
+.music-page-guide .music-page-note { grid-column: 1/-1; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; }
+@media(max-width: 650px) {
+ .music-page .journal-music { padding: 20px 16px; }
+ .music-page .music-room { grid-template-columns: minmax(0,1fr); gap: 12px; }
+ .music-page .music-online-fields { grid-template-columns: minmax(0,1fr); }
+ .music-page-guide { grid-template-columns: minmax(0,1fr); padding: 20px; }
+ .music-page-guide .music-read-link { justify-self: start; }
+}

@@ -1,0 +1,31 @@
+---
+import Icon from '@/components/journal/Icon.astro';
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import {getChronoframeEntry} from '@/data/chronoframe';
+import '@/styles/journal-photos.css';
+const publicDeployment = process.env.VERCEL === "1";
+const entry=getChronoframeEntry(publicDeployment ? undefined : import.meta.env.CHRONOFRAME_LOCAL_URL);
+---
+<JournalLayout title="私人相册" description="日常的片刻，旅行的风景，还有想留住的小事。给回忆一个安静的地方。" active="相册" noindex>
+ <h1 class="sr-only">私人相册</h1>
+ <div class="photos-page">
+  <section class="photo-welcome j-card" aria-labelledby="photo-welcome-title">
+   <div class="photo-drawing" aria-hidden="true"><div class="photo-paper back"><Icon name="image"/></div><div class="photo-paper front"><div class="photo-landscape"><span class="photo-sun"></span><span class="photo-hill far"></span><span class="photo-hill near"></span></div><span class="photo-paper-line"></span></div><span class="photo-small-star">✦</span><span class="photo-drawing-caption">MOMENTS, KEPT.</span></div>
+   <div class="photo-welcome-copy"><span class="photo-eyebrow"><Icon name="image"/>给回忆留个位置</span><h2 id="photo-welcome-title">把日常，<br/>留成回忆。</h2><p>不必每一张都有故事。<br class="photo-desktop-break"/>喜欢的瞬间，值得慢慢收藏。</p><a class="photo-text-link" href="#photos-guide">了解相册与备份 <span aria-hidden="true">↓</span></a></div>
+  </section>
+  <section class:list={['photo-connection','j-card',entry.state]} aria-labelledby="photo-connection-title" data-photo-state={entry.state}>
+   <span class="photo-connection-icon"><Icon name={entry.url?'check':'folder'}/></span>
+   <div class="photo-connection-copy"><span class="photo-section-kicker">我的照片库</span><h2 id="photo-connection-title">{publicDeployment?'相册尚未公开':entry.state==='configured'?'本地入口已配置':entry.state==='invalid'?'相册地址需要检查':'尚未连接本地相册'}</h2><p>{publicDeployment?'照片库仍保存在站长自己的电脑，暂未提供在线访问。':entry.state==='configured'?'入口已准备好。请先确认本机相册服务已启动，再进入查看。':entry.state==='invalid'?'当前地址不符合本地接入规则，暂不提供跳转。请按本机运行说明检查配置。':'相册服务准备好后，就可以从这里进入。现在还没有接入你的照片。'}</p></div>
+   {entry.url?<a class="photo-primary-action" href={entry.url} target="_blank" rel="noopener noreferrer">打开本地相册 <Icon name="arrow"/></a>:<a class="photo-secondary-action" href="#photos-guide">查看使用说明 <Icon name="down"/></a>}
+  </section>
+  <section id="photos-guide" class="photo-guide" aria-labelledby="photo-guide-title">
+   <div class="photo-section-heading"><div><span class="photo-section-kicker">从收藏，到回看</span><h2 id="photo-guide-title">让每一份回忆，都有安放。</h2></div><a href="https://docs.chronoframe.art/" target="_blank" rel="noopener noreferrer">ChronoFrame 文档 <Icon name="arrow"/></a></div>
+   <div class="photo-guide-grid">
+    <article class="j-card"><span class="photo-guide-icon"><Icon name="folder"/></span><h3>按喜欢的方式整理</h3><p>接入后，可在 ChronoFrame 中上传照片、建立相册、编辑标题。旅行或日常，都能放在一起慢慢整理。</p><span class="photo-guide-note">照片由独立的相册服务保存</span></article>
+    <article class="j-card"><span class="photo-guide-icon"><Icon name="person"/></span><h3>先确认谁可以看</h3><p>私人照片不放进博客的公开资源。上传前确认相册可见范围，并检查退出登录后能否访问原图。</p><span class="photo-guide-note">本机接入，暂不开放公网</span></article>
+    <article class="j-card"><span class="photo-guide-icon"><Icon name="book"/></span><h3>也给回忆留份备份</h3><p>照片、相册信息和密钥一起保存。换目录恢复并实际打开照片后，才算验证过这份备份。</p><span class="photo-guide-note">仅保存数据库，无法找回丢失的原图</span></article>
+   </div>
+  </section>
+  <section class="photo-footnote j-card" aria-labelledby="photo-boundary-title"><div><h2 id="photo-boundary-title">一个入口，两份独立的空间。</h2><p>这里连接本机的 ChronoFrame，相册登录与博客、浏览器待办分别管理。本地入口只对运行服务的这台电脑有意义，手机和其他设备暂不能直接使用。</p></div><a href="/posts/site-notebook/">查看小站建设进度 <Icon name="right"/></a></section>
+ </div>
+</JournalLayout>

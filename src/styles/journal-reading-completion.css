@@ -1,0 +1,29 @@
+.hyde-shell .reading-copy-status { color: var(--muted); font-size: 12px; }
+.hyde-shell .reading-copy-status:empty { display: none; }
+.hyde-shell .reading-exit {
+	position: fixed;
+	bottom: max(24px, env(safe-area-inset-bottom));
+	right: 24px;
+	z-index: 60;
+	padding: 11px 17px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--panel);
+	color: var(--ink);
+	box-shadow: 0 4px 20px #0002;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+.hyde-shell .reading-exit[hidden], .hyde-shell [data-toc-region][hidden] { display: none; }
+.hyde-shell .reading-exit:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.hyde-shell .article-share-fallback [data-share-dismiss] { display: block; margin-top: 10px; color: var(--accent); }
+.hyde-shell .post-cover img { object-position: var(--post-image-position, center); }
+.hyde-shell .article-project-cover img { object-position: var(--post-image-position, top); }
+@media (max-width: 600px) {
+	.hyde-shell .reading-exit { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 600px) {
+	.hyde-shell .reading-exit { bottom: max(88px, calc(env(safe-area-inset-bottom) + 74px)); }
+}

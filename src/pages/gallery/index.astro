@@ -9,7 +9,7 @@ import { getAlbumCover, scanAlbumPhotos } from "@/utils/gallery-utils";
 
 // 检查页面是否启用
 if (!siteConfig.pages.gallery) {
-	return Astro.redirect("/404/");
+	return Astro.redirect("/404.html");
 }
 
 const title = i18n(I18nKey.gallery);

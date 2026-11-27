@@ -130,9 +130,6 @@ html:has(dialog[open]), html.navigation-open { overflow: hidden; }
 .pagination { align-items: center; font-size: 14px; padding: 28px 0 10px; }
 .pagination > a { background: var(--panel); padding: 9px 15px; border: 1px solid var(--line); border-radius: 8px; }
 
-.archive-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0; }
-.archive-filter-summary .result-count { margin: 0; }
-#archive-clear-tag { border: 1px solid var(--line); background: var(--soft); color: var(--accent); font-size: 13px; border-radius: 7px; padding: 7px 11px; }
 /* Useful sidebars: profile, a few actual recommendations, topics and tools. */
 .blog-sidebar, .home-columns .blog-sidebar { padding-top: 0; gap: 20px; }
 .sidebar-card { padding: 24px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); box-shadow: var(--wallpaper-shadow); }

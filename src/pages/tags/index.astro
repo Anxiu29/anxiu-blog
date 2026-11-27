@@ -4,4 +4,4 @@ import { getTagList } from "@/utils/content-utils";
 
 const items = await getTagList();
 ---
-<JournalLayout title="文章标签"><section class="page-intro"><h1>按标签阅读</h1><p>从感兴趣的话题开始。</p></section><div class="topic-list">{items.map(item=><a href={'/archive/?tag='+encodeURIComponent(item.name)}><strong>{item.name}</strong><span>{item.count} 篇 →</span></a>)}</div></JournalLayout>
+<JournalLayout title="文章标签" description="从技术、工具和项目标签出发，发现相关的开发记录。"><section class="page-intro"><h1>按标签阅读</h1><p>从感兴趣的话题开始。</p></section><div class="topic-list">{items.map(item=><a href={'/archive/?tag='+encodeURIComponent(item.name)}><strong>{item.name}</strong><span>{item.count} 篇 →</span></a>)}</div></JournalLayout>

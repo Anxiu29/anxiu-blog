@@ -1,36 +1,22 @@
 ---
-import type { GetStaticPaths, Page } from "astro";
-import BlogSidebar from "@/components/journal/BlogSidebar.astro";
-import HomeDiscovery from "@/components/journal/HomeDiscovery.astro";
-import PostList from "@/components/journal/PostList.astro";
-import SeriesGrid from "@/components/journal/SeriesGrid.astro";
-import { siteConfig } from "@/config/siteConfig";
-import JournalLayout from "@/layouts/JournalLayout.astro";
-import {
-	getCategoryList,
-	getSortedPosts,
-	type PostForList,
-} from "@/utils/content-utils";
-export const getStaticPaths = (async ({ paginate }) =>
-	paginate(await getSortedPosts(), {
-		pageSize: siteConfig.pagination.postsPerPage || 8,
-	})) satisfies GetStaticPaths;
-const { page } = Astro.props as { page: Page<PostForList> };
-const pageCategories = new Set(
-	page.data.map((post) => post.data.category || "未分类"),
-);
-const categories = (await getCategoryList()).filter((category) =>
-	pageCategories.has(category.name),
-);
+import type { GetStaticPaths, Page } from 'astro';
+import LeftSidebar from '@/components/journal/LeftSidebar.astro';
+import RightSidebar from '@/components/journal/RightSidebar.astro';
+import CategoryBar from '@/components/journal/CategoryBar.astro';
+import PostList from '@/components/journal/PostList.astro';
+import Icon from '@/components/journal/Icon.astro';
+import HomeFeatured from '@/components/journal/HomeFeatured.astro';
+import JournalLayout from '@/layouts/JournalLayout.astro';
+import { getSortedPosts, type PostForList } from '@/utils/content-utils';
+export const getStaticPaths = (async({paginate})=>paginate(await getSortedPosts(),{pageSize:6})) satisfies GetStaticPaths;
+const { page } = Astro.props as {page:Page<PostForList>};
 ---
-<JournalLayout title={page.currentPage>1?'文章 · 第 '+page.currentPage+' 页':undefined} active="首页">
-  {page.currentPage===1&&<HomeDiscovery/>}
-  <div class="blog-columns home-columns"><section class="recent-posts" aria-labelledby="posts-heading"><div class="section-heading article-list-heading"><h2 id="posts-heading">最近文章 <small>{page.total} 篇记录</small></h2><a href="/archive/">全部文章 →</a></div><div class="home-category-tabs" role="group" aria-label="按分类浏览本页文章"><button type="button" data-home-category="" aria-pressed="true">全部</button>{categories.map(c=><button type="button" data-home-category={c.name} aria-pressed="false">{c.name}</button>)}</div><p id="home-filter-status" class="sr-only" role="status" aria-live="polite"></p><PostList posts={page.data}/><p id="home-filter-empty" class="empty-state" hidden>本页没有这个分类的文章，<a href="/archive/">去归档查看全部文章 →</a></p>{(page.url.prev||page.url.next)&&<nav class="pagination" aria-label="文章分页">{page.url.prev&&<a href={page.url.prev}>← 上一页</a>}<span>第 {page.currentPage} 页</span>{page.url.next&&<a href={page.url.next}>下一页 →</a>}</nav>}</section><BlogSidebar/></div>
-  {page.currentPage===1&&<section class="home-topic-shelf" aria-labelledby="home-topics-heading"><div class="section-heading article-list-heading"><h2 id="home-topics-heading">专题导读</h2><a href="/series/">全部专题 →</a></div><SeriesGrid compact/></section>}
+<JournalLayout title={page.currentPage>1?`文章 · 第 ${page.currentPage} 页`:undefined} active="首页">
+ <div class="journal-home-grid"><LeftSidebar/><div class="journal-feed"><CategoryBar/>
+  {page.currentPage === 1 && <HomeFeatured/>}
+  <nav class="home-reading-links" aria-label="阅读入口"><a href="/series/"><span class="life-icon"><Icon name="book"/></span><span><strong>循着专题读</strong><small>把相关的实践连起来</small></span><Icon name="chevron"/></a><a href="/todo/"><span class="life-icon"><Icon name="todo"/></span><span><strong>我的待办</strong><small>记下一件今天想做的事</small></span><Icon name="chevron"/></a></nav>
+  <section class="recent-posts" aria-labelledby="posts-heading"><div class="feed-heading"><h2 id="posts-heading">文章与记录 <small>{page.total} 篇</small></h2><a href="/archive/">全部文章</a></div><PostList posts={page.data} headingLevel="h2"/>
+  {page.lastPage>1&&<nav class="feed-pagination" aria-label="文章分页">{page.url.prev?<a href={page.url.prev} rel="prev" aria-label="上一页"><Icon name="left"/></a>:<span class="page-boundary" aria-hidden="true"><Icon name="left"/></span>}{Array.from({length:page.lastPage},(_,i)=>i+1).map(n=><a href={n===1?'/':`/${n}/`} aria-current={n===page.currentPage?'page':undefined} aria-label={`第 ${n} 页`}>{n}</a>)}{page.url.next?<a href={page.url.next} rel="next" aria-label="下一页"><Icon name="right"/></a>:<span class="page-boundary" aria-hidden="true"><Icon name="right"/></span>}<span>第 {page.currentPage} / {page.lastPage} 页</span></nav>}
+  </section>
+ </div><RightSidebar/></div>
 </JournalLayout>
-
-<script>
-const buttons=[...document.querySelectorAll<HTMLButtonElement>('[data-home-category]')];
-const rows=[...document.querySelectorAll<HTMLElement>('.recent-posts > .post-list > .post-row')];
-buttons.forEach(button=>button.addEventListener('click',()=>{const selected=button.dataset.homeCategory||'';let count=0;rows.forEach(row=>{row.hidden=!!selected&&row.dataset.category!==selected;if(!row.hidden)count++;});buttons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));const status=document.querySelector('#home-filter-status');if(status)status.textContent=(selected||'全部')+' · '+count+' 篇文章';const empty=document.querySelector<HTMLElement>('#home-filter-empty');if(empty)empty.hidden=count>0;}));
-</script>

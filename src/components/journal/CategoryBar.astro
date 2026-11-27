@@ -1,0 +1,7 @@
+---
+import { getCategoryList, getSortedPosts } from '@/utils/content-utils';
+import Icon from './Icon.astro';
+const categories = await getCategoryList();
+const posts = await getSortedPosts();
+---
+<nav class="journal-category-bar" aria-label="文章快捷分类"><a href="/" aria-current={Astro.url.pathname==='/'?'page':undefined} aria-label="博客首页"><Icon name="home"/></a><a href="/archive/">归档 <small>{posts.length}</small></a><a href="/categories/">分类 <small>{categories.length}</small></a><div>{categories.slice(0,3).map(c=><a href={`/archive/?category=${encodeURIComponent(c.name)}`}>{c.name}<small>{c.count}</small></a>)}</div><a href="/tags/">标签</a></nav>

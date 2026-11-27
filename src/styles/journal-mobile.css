@@ -1,0 +1,75 @@
+/* Touch layouts share the desktop content and music state. */
+@media (max-width: 900px) {
+ html { scrollbar-gutter:auto; scroll-padding-top:84px; }
+ .hyde-shell .site-main { min-width:0; }
+ .hyde-shell :is(input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]),textarea,select) { font-size:16px; }
+ .hyde-shell .music-pet { --pet-accent:#86bce1; position:fixed; z-index:45; left:8px; bottom:max(14px,env(safe-area-inset-bottom)); display:flex; align-items:center; flex-direction:column; width:176px; height:184px; color:var(--ink); text-align:center; pointer-events:none; }
+ .music-pet .pet-stage { position:relative; width:88px; height:90px; flex:0 0 90px; cursor:grab; touch-action:none; user-select:none; pointer-events:auto; }
+ .music-pet .pet-xiaohei { display:block; width:100%; height:100%; overflow:visible; filter:drop-shadow(0 3px 4px #1a2e3b15); }
+ .music-pet .pet-note { display:none; }
+ .music-pet .pet-mobile-menu { position:absolute; top:48px; right:8px; display:grid; place-items:center; width:44px; height:44px; padding:12px; border:1px solid var(--line); border-radius:50%; color:var(--accent); background:color-mix(in srgb,var(--panel) 88%,transparent); box-shadow:0 2px 9px #173c5912; pointer-events:auto; }
+ .pet-mobile-menu svg { width:20px; height:20px; }
+ .music-pet .pet-hover-tools { position:absolute; top:94px; left:0; width:100%; padding:8px; border:1px solid var(--line); border-radius:14px; background:color-mix(in srgb,var(--panel) 96%,transparent); box-shadow:0 4px 20px #173c5915; opacity:0; visibility:hidden; pointer-events:none; }
+ .music-pet[data-controls-open=true] .pet-hover-tools { opacity:1; visibility:visible; pointer-events:auto; }
+ .music-pet .pet-song { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 0 4px; font-size:13px; line-height:1.6; }
+ .music-pet .pet-controls { display:flex; justify-content:center; gap:0; }
+ .music-pet .pet-controls button { display:grid; place-items:center; flex:0 0 38px; width:38px; height:44px; padding:8px; border:0; border-radius:10px; color:var(--ink); background:transparent; }
+ .music-pet .pet-controls button svg { width:23px; height:23px; }
+ .music-pet .pet-controls .pet-play { color:var(--accent); background:var(--soft); }
+ .music-pet .pet-controls .pet-lyrics-toggle { font-size:14px; }
+ .music-pet .pet-controls [aria-pressed=true] { color:var(--accent); background:var(--soft); }
+ .music-pet .pet-status { margin:4px 0 0; font-size:12px; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+ .music-pet .pet-status:empty { display:none; }
+ .music-pet .pet-lyrics-space { position:absolute; top:96px; left:0; width:100%; pointer-events:none; }
+ .music-pet[data-controls-open=true] .pet-lyrics-space { visibility:hidden; }
+ .music-pet .pet-lyric { margin:0; color:color-mix(in srgb,var(--ink) 72%,transparent); font-size:13px; line-height:1.8; text-shadow:0 1px 4px var(--panel); }
+ .music-pet .pet-lyric > span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+ .music-pet .pet-lyric > [data-pet-next] { font-size:12px; opacity:.55; }
+ .music-pet[data-dragging=true] :is(.pet-hover-tools,.pet-lyrics-space) { visibility:hidden; pointer-events:none; }
+ .hyde-shell:has(dialog[open]) .music-pet { visibility:hidden; }
+ .hyde-shell :is(.mobile-navigation,.appearance-dialog,#search-dialog,.journal-music[data-mode=popover]) { overscroll-behavior:contain; }
+}
+@media (min-width:901px) { .pet-mobile-menu { display:none; } }
+@media (max-width:600px) {
+ .hyde-shell .header-inner { min-height:64px; width:calc(100% - 20px); gap:8px; padding-top:env(safe-area-inset-top); }
+ .hyde-shell .header-actions { gap:0; }
+ .hyde-shell .header-actions :is(.icon-button,.header-search) { width:40px; height:44px; padding:10px; }
+ .hyde-shell .wordmark { font-size:19px; gap:5px; }
+ .hyde-shell .wordmark .brand-symbol { width:30px; height:30px; }
+ .hyde-shell.home-page { --scene-height:clamp(360px,55svh,480px); }
+ .hyde-shell .home-banner { min-height:calc(var(--scene-height) - 64px - 28px); padding:32px 24px 56px; }
+ .hyde-shell .banner-quote .banner-description { font-size:clamp(21px,5.7vw,27px); line-height:1.9; letter-spacing:.045em; min-height:5.7em; margin:0; }
+ .hyde-shell.home-page .wallpaper-shade { background:linear-gradient(180deg,#102b4333,transparent 65%,var(--bg)); }
+ .hyde-shell .appearance-dialog { inset:auto 8px max(8px,env(safe-area-inset-bottom)); max-height:calc(100dvh - 80px - env(safe-area-inset-top)); border-radius:20px; }
+ .hyde-shell .appearance-heading { position:sticky; top:0; z-index:2; background:var(--panel); padding:16px 18px 12px; }
+ .hyde-shell .appearance-body { padding:0 18px 20px; }
+ .hyde-shell .appearance-heading .icon-button { width:44px; height:44px; }
+ .hyde-shell .appearance-help { font-size:13px; }
+ .hyde-shell :is(.appearance-upload,.appearance-reset,.appearance-playback) { min-height:44px; font-size:14px; }
+ .hyde-shell .journal-music[data-mode=popover] { top:76px; right:12px; left:12px; width:auto; max-width:none; max-height:calc(100dvh - 92px - env(safe-area-inset-bottom)); padding:20px; border-radius:18px; }
+ .hyde-shell .journal-music[data-mode=popover] .music-heading .icon-button { width:44px; height:44px; }
+ .hyde-shell .journal-music[data-mode=popover] .music-now { padding-right:24px; }
+ .hyde-shell .journal-music .music-controls { flex-wrap:wrap; gap:6px; }
+ .hyde-shell .journal-music .music-controls :is(.icon-button,.music-repeat,.music-play) { min-width:44px; min-height:44px; }
+ .hyde-shell .journal-music :is(.music-lyrics summary,.music-queue-summary,.music-listening-options button,.music-listening-options a) { min-height:44px; }
+ .hyde-shell .mobile-navigation[open] { padding:16px; padding-bottom:max(16px,env(safe-area-inset-bottom)); }
+ .hyde-shell .mobile-navigation-more a { display:inline-flex; align-items:center; min-height:44px; }
+ .hyde-shell .article-body { font-size:var(--article-font-size,17px); line-height:1.95; overflow-wrap:anywhere; }
+ .hyde-shell .article-body :is(pre,.content-scroll) { overflow-x:auto; overscroll-behavior-x:contain; }
+ .hyde-shell .article-body img { max-width:100%; height:auto; }
+ .hyde-shell .site-footer { padding-bottom:calc(110px + env(safe-area-inset-bottom)); }
+ .hyde-shell .back-top { bottom:max(20px,env(safe-area-inset-bottom)); }
+}
+@media (max-width:359px) {
+ .hyde-shell .header-inner { width:calc(100% - 12px); gap:4px; }
+ .hyde-shell .header-actions :is(.icon-button,.header-search) { width:36px; padding:8px; }
+ .hyde-shell .wordmark { font-size:18px; }
+ .hyde-shell .wordmark .brand-symbol { width:27px; height:27px; }
+ .hyde-shell .journal-music[data-mode=popover] { padding:16px; }
+}
+@media (max-height:500px) and (max-width:900px) {
+ .hyde-shell .music-pet { height:180px; }
+ .music-pet .pet-stage { width:64px; height:66px; flex-basis:66px; }
+ .music-pet .pet-mobile-menu { top:22px; }
+ .music-pet :is(.pet-hover-tools,.pet-lyrics-space) { top:68px; }
+}

@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --frozen-lockfile",
   "framework": "astro",
   "headers": [
     {
@@ -14,10 +14,6 @@
         {
           "key": "X-Frame-Options",
           "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
         },
         {
           "key": "Referrer-Policy",
@@ -62,5 +58,6 @@
       ]
     }
   ],
-  "cleanUrls": true
+  "cleanUrls": true,
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }

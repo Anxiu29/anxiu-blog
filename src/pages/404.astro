@@ -1,12 +1,12 @@
 ---
 import JournalLayout from "@/layouts/JournalLayout.astro";
 ---
-<JournalLayout title="页面未找到" active="" noindex>
+<JournalLayout title="页面未找到" description="这个地址暂时找不到了，可以搜索内容，或从文章和工具入口继续浏览。" active="" noindex>
   <section class="page-intro">
     <h1>这页暂时找不到了。</h1>
     <p>地址可能有误，也可以从文章或工具入口继续浏览。</p>
   </section>
-  <div class="reading-block">
+  <div class="reading-block"><p><a class="j-button primary" href="/search/">搜索文章、工具或作品 →</a></p>
     <p><a href="/">返回首页 →</a> · <a href="/archive/">浏览文章</a> · <a href="/tools/">开发工具</a></p>
   </div>
 </JournalLayout>

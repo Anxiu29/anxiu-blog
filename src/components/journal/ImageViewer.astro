@@ -1,38 +1,13 @@
 ---
-import Icon from "./Icon.astro";
+import Icon from './Icon.astro';
 ---
-<dialog id="article-image-viewer" class="article-image-viewer" aria-label="查看文章图片">
-  <button type="button" class="image-viewer-close icon-button" aria-label="关闭图片"><Icon name="close"/></button>
-  <figure><img id="article-viewer-image" alt=""/><figcaption id="article-viewer-caption"></figcaption></figure>
-  <p>点击空白处或按 Esc 关闭</p>
+<dialog id="article-image-viewer" class="article-image-viewer" aria-label="查看文章图片" aria-describedby="article-viewer-help">
+  <header class="image-viewer-header"><span id="article-viewer-count" role="status" aria-live="polite"></span><button type="button" id="article-viewer-close" class="image-viewer-close" aria-label="关闭图片"><Icon name="close"/></button></header>
+  <figure id="article-viewer-figure"><img id="article-viewer-image" alt=""/><p id="article-viewer-error" role="status" hidden>这张图片暂时无法加载。可以切换其他图片，或关闭后重试。</p><figcaption id="article-viewer-caption"></figcaption></figure>
+  <nav id="article-viewer-navigation" class="image-viewer-navigation" aria-label="切换文章图片"><button type="button" id="article-viewer-prev"><Icon name="left"/>上一张</button><button type="button" id="article-viewer-next">下一张<Icon name="right"/></button></nav>
+  <p id="article-viewer-help">左右方向键切换 · Esc 或点击空白处关闭</p>
 </dialog>
 <script>
-const dialog = document.querySelector<HTMLDialogElement>("#article-image-viewer");
-const preview = document.querySelector<HTMLImageElement>("#article-viewer-image");
-const caption = document.querySelector("#article-viewer-caption");
-if (dialog && preview) {
-  const close = () => dialog.close();
-  document.querySelectorAll<HTMLImageElement>(".article-body img, .article-project-cover img").forEach(image => {
-    if (image.closest("a,button") || !image.getAttribute("src")) return;
-    const label = image.alt || image.closest("figure")?.querySelector("figcaption")?.textContent || "文章图片";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "article-image-button";
-    button.setAttribute("aria-label", `查看大图：${label}`);
-    button.setAttribute("aria-haspopup", "dialog");
-    image.before(button);
-    button.append(image);
-    button.addEventListener("click", () => {
-      preview.src = image.currentSrc || image.src;
-      preview.alt = label;
-      if (caption) caption.textContent = label;
-      dialog.showModal();
-    });
-  });
-  dialog.querySelector("button")?.addEventListener("click", close);
-  dialog.addEventListener("click", event => {
-    if (event.target === dialog || event.target instanceof HTMLElement && event.target.tagName === "FIGURE") close();
-  });
-  dialog.addEventListener("close", () => preview.removeAttribute("src"));
-}
+import { initializeArticleImages } from '@/scripts/journal-images';
+initializeArticleImages();
 </script>

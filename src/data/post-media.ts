@@ -1,35 +1,40 @@
-// Actual project screenshots only. Decorative generated concepts are not shipped.
-export function getPostMedia(id: string) {
-	const key = id.replace(/\.(md|mdx)$/, "");
-	const media: Record<
-		string,
-		{
-			src: string;
-			caption: string;
-			width: number;
-			height: number;
-			thumbnail?: boolean;
+import { existsSync } from "node:fs";
+import path from "node:path";
+import type { ImageMetadata } from "astro";
+import sharp from "sharp";
+import { type CoverFrontmatter, resolvePostMedia } from "@/utils/post-media";
+
+const localImages = import.meta.glob<ImageMetadata>(
+	"/src/content/posts/**/*.{png,jpg,jpeg,webp,avif,gif}",
+	{ import: "default" },
+);
+const publicRoot = path.resolve("public");
+const assets = new Map<string, Promise<ImageMetadata | undefined>>();
+
+function loadAsset(source: string) {
+	const cached = assets.get(source);
+	if (cached) return cached;
+	const pending = (async () => {
+		if (source.startsWith("/src/content/posts/"))
+			return localImages[source]?.();
+		const filename = path.resolve(publicRoot, `.${source}`);
+		if (
+			!filename.startsWith(`${publicRoot}${path.sep}`) ||
+			!existsSync(filename)
+		)
+			return undefined;
+		try {
+			const { width, height, format } = await sharp(filename).metadata();
+			if (!width || !height || !format) return undefined;
+			return { src: source, width, height, format } as ImageMetadata;
+		} catch {
+			return undefined;
 		}
-	> = {
-		"webhid-tool-guide": {
-			src: "/images/projects/hid-interface.jpg",
-			caption: "HID 工具界面，未连接设备",
-			width: 800,
-			height: 230,
-			thumbnail: false,
-		},
-		"anxiu-demo": {
-			src: "/images/projects/anxiu-interface.jpg",
-			caption: "Anxiu 的 RK-C98 演示模式",
-			width: 1280,
-			height: 800,
-		},
-		"fog-town-nightwalk": {
-			src: "/images/projects/fog-town.jpg",
-			caption: "雾镇夜行实际运行界面",
-			width: 1280,
-			height: 800,
-		},
-	};
-	return media[key];
+	})();
+	assets.set(source, pending);
+	return pending;
+}
+
+export async function getPostMedia(id: string, data: CoverFrontmatter = {}) {
+	return resolvePostMedia(id, data, loadAsset);
 }

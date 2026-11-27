@@ -1,0 +1,9 @@
+---
+import TodoBoard from '@/components/journal/apps/TodoBoard.svelte';
+import Icon from '@/components/journal/Icon.astro';
+import JournalLayout from '@/layouts/JournalLayout.astro';
+---
+<JournalLayout title="我的待办" description="把想做的事记下来，一件一件，慢慢完成。任务只保存在当前浏览器，可自行导出和导入备份。" active="待办" noindex>
+ <h1 class="sr-only">我的待办</h1>
+ <div class="todo-page"><section class="todo-page-main" aria-label="待办管理"><TodoBoard client:load/><noscript><p>启用 JavaScript 后即可使用本地待办。任务不会预先写进页面，也不会上传到服务器。</p></noscript></section><aside class="todo-page-notes" aria-label="使用说明"><section class="j-card"><h2><Icon name="todo"/>属于你的这份清单</h2><p>添加任务，设置重要程度和截止日期。完成后可以回顾，移入回收站后也能恢复。</p><p>首页右侧可以快速记录；手机上可从首页快捷入口或导航打开完整待办。</p></section><section class="j-card"><h2><Icon name="folder"/>记得带走一份备份</h2><p>任务保存在此网站、此浏览器的本地存储里。清除网站数据会删除记录，建议定期导出备份。</p><p>换设备或换浏览器时，可导入 JSON 备份。这里没有登录和自动云同步，也不与 Windows 桌面待办共享数据。</p></section><section class="j-card"><h2><Icon name="book"/>小站的另一份清单</h2><p>公开建设清单记录博客的开发进度；这里的任务只在你的浏览器里显示。</p><a href="/posts/site-notebook/">看看小站建设记录</a></section></aside></div>
+</JournalLayout>

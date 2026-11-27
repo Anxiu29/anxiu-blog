@@ -2,31 +2,39 @@
 import BlogSidebar from "@/components/journal/BlogSidebar.astro";
 import Icon from "@/components/journal/Icon.astro";
 import { siteConfig } from "@/config/siteConfig";
-import { bookmarks } from "@/data/blog-discovery";
+import { bookmarkGroups, bookmarks } from "@/data/blog-discovery";
 import JournalLayout from "@/layouts/JournalLayout.astro";
+import "@/styles/journal-discovery-completion.css";
 
 const tags = [...new Set(bookmarks.flatMap((b) => b.tags))];
+const siteInfo = `名称：${siteConfig.title}\n地址：${siteConfig.site_url}\n简介：${siteConfig.description}\n订阅：${new URL('/rss.xml', siteConfig.site_url).href}`;
 ---
-<JournalLayout title="友链与站点收藏" active="逛逛"><section class="page-intro"><h1>友链与站点收藏</h1><p>收集一些值得逛逛的博客和开源站点。目前这里是站点收藏，尚未互换友链。</p></section><div class="blog-columns"><div class="bookmarks-main"><section class="bookmark-filter" aria-label="筛选站点"><form role="search" id="bookmark-form"><label class="sr-only" for="bookmark-query">搜索收藏站点</label><div class="bookmark-search"><Icon name="search"/><input id="bookmark-query" type="search" name="q" placeholder="搜索站名、介绍或标签"/></div><button type="reset">重置</button></form><div class="bookmark-tags" role="group" aria-label="站点标签"><button type="button" data-bookmark-tag="" aria-pressed="true">全部</button>{tags.map(tag=><button type="button" data-bookmark-tag={tag} aria-pressed="false">{tag}</button>)}</div><div class="bookmark-status-row"><p id="bookmark-status" role="status" aria-live="polite">共 {bookmarks.length} 个站点</p><button type="button" id="pick-bookmark">随机挑一站 <Icon name="arrow"/></button></div><p id="bookmark-pick" hidden aria-live="polite"></p></section><section class="bookmark-grid" aria-label="收藏站点">{bookmarks.map(b=><article class="bookmark-card" data-bookmark-card data-filter-text={[b.name,b.description,b.reason,b.entry.title,b.url,...b.tags].join(' ')} data-tags={b.tags.join('|')}><div class="bookmark-card-top"><span class="bookmark-initial" aria-hidden="true">{b.initial}</span><div><h2><a href={b.url} target="_blank" rel="noopener noreferrer">{b.name}<Icon name="arrow"/></a></h2><span class="bookmark-domain">{new URL(b.url).hostname}</span></div></div><p>{b.description}</p><div class="bookmark-reason"><span>值得看看</span><p>{b.reason}</p><a href={b.entry.url} target="_blank" rel="noopener noreferrer">{b.entry.title}<Icon name="arrow"/></a></div><div class="bookmark-card-bottom"><span>{b.tags.join(' / ')}</span>{'feed' in b&&<a href={b.feed} target="_blank" rel="noopener noreferrer" aria-label={'订阅 '+b.name+' 的 RSS'}>RSS ↗</a>}</div></article>)}</section><p class="empty-state" id="bookmark-empty" hidden>没有匹配的站点，换个关键词或重置筛选。</p><section class="site-link-info"><h2>本站信息</h2><p>如果你想收藏这个博客，可以使用下面的信息。</p><dl><div><dt>名称</dt><dd>安秀</dd></div><div><dt>地址</dt><dd><a href={siteConfig.site_url}>{siteConfig.site_url}</a></dd></div><div><dt>简介</dt><dd>{siteConfig.description}</dd></div><div><dt>订阅</dt><dd><a href="/rss/">RSS 订阅与地址</a></dd></div></dl></section></div><BlogSidebar/></div></JournalLayout>
+<JournalLayout title="友链与站点收藏" description="收藏值得再访的博客和开源站点，按主题寻找，也可以随机逛逛。" active="逛逛">
+  <section class="page-intro"><h1>友链与站点收藏</h1><p>收集一些值得逛逛的博客和开源站点。目前这里是站点收藏，尚未互换友链。</p></section>
+  <div class="blog-columns"><div class="bookmarks-main">
+    <section class="bookmark-filter" aria-label="筛选站点">
+      <form role="search" id="bookmark-form"><label class="sr-only" for="bookmark-query">搜索收藏站点</label><div class="bookmark-search"><Icon name="search"/><input id="bookmark-query" type="search" name="q" placeholder="搜索站名、用途、介绍或标签"/></div><button type="reset">重置</button></form>
+      <div class="bookmark-tags" role="group" aria-label="站点标签"><button type="button" data-bookmark-tag="" aria-pressed="true">全部</button>{tags.map(tag => <button type="button" data-bookmark-tag={tag} aria-pressed="false">{tag}</button>)}</div>
+      <div class="bookmark-status-row"><p id="bookmark-status" role="status" aria-live="polite">共 {bookmarks.length} 个站点</p><button type="button" id="pick-bookmark">随机挑一站 <Icon name="arrow"/></button></div><p id="bookmark-pick" hidden aria-live="polite"></p>
+    </section>
+    <noscript><p>当前显示全部收藏站点。启用 JavaScript 后可使用搜索、标签筛选与复制按钮。</p></noscript>
+    {bookmarkGroups.map(group => <section class="bookmark-group" data-bookmark-group-section={group.id} aria-labelledby={'bookmark-group-' + group.id}>
+      <div class="bookmark-group-heading"><h2 id={'bookmark-group-' + group.id}>{group.title}</h2><p>{group.description}</p></div>
+      <div class="bookmark-grid">{bookmarks.filter(b => b.group === group.id).map(b => <article class="bookmark-card" data-bookmark-card data-bookmark-group={group.id} data-filter-text={[b.name,b.description,b.reason,b.entry.title,b.url,group.title,group.description,...b.tags].join(' ')} data-tags={b.tags.join('|')}>
+        <div class="bookmark-card-top"><span class="bookmark-initial" aria-hidden="true">{b.initial}</span><div><h3><a href={b.url} target="_blank" rel="noopener noreferrer" data-bookmark-link>{b.name}<Icon name="arrow"/></a></h3><span class="bookmark-domain">{new URL(b.url).hostname}</span></div></div>
+        <p>{b.description}</p><div class="bookmark-reason"><span>值得看看</span><p>{b.reason}</p><a href={b.entry.url} target="_blank" rel="noopener noreferrer">{b.entry.title}<Icon name="arrow"/></a></div>
+        <div class="bookmark-card-bottom"><span>{b.tags.join(' / ')}</span>{'feed' in b && <a href={b.feed} target="_blank" rel="noopener noreferrer" aria-label={'订阅 '+b.name+' 的 RSS'}>RSS ↗</a>}</div>
+      </article>)}</div>
+    </section>)}
+    <p class="empty-state" id="bookmark-empty" hidden>没有匹配的站点，换个关键词或重置筛选。</p>
+    <section class="site-link-info"><h2>本站信息</h2><p>如果你想收藏这个博客，可以使用下面的信息。</p>
+      <dl><div><dt>名称</dt><dd>{siteConfig.title}</dd></div><div><dt>地址</dt><dd><a href={siteConfig.site_url}>{siteConfig.site_url}</a></dd></div><div><dt>简介</dt><dd>{siteConfig.description}</dd></div><div><dt>订阅</dt><dd><a href="/rss/">RSS 订阅与地址</a></dd></div></dl>
+      <div class="site-info-copy"><label for="site-info-text">可复制的站点资料</label><textarea id="site-info-text" readonly rows="5" spellcheck="false">{siteInfo}</textarea><button type="button" class="j-button subtle" data-copy-site-info>复制本站信息</button><p id="site-copy-status" role="status" aria-live="polite"></p></div>
+      <div class="site-link-contact"><h3>推荐站点与交流</h3><p>可以从 <a href="https://github.com/Anxiu29" target="_blank" rel="noopener noreferrer">我的 GitHub</a> 进入相关项目；项目问题请在对应仓库有开放 Issues 时提交。推荐收藏站点时，请附名称、地址、简介和推荐理由。</p><p>本站没有在线友链申请或自动收录服务。收藏不表示双方已互换友链，互链需双方确认。</p></div>
+    </section>
+  </div><BlogSidebar/></div>
+</JournalLayout>
 <script>
-const form=document.querySelector<HTMLFormElement>('#bookmark-form');
-const query=document.querySelector<HTMLInputElement>('#bookmark-query');
-const tagButtons=[...document.querySelectorAll<HTMLButtonElement>('[data-bookmark-tag]')];
-const cards=[...document.querySelectorAll<HTMLElement>('[data-bookmark-card]')];
-const status=document.querySelector('#bookmark-status');
-const empty=document.querySelector<HTMLElement>('#bookmark-empty');
-const pick=document.querySelector<HTMLButtonElement>('#pick-bookmark');
-const picked=document.querySelector<HTMLElement>('#bookmark-pick');
-const params=new URLSearchParams(location.search);
-let selectedTag=params.get('tag')||'';
-if(query)query.value=params.get('q')||'';
-function filter(){
-  const terms=(query?.value.trim().toLocaleLowerCase()||'').split(/\s+/).filter(Boolean);let count=0;
-  for(const card of cards){const text=card.dataset.filterText?.toLocaleLowerCase()||'';const visible=terms.every(term=>text.includes(term))&&(!selectedTag||(card.dataset.tags||'').split('|').includes(selectedTag));card.hidden=!visible;if(visible)count++;}
-  tagButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.bookmarkTag===selectedTag)));
-  if(status)status.textContent=(selectedTag?'「'+selectedTag+'」 · ':'')+count+' 个站点';if(empty)empty.hidden=count>0;if(pick)pick.disabled=count===0;if(picked){picked.hidden=true;picked.replaceChildren();}
-  const url=new URL(location.href);url.searchParams.delete('q');url.searchParams.delete('tag');if(query?.value.trim())url.searchParams.set('q',query.value.trim());if(selectedTag)url.searchParams.set('tag',selectedTag);history.replaceState(null,'',url);
-}
-query?.addEventListener('input',filter);tagButtons.forEach(button=>button.addEventListener('click',()=>{selectedTag=button.dataset.bookmarkTag||'';filter();}));form?.addEventListener('submit',event=>event.preventDefault());form?.addEventListener('reset',()=>{selectedTag='';requestAnimationFrame(filter);});
-pick?.addEventListener('click',()=>{const visible=cards.filter(c=>!c.hidden);const chosen=visible[Math.floor(Math.random()*visible.length)]?.querySelector<HTMLAnchorElement>('h2 a');if(!chosen||!picked)return;const link=document.createElement('a');link.href=chosen.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='去逛逛：'+chosen.textContent?.trim()+' ↗';picked.replaceChildren(link);picked.hidden=false;});filter();
+import { initializeBookmarkDiscovery } from '@/scripts/bookmark-discovery';
+initializeBookmarkDiscovery();
 </script>

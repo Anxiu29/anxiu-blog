@@ -1,0 +1,35 @@
+---
+// Adapted from Firefly-hyde MusicPlayer.astro / WidgetLayout.astro, MIT.
+// Upstream 0fbffca1962e2b3654e172884e5e048f18b52f84; see vendor/firefly-music.LICENSE.
+// The original view hierarchy, Material icons and dimensions are retained.
+// Controls bind to the existing journal audio instead of creating a second manager.
+import { Icon } from "astro-icon/components";
+import "@/styles/firefly-music-widget.css";
+---
+<section class="j-card sidebar-music-card firefly-music" data-music-widget aria-label="音乐小组件">
+  <h2 class="ff-widget-title"><button type="button" data-widget-action="open" aria-controls="music-panel" aria-label="听点音乐，打开歌单与设置">听点音乐</button></h2>
+  <div class="music-player-widget">
+    <!-- Upstream top row: circular cover, title/lyric toggle, artist, time and volume. -->
+    <div class="ff-top-row">
+      <div class="ff-cover-shell" aria-hidden="true"><Icon name="material-symbols:music-note-rounded"/><img class="music-cover" data-widget-cover hidden alt="" referrerpolicy="no-referrer"/></div>
+      <div class="ff-info">
+        <div class="ff-title-row"><strong class="music-title" data-sidebar-music-title data-widget-title>给阅读一点背景声</strong><button type="button" class="btn-lrc-toggle" data-widget-action="local-lyrics" aria-label="组件歌词" aria-expanded="false"><span data-widget-lyric-off><Icon name="material-symbols:subtitles-off-outline-rounded"/></span><span data-widget-lyric-on hidden><Icon name="material-symbols:subtitles-outline-rounded"/></span></button></div>
+        <p class="music-artist" data-widget-artist></p>
+        <div class="ff-time-volume"><div class="ff-time"><span data-widget-elapsed>0:00</span><span class="ff-divider" aria-hidden="true">/</span><span data-widget-duration>0:00</span></div><div class="ff-volume"><button type="button" class="btn-mute" data-widget-action="mute" aria-label="静音" aria-pressed="false"><span data-widget-volume-on><Icon name="material-symbols:volume-up-rounded"/></span><span data-widget-volume-off hidden><Icon name="material-symbols:volume-off-rounded"/></span></button><input type="range" min="0" max="100" value="35" data-widget-volume aria-label="音乐音量"/></div></div>
+      </div>
+    </div>
+    <!-- Upstream slim progress; native input keeps keyboard/touch support. -->
+    <div class="ff-progress"><input type="range" min="0" max="1000" step="1" value="0" data-widget-seek disabled aria-label="音乐播放进度" aria-valuetext="0:00 / 0:00"/></div>
+    <!-- Upstream five-button control row. -->
+    <div class="ff-controls">
+      <button type="button" class="btn-repeat" data-widget-action="repeat" aria-label="切换为单曲循环"><span data-widget-repeat-list><Icon name="material-symbols:repeat-rounded"/></span><span data-widget-repeat-one hidden><Icon name="material-symbols:repeat-one-rounded"/></span><span data-widget-repeat-shuffle hidden><Icon name="material-symbols:shuffle-rounded"/></span></button>
+      <button type="button" class="btn-prev" data-widget-action="prev" aria-label="上一首"><Icon name="material-symbols:skip-previous-rounded"/></button>
+      <button type="button" class="btn-play" data-widget-action="toggle" aria-label="播放音乐"><span class="music-play-icon"><Icon name="material-symbols:play-arrow-rounded"/></span><span class="music-pause-icon" hidden><Icon name="material-symbols:pause-rounded"/></span></button>
+      <button type="button" class="btn-next" data-widget-action="next" aria-label="下一首"><Icon name="material-symbols:skip-next-rounded"/></button>
+      <button type="button" class="btn-drawer-toggle" data-widget-action="list" aria-label="组件播放列表" aria-expanded="false"><Icon name="mdi:playlist-music"/></button>
+    </div>
+    <p class="ff-status" data-sidebar-music-state role="status"></p>
+    <div class="lrc-drawer" data-widget-lyrics hidden><div class="ff-drawer-heading"><span>歌词</span><small>点击一句跳转</small></div><ol class="lrc-container" data-widget-lyric-lines aria-label="组件同步歌词" tabindex="0"></ol><p class="ff-no-lyrics" data-widget-current>播放后显示同步歌词</p><span data-widget-next hidden></span></div>
+    <div class="playlist-drawer" data-widget-list-drawer hidden><div class="ff-drawer-heading"><span>播放列表</span><small data-widget-count></small></div><ol class="playlist-container" data-widget-playlist aria-label="组件播放列表"></ol></div>
+  </div>
+</section>

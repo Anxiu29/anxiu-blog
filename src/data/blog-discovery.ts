@@ -27,10 +27,34 @@ export const series = [
 	},
 ];
 
+export const bookmarkGroups = [
+	{
+		id: "blogs",
+		title: "博客与日常",
+		description: "看项目之外的记录，也从其他博主继续发现。",
+	},
+	{
+		id: "learning",
+		title: "技术与教程",
+		description: "按开发问题找资料，学习前端、网络与交互。",
+	},
+	{
+		id: "references",
+		title: "主题与开源参考",
+		description: "研究博客组织方式，查阅主题与开源项目入口。",
+	},
+	{
+		id: "weekly",
+		title: "周刊与工具发现",
+		description: "按期浏览整理好的技术、工具与生活分享。",
+	},
+];
+
 // 收藏与参考来源，不表示已与对方互换友链。
 export const bookmarks = [
 	{
 		name: "Hyde Blog",
+		group: "references",
 		url: "https://seasir.top/",
 		description: "Firefly 主题实践、开源项目，以及友链文章聚合。",
 		tags: ["博客", "Astro"],
@@ -41,6 +65,7 @@ export const bookmarks = [
 	},
 	{
 		name: "宇阳",
+		group: "blogs",
 		url: "https://liuyuyang.net/",
 		description: "ThriveX 作者的开发记录与生活随笔。",
 		tags: ["博客", "项目"],
@@ -53,6 +78,7 @@ export const bookmarks = [
 	},
 	{
 		name: "像风 Blog",
+		group: "references",
 		url: "https://astro.cchaoka.cn/",
 		description: "Firefly 主题功能记录，包含系列、归档与书签导航。",
 		tags: ["博客", "Astro"],
@@ -62,6 +88,7 @@ export const bookmarks = [
 	},
 	{
 		name: "THW’s Blog",
+		group: "learning",
 		url: "https://blog.tianhw.top/",
 		description: "编程开发、技术教程与项目实践。",
 		tags: ["博客", "技术"],
@@ -72,6 +99,7 @@ export const bookmarks = [
 	},
 	{
 		name: "Anthony Fu",
+		group: "references",
 		url: "https://antfu.me/",
 		description: "开源项目、技术文章与个人记录。",
 		tags: ["技术", "开源"],
@@ -81,6 +109,7 @@ export const bookmarks = [
 	},
 	{
 		name: "Sukka’s Blog",
+		group: "learning",
 		url: "https://blog.skk.moe/",
 		description: "前端、网络与网站性能相关的技术文章。",
 		tags: ["技术", "前端"],
@@ -90,6 +119,7 @@ export const bookmarks = [
 	},
 	{
 		name: "Firefly",
+		group: "references",
 		url: "https://firefly.cuteleaf.cn/",
 		description: "本博客使用的 Astro 主题，保留原项目署名。",
 		tags: ["Astro", "开源"],
@@ -100,6 +130,7 @@ export const bookmarks = [
 	},
 	{
 		name: "张洪 Heo",
+		group: "blogs",
 		url: "https://blog.zhheo.com/",
 		description: "产品、设计、开发与软件使用经验。",
 		tags: ["博客", "设计", "项目"],
@@ -109,6 +140,7 @@ export const bookmarks = [
 	},
 	{
 		name: "Josh W. Comeau",
+		group: "learning",
 		url: "https://www.joshwcomeau.com/",
 		description: "CSS、React 与交互式前端教程。",
 		tags: ["技术", "前端", "交互"],
@@ -121,6 +153,7 @@ export const bookmarks = [
 	},
 	{
 		name: "阮一峰的网络日志",
+		group: "weekly",
 		url: "https://www.ruanyifeng.com/blog/",
 		description: "技术文章、教程与科技爱好者周刊。",
 		tags: ["技术", "周刊"],
@@ -133,6 +166,7 @@ export const bookmarks = [
 	},
 	{
 		name: "潮流周刊",
+		group: "weekly",
 		url: "https://weekly.tw93.fun/",
 		description: "Tw93 整理的工具、技术与生活记录。",
 		tags: ["技术", "周刊", "工具"],
@@ -142,6 +176,7 @@ export const bookmarks = [
 	},
 	{
 		name: "overreacted",
+		group: "learning",
 		url: "https://overreacted.io/",
 		description: "Dan Abramov 的编程思考与技术文章。",
 		tags: ["技术", "前端"],
@@ -152,6 +187,29 @@ export const bookmarks = [
 ];
 
 export const updates = [
+ {id:'reading-and-search',date:'2026-11-26',category:'博客',title:'让阅读和查找更顺手',text:'增加本机文章收藏、按内容类型查找和搜索失败重试；搜索全文索引改为打开时加载。音乐在博客页面之间连续播放，手机菜单与阅读工具也补了一轮检查。',links:[{title:'我的收藏',href:'/saved/'},{title:'搜索全站',href:'/search/'},{title:'音乐角落',href:'/music/'}]},
+	{
+		id: "local-gallery-entry",
+		date: "2026-11-25",
+		category: "博客",
+		title: "给私人相册留好入口",
+		text: "接上本机 ChronoFrame 入口，准备独立数据目录和备份恢复工具；照片服务与博客分开运行。跨设备访问与公开部署尚未接入。",
+		links: [
+			{ title: "查看相册接入", href: "/photos/" },
+			{ title: "建设记录", href: "/posts/site-notebook/" },
+		],
+	},
+	{
+		id: "local-todo",
+		date: "2026-11-24",
+		category: "博客",
+		title: "把待办真正接进小站",
+		text: "新增网页本地待办：记录、编辑、完成、截止日期、回收站和备份合并。首页右侧与完整页面共用数据；任务不上传，也没有自动云同步。",
+		links: [
+			{ title: "打开我的待办", href: "/todo/" },
+			{ title: "建设记录", href: "/posts/site-notebook/" },
+		],
+	},
 	{
 		id: "reading-details",
 		date: "2026-11-24",
@@ -196,6 +254,28 @@ export const updates = [
 ];
 
 export const discoveryRecords = [
+ {title:'我的收藏',description:'留在此浏览器里的文章阅读清单。',url:'/saved/',type:'页面',text:'收藏 稍后阅读 本机 阅读清单 saved'},
+	{
+		title: "音乐角落",
+		description: "同一标签页听音乐，切换文章时继续播放。",
+		url: "/music/",
+		type: "页面",
+		text: "音乐 播放器 歌单 独立播放 music",
+	},
+	{
+		title: "私人相册",
+		description: "ChronoFrame 本地相册的接入状态与使用说明。",
+		url: "/photos/",
+		type: "页面",
+		text: "相册 照片 ChronoFrame 本地 备份",
+	},
+	{
+		title: "我的待办",
+		description: "保存在当前浏览器的任务清单，支持截止日期、回收站和备份。",
+		url: "/todo/",
+		type: "工具",
+		text: "任务 待办 todo 备份 回收站 本地",
+	},
 	{
 		title: "专题阅读",
 		description: "按设备联调、桌面工具和网页实验阅读已有文章。",

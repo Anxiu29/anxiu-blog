@@ -115,10 +115,11 @@ export async function GET({
 			? `./public${profileConfig.avatar}`
 			: `./src/${profileConfig.avatar}`;
 		const avatarBuffer = fs.readFileSync(avatarPath);
-		avatarBase64 = `data:image/png;base64,${avatarBuffer.toString("base64")}`;
+		const avatarMime = /\.jpe?g$/i.test(avatarPath) ? "image/jpeg" : /\.webp$/i.test(avatarPath) ? "image/webp" : "image/png";
+		avatarBase64 = `data:${avatarMime};base64,${avatarBuffer.toString("base64")}`;
 	}
 
-	let iconPath = "./public/favicon/favicon-dark-192.png";
+	let iconPath = "./public/favicon/site-clover-192.png";
 	if (siteConfig.favicon.length > 0) {
 		iconPath = `./public${siteConfig.favicon[0].src}`;
 	}

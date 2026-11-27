@@ -45,6 +45,7 @@ export const backgroundImages: {
 		thumbnail: "/images/backgrounds/your-name-thumb.webp",
 	},
 ];
+
 export const backgroundVideos: {
 	id: BackgroundVideoId;
 	title: string;
@@ -60,13 +61,5 @@ export const backgroundVideos: {
 		poster: "/images/backgrounds/anime-live-poster.webp",
 		thumbnail: "/images/backgrounds/anime-live-thumb.webp",
 		duration: "约 20 秒",
-	},
-	{
-		id: "night-cuddle",
-		title: "依偎 · 夜晚",
-		src: "/images/backgrounds/night-cuddle.mp4",
-		poster: "/images/backgrounds/night-cuddle-poster.webp",
-		thumbnail: "/images/backgrounds/night-cuddle-thumb.webp",
-		duration: "约 6 秒",
 	},
 ];

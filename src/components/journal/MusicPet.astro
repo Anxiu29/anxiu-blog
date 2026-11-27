@@ -1,0 +1,53 @@
+---
+import { Icon } from "astro-icon/components";
+import "@/styles/music-pet.css";
+---
+<aside class="music-pet" data-music-pet data-playing="false" aria-label="罗小黑音乐宠物，聚焦后显示音乐控制" tabindex="0" data-pagefind-ignore>
+ <div class="pet-stage" data-pet-drag-handle tabindex="0" role="button" aria-pressed="false" aria-label="播放音乐；拖动可移动罗小黑" title="点击播放 / 暂停 · 拖动移动 · 方向键微调 · Home 复位">
+  <span class="pet-note pet-note-one" aria-hidden="true">♪</span><span class="pet-note pet-note-two" aria-hidden="true">♫</span><span class="pet-note pet-note-three" aria-hidden="true">♪</span>
+  <!-- Hand-drawn vector interpretation, animated locally without a second audio element. -->
+  <svg class="pet-xiaohei" viewBox="0 0 200 196" fill="none" aria-hidden="true">
+   <ellipse class="pet-shadow" cx="101" cy="179" rx="54" ry="6" fill="#23323b" opacity=".12"/>
+   <g class="pet-tail"><path d="M126 160C155 177 179 156 168 140C161 130 152 140 158 146" stroke="#242830" stroke-width="18" stroke-linecap="round"/><path d="M159 143C158 138 162 136 165 138" stroke="#373c46" stroke-width="5" stroke-linecap="round"/></g>
+   <g class="pet-body">
+    <path d="M66 132C59 144 58 164 65 174C73 180 85 177 100 177C116 177 129 181 136 172C141 159 135 141 127 130Z" fill="#242830"/>
+    <ellipse cx="83" cy="172" rx="17" ry="8" fill="#1b1e25"/><ellipse cx="119" cy="172" rx="17" ry="8" fill="#1b1e25"/>
+    <path d="M79 143L76 165M121 143L124 165" stroke="#383c45" stroke-width="3" stroke-linecap="round"/>
+    <g class="pet-head">
+     <path d="M43 77C32 59 31 24 39 17C44 14 71 32 80 42M121 42C131 29 153 15 161 19C168 26 167 61 156 79" fill="#242830"/>
+     <path d="M44 33L64 49L43 60Z" fill="#46434d"/><path d="M154 34L137 50L157 61Z" fill="#46434d"/>
+     <path d="M39 76C38 54 62 39 99 39C137 38 160 54 161 79L166 98L159 96C163 126 145 143 101 144C58 145 38 130 40 106L33 109Z" fill="#242830"/>
+     <path d="M63 48C72 44 84 42 94 43" stroke="#414650" stroke-width="3" stroke-linecap="round"/>
+     <g class="pet-eyes">
+      <ellipse cx="72" cy="91" rx="20" ry="23" fill="#d5edb8"/><ellipse cx="129" cy="91" rx="20" ry="23" fill="#d5edb8"/>
+      <ellipse cx="76" cy="93" rx="13" ry="18" fill="#84bd5c"/><ellipse cx="125" cy="93" rx="13" ry="18" fill="#84bd5c"/>
+      <ellipse cx="78" cy="93" rx="8" ry="16" fill="#161c23"/><ellipse cx="123" cy="93" rx="8" ry="16" fill="#161c23"/>
+      <ellipse cx="71" cy="82" rx="5" ry="6" fill="white"/><ellipse cx="116" cy="82" rx="5" ry="6" fill="white"/>
+      <circle cx="82" cy="104" r="2.5" fill="#f5ffe9"/><circle cx="128" cy="104" r="2.5" fill="#f5ffe9"/>
+     </g>
+     <path d="M96 114Q100 111 104 114L100 118Z" fill="#66717a"/>
+     <path d="M100 117C98 125 92 124 90 120M100 117C102 125 108 124 110 120" stroke="#acb6bc" stroke-width="2" stroke-linecap="round"/>
+     <path d="M67 119L75 119M128 119L136 119" stroke="#cb9aaf" stroke-width="3" stroke-linecap="round" opacity=".38"/>
+    </g>
+   </g>
+  </svg>
+ </div>
+ <button type="button" class="pet-mobile-menu" data-pet-menu aria-label="展开宠物音乐控制" aria-expanded="false" aria-controls="pet-music-controls"><Icon name="material-symbols:queue-music-rounded"/></button>
+ <div class="pet-hover-tools" id="pet-music-controls">
+  <p class="pet-song" data-pet-title>给阅读一点背景声</p>
+  <div class="pet-controls" role="group" aria-label="宠物音乐控制">
+   <button type="button" data-pet-action="prev" aria-label="上一首" title="上一首"><Icon name="material-symbols:skip-previous-rounded"/></button>
+   <button type="button" class="pet-play" data-pet-action="toggle" aria-label="播放音乐" title="播放 / 暂停"><span class="music-play-icon"><Icon name="material-symbols:play-arrow-rounded"/></span><span class="music-pause-icon" hidden><Icon name="material-symbols:pause-rounded"/></span></button>
+   <button type="button" data-pet-action="next" aria-label="下一首" title="下一首"><Icon name="material-symbols:skip-next-rounded"/></button>
+   <button type="button" class="pet-lyrics-toggle" data-pet-action="lyrics" aria-label="显示宠物下方歌词" aria-pressed="false" aria-controls="pet-lyric-line" title="显示 / 隐藏下方歌词">词</button>
+  </div>
+  <p class="pet-status" data-pet-status role="status"></p>
+ </div>
+ <div class="pet-lyrics-space"><p id="pet-lyric-line" class="pet-lyric" data-pet-lyrics hidden><span data-pet-current></span><span data-pet-next hidden></span></p></div>
+</aside>
+
+<script>
+ import { initializeMusicPetDrag } from '@/scripts/music-pet-drag';
+ initializeMusicPetDrag();
+ document.addEventListener('astro:page-load',initializeMusicPetDrag);
+</script>

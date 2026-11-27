@@ -5,6 +5,13 @@ description: 在键鼠网页驱动中记录 WebHID 调用，用操作快照整�
 category: WebHID
 tags: [WebHID, 工具使用, 抓包]
 comment: false
+updated: 2026-11-25
+readingGuide:
+  audience: 希望把网页上的一次操作与 WebHID 报文对应起来的开发者。
+  preparation:
+    - 在支持 WebHID 的浏览器中打开目标网页并连接设备。
+    - 阅读脚本的匹配域名、安装方式和复刻功能限制。
+  outcome: 按单次操作捕获增量快照，写清备注，并在刷新前导出 JSON。
 ---
 调试键鼠网页驱动时，单看界面的变化，很难知道一次点击到底触发了哪些设备指令。WebHID Workbench 油猴脚本会在匹配的页面里加入悬浮工作台，帮助把操作与报文对应起来。
 

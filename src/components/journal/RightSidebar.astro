@@ -1,0 +1,24 @@
+---
+import { updates } from '@/data/blog-discovery';
+import { getSortedPosts, getCategoryList, getTagList } from '@/utils/content-utils';
+import { getReadingStats } from '@/utils/reading-stats';
+import { getPostUrlBySlug } from '@/utils/url-utils';
+import Icon from './Icon.astro';
+import TodoBoard from './apps/TodoBoard.svelte';
+const posts = await getSortedPosts();
+const categories = await getCategoryList();
+const tags = await getTagList();
+const count = posts.reduce((sum,post)=>sum+getReadingStats(post.body).count,0);
+---
+<aside class="journal-right" aria-label="动态与日常">
+ <section class="j-card greeting-card"><div><p id="sidebar-greeting">你好，欢迎来访。</p><time id="sidebar-clock">--:--</time><span id="sidebar-date">今天也留下一点记录。</span></div><img src="/images/backgrounds/mist-lake-thumb.webp" alt="湖面与远山" width="480" height="270" loading="lazy"/></section>
+ <section class="j-card sidebar-todo"><div class="sidebar-todo-heading"><h2><Icon name="todo"/>我的待办</h2><a href="/todo/">全部</a></div><TodoBoard compact client:visible/></section>
+ <section class="j-card j-updates"><h2><Icon name="capture"/>最新动态</h2>{updates.slice(0,2).map(u=><a href={`/updates/#${u.id}`}><time datetime={u.date}>{u.date.replaceAll('-','.')}</time><strong>{u.title}</strong><p>{u.text}</p></a>)}<a class="j-more-link" href="/updates/">更多动态</a></section>
+ <section class="j-card"><h2><Icon name="chart"/>小站记录</h2><dl class="j-site-stats"><div><dt>文章</dt><dd>{posts.length} 篇</dd></div><div><dt>分类</dt><dd>{categories.length} 类</dd></div><div><dt>标签</dt><dd>{tags.length} 个</dd></div><div><dt>文字</dt><dd>{count.toLocaleString()} 字</dd></div></dl></section>
+ <section class="j-card reading-calendar"><h2><Icon name="calendar"/>文章日历</h2><div class="calendar-head"><button type="button" data-month-prev aria-label="上个月"><Icon name="left"/></button><button type="button" data-month-today aria-label="回到本月"><span data-calendar-label>文章月份</span></button><button type="button" data-month-next aria-label="下个月"><Icon name="right"/></button></div><div class="calendar-week" aria-hidden="true">{['一','二','三','四','五','六','日'].map(d=><span>{d}</span>)}</div><div class="calendar-days" data-calendar-days aria-label="文章发布日期"></div><p class="calendar-hint">蓝点日期可查看当天的文章</p><div data-calendar-selection hidden><h3 data-calendar-selection-title></h3><ul data-calendar-selection-links></ul></div><div hidden id="calendar-post-data" data-dates={JSON.stringify(posts.map(p=>({date:p.data.published.toISOString().slice(0,10),title:p.data.title,url:getPostUrlBySlug(p.id)})))}></div></section>
+ <section class="j-card site-note"><h2><Icon name="rss"/>下次见</h2><p>在阅读器里订阅，<br/>新文章就不会错过。</p><a class="j-button subtle" href="/rss/">订阅 RSS</a><a class="j-more-link" href="/friends/">逛逛收藏的博客</a></section>
+</aside>
+<script>
+import { initializeJournalWidgets } from '@/scripts/journal-widgets';
+initializeJournalWidgets();
+</script>

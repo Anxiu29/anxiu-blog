@@ -1,0 +1,107 @@
+/* Article typography lives here; the shared shell owns the surrounding cards. */
+.hyde-shell .article-body {
+  --article-font-size: 17px;
+  font-size: var(--article-font-size);
+  line-height: 1.95;
+  overflow-wrap: anywhere;
+}
+.hyde-shell .article-body[data-reading-size="large"] { --article-font-size: 19px; }
+.hyde-shell .article-body[data-reading-size="xlarge"] { --article-font-size: 21px; }
+.hyde-shell .article-body > :first-child { margin-top: 0; }
+.hyde-shell .article-body > :last-child { margin-bottom: 0; }
+.hyde-shell .article-body p { margin-block: 1.2em; }
+.hyde-shell .article-body :is(h1,h2,h3,h4,h5,h6) {
+  color: var(--ink);
+  font-weight: 650;
+  line-height: 1.65;
+  letter-spacing: 0;
+  scroll-margin-top: 20px;
+}
+.hyde-shell .article-body h1 { font-size: 1.65em; margin-block: 1.7em .65em; }
+.hyde-shell .article-body h2 { font-size: 1.45em; margin-block: 1.8em .7em; padding-bottom: .4em; border-bottom: 1px solid var(--line); }
+.hyde-shell .article-body h3 { font-size: 1.22em; margin-block: 1.6em .6em; }
+.hyde-shell .article-body :is(h4,h5,h6) { font-size: 1.06em; margin-block: 1.4em .5em; }
+.hyde-shell .article-body :is(h2,h3,h4) + :is(p,ul,ol) { margin-top: .7em; }
+.hyde-shell .article-body a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; }
+.hyde-shell .article-body a:hover { text-decoration-style: dotted; }
+.hyde-shell .article-body .anchor { display: inline-flex; align-items: center; margin-left: .4em; font-size: .7em; opacity: .35; text-decoration: none; vertical-align: middle; }
+.hyde-shell .article-body .anchor svg { width: 16px; height: 16px; }
+.hyde-shell .article-body :is(h1,h2,h3,h4,h5,h6):hover .anchor,
+.hyde-shell .article-body .anchor:focus-visible { opacity: 1; }
+.hyde-shell .article-body :is(ul,ol) { margin-block: 1.1em; padding-left: 1.65em; }
+.hyde-shell .article-body li { margin-block: .35em; padding-left: .15em; }
+.hyde-shell .article-body li::marker { color: var(--accent); font-weight: 600; }
+.hyde-shell .article-body li > :is(ul,ol) { margin-block: .35em; }
+.hyde-shell .article-body li > p { margin-block: .45em; }
+.hyde-shell .article-body .contains-task-list { padding-left: 0; list-style: none; }
+.hyde-shell .article-body .task-list-item { position: relative; padding: 6px 0 6px 1.8em; margin-block: .1em; }
+.hyde-shell .article-body :is(.task-list-item > input, .task-list-item > p > input) {
+  appearance: none; position: absolute; left: 1px; top: calc(.45em + 6px);
+  width: 1em; height: 1em; margin: 0; opacity: 1;
+  border: 1.5px solid var(--muted); border-radius: 4px; background: var(--panel);
+}
+.hyde-shell .article-body :is(.task-list-item > input, .task-list-item > p > input):checked { background: var(--accent); border-color: var(--accent); }
+.hyde-shell .article-body :is(.task-list-item > input, .task-list-item > p > input):checked::after { content: ""; position: absolute; width: .47em; height: .25em; left: .14em; top: .17em; border-left: 2px solid var(--panel); border-bottom: 2px solid var(--panel); transform: rotate(-45deg); }
+.hyde-shell .article-body .task-list-item > p:first-child { margin-top: 0; }
+.hyde-shell .article-body .task-list-item:has(> input:checked, > p > input:checked) { color: var(--muted); }
+.hyde-shell .article-body blockquote:not(.callout) { margin: 1.4em 0; padding: .2em 1.1em; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--soft); color: var(--muted); }
+.hyde-shell .article-body blockquote:not(.callout) > :first-child { margin-top: .5em; }
+.hyde-shell .article-body blockquote:not(.callout) > :last-child { margin-bottom: .5em; }
+.hyde-shell .article-body .callout { --article-callout-color: var(--rc-color-light, var(--accent)); margin: 1.4em 0; padding: 1em 1.15em; border: 1px solid color-mix(in srgb,var(--article-callout-color) 24%,var(--line)); border-left: 3px solid var(--article-callout-color); border-radius: 10px; background: color-mix(in srgb,var(--article-callout-color) 5%,var(--panel)); color: var(--ink); }
+.dark .hyde-shell .article-body .callout { --article-callout-color: var(--rc-color-dark,var(--accent)); }
+.hyde-shell .article-body .callout-title { align-items: center; min-height: 1.6em; gap: .55em; color: var(--article-callout-color); font-weight: 650; line-height: 1.6; }
+.hyde-shell .article-body .callout-title-icon { display: inline-flex; flex: none; }
+.hyde-shell .article-body .callout-title-icon svg { width: 1.15em; height: 1.15em; }
+.hyde-shell .article-body .callout-content > :first-child { margin-top: .7em; }
+.hyde-shell .article-body .callout-content > :last-child { margin-bottom: 0; }
+.hyde-shell .article-body details:not(.callout) { margin-block: 1.3em; padding: .8em 1em; border: 1px solid var(--line); border-radius: 10px; }
+.hyde-shell .article-body details:not(.callout) > summary { color: var(--accent); cursor: pointer; font-weight: 600; }
+.hyde-shell .article-body :not(pre) > code { font: .88em/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; white-space: break-spaces; padding: .16em .36em; border-radius: 5px; background: var(--soft); color: var(--accent); }
+.hyde-shell .article-body > pre,
+.hyde-shell .article-body :is(li,blockquote,details) > pre { overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); font-size: .84em; line-height: 1.8; }
+.hyde-shell .article-body .expressive-code { margin: 1.5em 0; max-width: 100%; font-size: 14px; }
+.hyde-shell .article-body .expressive-code pre { max-width: 100%; margin: 0; }
+.hyde-shell .article-body .expressive-code .copy button:focus-visible { opacity: 1; }
+.hyde-shell .article-body .content-scroll { margin: 1.4em 0; border: 1px solid var(--line); border-radius: 10px; }
+.hyde-shell .article-body table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-spacing: 0; border-collapse: separate; font-size: .88em; line-height: 1.8; margin-block: 1.4em; }
+.hyde-shell .article-body .content-scroll table { display: table; margin: 0; }
+.hyde-shell .article-body :is(th,td) { min-width: 7.5em; padding: .7em 1em; text-align: left; vertical-align: top; border: 0; border-bottom: 1px solid var(--line); }
+.hyde-shell .article-body th { background: var(--soft); font-weight: 650; color: var(--ink); }
+.hyde-shell .article-body tr:nth-child(even) td { background: color-mix(in srgb,var(--soft) 45%,var(--panel)); }
+.hyde-shell .article-body tbody tr:last-child td { border-bottom: 0; }
+.hyde-shell .article-body :is(img,video,iframe) { max-width: 100%; height: auto; border-radius: 10px; }
+.hyde-shell .article-body figure { margin: 1.5em 0; }
+.hyde-shell .article-body figcaption,
+.hyde-shell .article-project-cover figcaption { margin-top: .7em; color: var(--muted); font-size: 13px; line-height: 1.8; text-align: center; overflow-wrap: anywhere; }
+.hyde-shell .article-body hr { border: 0; border-top: 1px solid var(--line); margin-block: 2em; }
+.hyde-shell .article-body > p:has(> a:only-child):not(:has(img)) { padding: .75em 1em; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+.hyde-shell .article-image-button { display: block; width: fit-content; max-width: 100%; margin-inline: auto; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: zoom-in; }
+.hyde-shell .article-image-button img { display: block; }
+.hyde-shell .article-image-viewer { position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 18px max(20px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)); border: 0; color: #f2f6fa; background: #101821f7; }
+.hyde-shell .article-image-viewer::backdrop { background: #101821; }
+.hyde-shell .image-viewer-header { display: flex; justify-content: space-between; align-items: center; max-width: 1440px; margin: auto; font-size: 13px; color: #bac9d8; }
+.hyde-shell .article-image-viewer button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-width: 44px; min-height: 44px; padding: 9px 15px; border: 1px solid #ffffff30; border-radius: 10px; background: #ffffff0d; color: #f2f6fa; cursor: pointer; }
+.hyde-shell .article-image-viewer button:hover { background: #ffffff20; }
+.hyde-shell .article-image-viewer button:disabled { opacity: .35; cursor: default; }
+.hyde-shell .article-image-viewer button:focus-visible { outline: 2px solid #a6d9ff; outline-offset: 4px; }
+.hyde-shell .article-image-viewer svg { width: 20px; height: 20px; }
+.hyde-shell .article-image-viewer figure { min-height: calc(100dvh - 200px); margin: 14px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.hyde-shell .article-image-viewer img { display: block; max-width: 100%; max-height: calc(100dvh - 270px); width: auto; height: auto; object-fit: contain; border-radius: 4px; }
+.hyde-shell .article-image-viewer figcaption { max-width: 80ch; max-height: 4.5em; overflow-y: auto; text-align: center; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.hyde-shell .image-viewer-navigation { display: flex; justify-content: center; gap: 14px; }
+.hyde-shell #article-viewer-help { margin: 12px 0 0; color: #bac9d8; font-size: 12px; text-align: center; }
+.hyde-shell #article-viewer-error { max-width: 38ch; padding: 24px; color: #e2b9aa; line-height: 1.9; text-align: center; }
+@media (max-width: 600px) {
+  .hyde-shell .article-body { --article-font-size: 16px; }
+  .hyde-shell .article-body[data-reading-size="large"] { --article-font-size: 18px; }
+  .hyde-shell .article-body[data-reading-size="xlarge"] { --article-font-size: 20px; }
+  .hyde-shell .article-body .callout { padding: .85em .9em; }
+  .hyde-shell .article-body .expressive-code { font-size: 13px; }
+  .hyde-shell .article-image-viewer { padding-inline: 16px; }
+}
+@media (hover: none) { .hyde-shell .article-body .expressive-code .copy button { opacity: 1; } }
+@media (forced-colors: active) {
+  .hyde-shell .article-body :is(.task-list-item > input, .task-list-item > p > input) { appearance: auto; }
+  .hyde-shell .article-body :is(.task-list-item > input, .task-list-item > p > input)::after { content: none; }
+  .hyde-shell .article-image-viewer button { border-color: ButtonText; }
+}

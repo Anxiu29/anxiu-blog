@@ -4,22 +4,30 @@ import type { PostForList } from "@/utils/content-utils";
 import { getReadingStats } from "@/utils/reading-stats";
 import { getPostUrlBySlug } from "@/utils/url-utils";
 import Icon from "./Icon.astro";
+import "@/styles/journal-reading-completion.css";
 
 interface Props {
 	posts: PostForList[];
 	filterable?: boolean;
+	showCovers?: boolean;
 	headingLevel?: "h2" | "h3";
 }
-const { posts, filterable = false, headingLevel: Heading = "h3" } = Astro.props;
+const { posts, filterable = false, showCovers = true, headingLevel: Heading = "h3" } = Astro.props;
+const covers = await Promise.all(posts.map(post => showCovers ? getPostMedia(post.id, post.data) : undefined));
 ---
-<div class="post-list">{posts.map(post => {
-  const entryMedia = getPostMedia(post.id);
-  const media = entryMedia?.thumbnail === false ? undefined : entryMedia;
+<div class="post-list">{posts.map((post, index) => {
+  const entryMedia = covers[index];
+  const media = !showCovers || entryMedia?.thumbnail === false ? undefined : entryMedia;
   const category = post.data.category || "未分类";
-  return <article class:list={["post-row", { "has-cover": !!media }]} data-post-row={filterable ? "" : undefined} data-filter-text={[post.data.title, post.data.description, ...post.data.tags].join(" ")} data-category={category} data-tags={post.data.tags.join("|")}>
-    {media && <a class="post-cover" href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true"><img src={media.src} alt="" width={media.width} height={media.height} loading="lazy" decoding="async"/></a>}
+  return <article class:list={["post-row", { "has-cover": !!media, "wide-cover": !!media && media.width / media.height > 2.4 }]} data-post-row={filterable ? "" : undefined} data-filter-text={[post.data.title, post.data.description, ...post.data.tags].join(" ")} data-category={category} data-tags={post.data.tags.join("|")}>
+    {media && <a class="post-cover" data-post-cover style={media.position ? `--post-image-position: ${media.position}` : undefined} href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true"><img src={media.src} alt="" width={media.width} height={media.height} loading="lazy" decoding="async"/><span class="post-cover-fallback" data-cover-fallback hidden><Icon name="image"/><span>封面暂不可用</span></span></a>}
     <div class="post-meta">{post.data.pinned && <span class="pinned-note"><Icon name="pin"/>置顶</span>}<a class="category-tag" href={`/archive/?category=${encodeURIComponent(category)}`}>{category}</a><time datetime={post.data.published.toISOString()}>{post.data.published.toISOString().slice(0, 10).replaceAll("-", ".")}</time>{post.body && <span class="post-reading-time">约 {getReadingStats(post.body).minutes} 分钟</span>}</div>
     <div class="post-summary"><a href={getPostUrlBySlug(post.id)}><Heading>{post.data.title}</Heading></a><p>{post.data.description}</p></div>
     <div class="post-bottom"><div class="post-topics">{post.data.tags.slice(0, 3).map(tag => <a href={`/archive/?tag=${encodeURIComponent(tag)}`}># {tag}</a>)}</div><a class="post-read" href={getPostUrlBySlug(post.id)} tabindex="-1" aria-hidden="true">阅读全文</a></div>
   </article>;
 })}</div>
+
+<script>
+import { initializePostCovers } from "@/scripts/journal-covers";
+initializePostCovers();
+</script>

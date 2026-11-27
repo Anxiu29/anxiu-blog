@@ -1,28 +1,35 @@
+import { prepareLocalVideo } from "./background-local-video";
+import { createBackgroundVideo } from "./background-video";
 import { backgroundImages, backgroundVideos } from "@/data/background-images";
 import {
 	BACKGROUND_KEY,
 	type BackgroundImageId,
 	type BackgroundMode,
-	type BackgroundVideoId,
 	DEFAULT_BACKGROUND,
 	readBackground,
 	saveBackground,
 } from "./background-settings";
 import {
 	type BackgroundPhoto,
+	type BackgroundLocalVideo,
+	readLocalVideo,
+	storeLocalVideo,
+	deleteLocalVideo,
+	MAX_BACKGROUND_VIDEO_BYTES,
 	deletePhoto,
+	isBackgroundPhotoType,
 	MAX_BACKGROUND_BYTES,
 	readPhoto,
 	storePhoto,
 } from "./background-storage";
-import { createBackgroundVideo } from "./background-video";
-
+const initialized = new WeakSet<HTMLDialogElement>();
 export function initializeAppearance() {
 	const dialog =
 		document.querySelector<HTMLDialogElement>("#appearance-dialog");
 	const opener = document.querySelector<HTMLButtonElement>("#open-appearance");
 	const backdrop = document.querySelector<HTMLElement>("#site-wallpaper");
-	if (!dialog || !opener || !backdrop) return;
+	if (!dialog || !opener || !backdrop || initialized.has(dialog)) return;
+	initialized.add(dialog);
 	const fields =
 		dialog.querySelector<HTMLFieldSetElement>("#appearance-fields")!;
 	const radios = [
@@ -34,6 +41,9 @@ export function initializeAppearance() {
 	)!;
 	const blur = dialog.querySelector<HTMLInputElement>("#background-blur")!;
 	const file = dialog.querySelector<HTMLInputElement>("#background-photo")!;
+	const builtinButtons = [
+		...dialog.querySelectorAll<HTMLButtonElement>("[data-wallpaper]"),
+	];
 	const videoButtons = [
 		...dialog.querySelectorAll<HTMLButtonElement>("[data-video-wallpaper]"),
 	];
@@ -43,9 +53,6 @@ export function initializeAppearance() {
 	const video = backdrop.querySelector<HTMLVideoElement>(
 		"#site-wallpaper-video",
 	)!;
-	const builtinButtons = [
-		...dialog.querySelectorAll<HTMLButtonElement>("[data-wallpaper]"),
-	];
 	const usePhoto = dialog.querySelector<HTMLButtonElement>(
 		"#use-background-photo",
 	)!;
@@ -56,6 +63,18 @@ export function initializeAppearance() {
 	const photoName = dialog.querySelector<HTMLElement>(
 		"#background-photo-name",
 	)!;
+	const videoFile = dialog.querySelector<HTMLInputElement>(
+		"#background-video-file",
+	)!;
+	const useLocal = dialog.querySelector<HTMLButtonElement>(
+		"#use-background-video",
+	)!;
+	const removeLocal = dialog.querySelector<HTMLButtonElement>(
+		"#remove-background-video",
+	)!;
+	const videoName = dialog.querySelector<HTMLElement>(
+		"#background-video-name",
+	)!;
 	const layer = backdrop.querySelector<HTMLElement>(".wallpaper-layer")!;
 	let settings = { ...DEFAULT_BACKGROUND };
 	try {
@@ -65,6 +84,11 @@ export function initializeAppearance() {
 	let photoUrl = "";
 	let photoVersion = 0;
 	let photoLoad: Promise<void> | undefined;
+	let localVideo: BackgroundLocalVideo | undefined;
+	let localUrl = "";
+	let localPoster = "";
+	let videoLoad: Promise<void> | undefined;
+	let sessionVideo = false;
 	let busy = false;
 	let sessionPhoto = false;
 	let returnFocus: HTMLElement = opener;
@@ -72,9 +96,10 @@ export function initializeAppearance() {
 		status.textContent = message;
 	};
 	let effectivePaused = true;
+	const movie = backgroundVideos[0];
 	const player = createBackgroundVideo(
 		video,
-		backgroundVideos[0].src,
+		movie.src,
 		(paused) => {
 			effectivePaused = paused;
 			playback.textContent = paused ? "播放动态壁纸" : "暂停动态壁纸";
@@ -87,13 +112,21 @@ export function initializeAppearance() {
 		photoUrl = url;
 		photoName.textContent = photo ? photo.name.slice(0, 160) : "尚未选择图片";
 	}
-	function render() {
+	function setLocalVideo(value?: BackgroundLocalVideo) {
+		if (localUrl && video.getAttribute("src") === localUrl)
+			player.sync(false, true);
+		if (localUrl) URL.revokeObjectURL(localUrl);
+		if (localPoster) URL.revokeObjectURL(localPoster);
+		localVideo = value;
+		localUrl = value ? URL.createObjectURL(value.blob) : "";
+		localPoster = value ? URL.createObjectURL(value.poster) : "";
+		videoName.textContent = value ? value.name.slice(0, 160) : "尚未选择视频";
+	}
+	const videoSource = () => (settings.video === "local" ? localUrl : movie.src);
+	function render(syncVideo = true) {
 		const builtin = backgroundImages.find(
 			(image) => image.id === settings.wallpaper,
 		);
-		const movie =
-			backgroundVideos.find((item) => item.id === settings.video) ||
-			backgroundVideos[0];
 		const active = settings.mode !== "image" || !!builtin || !!photoUrl;
 		backdrop!.hidden = !active;
 		document.documentElement.classList.toggle("has-custom-background", active);
@@ -107,9 +140,41 @@ export function initializeAppearance() {
 		layer.style.backgroundColor = "transparent";
 		if (settings.mode === "image" && (builtin || photoUrl))
 			layer.style.backgroundImage = `url(${JSON.stringify(builtin?.src || photoUrl)})`;
-		if (settings.mode === "video")
-			layer.style.backgroundImage = `url(${JSON.stringify(movie.poster)})`;
+		const poster = settings.video === "local" ? localPoster : movie.poster;
+		if (settings.mode === "video" && poster)
+			layer.style.backgroundImage = `url(${JSON.stringify(poster)})`;
 		if (settings.mode === "color") layer.style.backgroundColor = settings.color;
+		if (poster) video.poster = poster;
+		else video.removeAttribute("poster");
+		useLocal.hidden =
+			!localVideo || (settings.mode === "video" && settings.video === "local");
+		removeLocal.disabled = !localVideo || busy;
+		playback.hidden = settings.mode !== "video";
+		playback.disabled = busy || !videoSource();
+		if (localVideo)
+			videoName.textContent =
+				localVideo.name.slice(0, 160) + (sessionVideo ? "（仅本次页面）" : "");
+		for (const button of videoButtons)
+			button.setAttribute(
+				"aria-pressed",
+				String(
+					settings.mode === "video" &&
+						button.dataset.videoWallpaper === settings.video,
+				),
+			);
+		if (syncVideo)
+			player.sync(
+				settings.mode === "video" && !!videoSource(),
+				settings.videoPaused,
+				false,
+				videoSource(),
+			);
+		for (const section of dialog!.querySelectorAll<HTMLElement>(
+			"[data-background-section]",
+		))
+			section.hidden = !section.dataset
+				.backgroundSection!.split(" ")
+				.includes(settings.mode);
 		for (const radio of radios) radio.checked = radio.value === settings.mode;
 		for (const button of builtinButtons)
 			button.setAttribute(
@@ -119,22 +184,6 @@ export function initializeAppearance() {
 						button.dataset.wallpaper === settings.wallpaper,
 				),
 			);
-		for (const button of videoButtons)
-			button.setAttribute(
-				"aria-pressed",
-				String(
-					settings.mode === "video" &&
-						button.dataset.videoWallpaper === settings.video,
-				),
-			);
-		video.poster = movie.poster;
-		playback.hidden = settings.mode !== "video";
-		player.sync(
-			settings.mode === "video",
-			settings.videoPaused,
-			false,
-			movie.src,
-		);
 		usePhoto.hidden =
 			!photo || (settings.mode === "image" && !settings.wallpaper);
 		color.value = settings.color;
@@ -154,30 +203,34 @@ export function initializeAppearance() {
 	}
 	function persist() {
 		const value =
-			sessionPhoto && settings.mode === "image" && !settings.wallpaper
-				? {
-						...settings,
-						mode: "image" as const,
-						wallpaper: DEFAULT_BACKGROUND.wallpaper,
-					}
-				: settings;
+			sessionVideo && settings.mode === "video" && settings.video === "local"
+				? { ...settings, video: "luo-xiaohei" as const }
+				: sessionPhoto && settings.mode === "image" && !settings.wallpaper
+					? {
+							...settings,
+							mode: "image" as const,
+							wallpaper: DEFAULT_BACKGROUND.wallpaper,
+						}
+					: settings;
 		let saved = false;
 		try {
 			saved = saveBackground(localStorage, value);
 		} catch {}
 		say(
-			sessionPhoto && settings.mode === "image" && !settings.wallpaper
-				? "已应用到当前页面，浏览器无法保存这张图片。"
-				: saved
-					? "已保存到此浏览器。"
-					: "当前页面已应用，浏览器不允许保存设置。",
+			sessionVideo && settings.mode === "video" && settings.video === "local"
+				? "已应用到当前页面，浏览器无法保存此视频，刷新后恢复罗小黑壁纸。"
+				: sessionPhoto && settings.mode === "image" && !settings.wallpaper
+					? "已应用到当前页面，浏览器无法保存这张图片。"
+					: saved
+						? "已保存到此浏览器。"
+						: "当前页面已应用，浏览器不允许保存设置。",
 		);
 	}
 	function setBusy(value: boolean) {
 		busy = value;
 		fields.disabled = value;
 		dialog!.setAttribute("aria-busy", String(value));
-		render();
+		render(false);
 	}
 	async function decodedUrl(value: BackgroundPhoto) {
 		const url = URL.createObjectURL(value.blob);
@@ -187,7 +240,7 @@ export function initializeAppearance() {
 			await image.decode();
 			if (
 				!image.naturalWidth ||
-				image.naturalWidth * image.naturalHeight > 32_000_000
+				image.naturalWidth * image.naturalHeight > 32000000
 			)
 				throw new Error("image dimensions");
 			return url;
@@ -235,6 +288,30 @@ export function initializeAppearance() {
 		});
 		return photoLoad;
 	}
+	async function loadLocalVideo() {
+		if (videoLoad || localVideo) return videoLoad;
+		videoLoad = (async () => {
+			try {
+				const value = await readLocalVideo();
+				if (value) setLocalVideo(value);
+				else if (settings.mode === "video" && settings.video === "local") {
+					settings.video = "luo-xiaohei";
+					persist();
+					say("本地视频已不可用，已恢复罗小黑动态壁纸。");
+				}
+			} catch {
+				if (settings.mode === "video" && settings.video === "local") {
+					settings.video = "luo-xiaohei";
+					persist();
+					say("暂时无法读取本地视频，已恢复罗小黑动态壁纸。");
+				}
+			}
+			render();
+		})().finally(() => {
+			videoLoad = undefined;
+		});
+		return videoLoad;
+	}
 	opener.addEventListener("click", () => {
 		returnFocus =
 			document.activeElement instanceof HTMLElement
@@ -242,8 +319,12 @@ export function initializeAppearance() {
 				: opener;
 		const search = document.querySelector<HTMLDialogElement>("#search-dialog");
 		if (search?.open) search.close();
+		document.querySelector<HTMLDialogElement>("#mobile-navigation")?.close();
+		const music = document.querySelector<HTMLElement>("#music-panel");
+		if (music?.matches(":popover-open")) music.hidePopover();
 		dialog.showModal();
 		void loadPhoto();
+		void loadLocalVideo();
 	});
 	dialog
 		.querySelector("#close-appearance")!
@@ -270,7 +351,8 @@ export function initializeAppearance() {
 		radio.addEventListener("change", () => {
 			if (busy) return;
 			if (radio.value === "video") {
-				selectVideo();
+				if (settings.video === "local" && localVideo) selectLocalVideo();
+				else selectVideo();
 				return;
 			}
 			if (radio.value === "image" && settings.wallpaper) {
@@ -336,38 +418,108 @@ export function initializeAppearance() {
 			);
 			if (chosen) void selectBuiltin(chosen.id);
 		});
-	function selectVideo(id: BackgroundVideoId = settings.video) {
+	function selectVideo() {
 		if (busy) return;
-		const movie = backgroundVideos.find((item) => item.id === id);
-		if (!movie) return;
 		++photoVersion;
 		settings.mode = "video";
-		settings.video = id;
+		settings.video = "luo-xiaohei";
 		settings.videoPaused = false;
 		persist();
 		render();
 		player.sync(true, false, true, movie.src);
 	}
 	for (const button of videoButtons)
-		button.addEventListener("click", () => {
-			const movie = backgroundVideos.find(
-				(item) => item.id === button.dataset.videoWallpaper,
-			);
-			if (movie) selectVideo(movie.id);
-		});
+		button.addEventListener("click", selectVideo);
 	playback.addEventListener("click", () => {
 		if (busy || settings.mode !== "video") return;
 		settings.videoPaused = !effectivePaused;
 		persist();
-		player.sync(
-			true,
-			settings.videoPaused,
-			true,
-			(
-				backgroundVideos.find((item) => item.id === settings.video) ||
-				backgroundVideos[0]
-			).src,
-		);
+		player.sync(true, settings.videoPaused, true, videoSource());
+	});
+	function selectLocalVideo() {
+		if (busy || !localVideo) return;
+		settings.mode = "video";
+		settings.video = "local";
+		settings.videoPaused = false;
+		persist();
+		render();
+		player.sync(true, false, true, localUrl);
+	}
+	useLocal.addEventListener("click", selectLocalVideo);
+	dialog
+		.querySelector("#choose-background-video")!
+		.addEventListener("click", () => videoFile.click());
+	videoFile.addEventListener("change", async () => {
+		const selected = videoFile.files?.[0];
+		videoFile.value = "";
+		if (!selected || busy) return;
+		if (
+			selected.type !== "video/mp4" &&
+			!(selected.type === "" && /\.mp4$/i.test(selected.name))
+		) {
+			say("请选择 MP4 视频文件。");
+			return;
+		}
+		if (!selected.size || selected.size > MAX_BACKGROUND_VIDEO_BYTES) {
+			say("请选择不超过 100 MB 的 MP4 视频。");
+			return;
+		}
+		setBusy(true);
+		say("正在读取并保存本地视频…");
+		let applied = false;
+		try {
+			await videoLoad;
+			const blob = selected.type
+				? selected
+				: new Blob([selected], { type: "video/mp4" });
+			const value = await prepareLocalVideo(blob, selected.name);
+			try {
+				await storeLocalVideo(value);
+				sessionVideo = false;
+			} catch {
+				sessionVideo = true;
+			}
+			setLocalVideo(value);
+			settings.mode = "video";
+			settings.video = "local";
+			settings.videoPaused = false;
+			applied = true;
+			render();
+			persist();
+		} catch (error) {
+			say(
+				error instanceof Error
+					? error.message
+					: "无法读取此视频，原背景已保留。",
+			);
+		} finally {
+			setBusy(false);
+		}
+		if (
+			applied &&
+			settings.mode === "video" &&
+			settings.video === "local" &&
+			localVideo
+		)
+			player.sync(true, settings.videoPaused, true, localUrl);
+	});
+	removeLocal.addEventListener("click", async () => {
+		if (busy) return;
+		setBusy(true);
+		try {
+			await videoLoad;
+			await deleteLocalVideo();
+			setLocalVideo();
+			sessionVideo = false;
+			if (settings.video === "local") settings.video = "luo-xiaohei";
+			render();
+			persist();
+			say("已删除此浏览器保存的本地视频。");
+		} catch {
+			say("暂时无法删除视频，请稍后再试。");
+		} finally {
+			setBusy(false);
+		}
 	});
 	usePhoto.addEventListener("click", () => {
 		if (busy || !photo) return;
@@ -383,12 +535,8 @@ export function initializeAppearance() {
 		const selected = file.files?.[0];
 		file.value = "";
 		if (!selected || busy) return;
-		if (
-			!["image/png", "image/jpeg", "image/webp", "image/avif"].includes(
-				selected.type,
-			)
-		) {
-			say("请选择 JPG、PNG、WebP 或 AVIF 图片。");
+		if (!isBackgroundPhotoType(selected.type)) {
+			say("请选择 GIF、APNG、WebP、JPG、PNG 或 AVIF 图片。");
 			return;
 		}
 		if (!selected.size || selected.size > MAX_BACKGROUND_BYTES) {
@@ -446,7 +594,10 @@ export function initializeAppearance() {
 			if (busy) return;
 			++photoVersion;
 			setBusy(true);
+			await videoLoad;
 			settings = { ...DEFAULT_BACKGROUND };
+			setLocalVideo();
+			sessionVideo = false;
 			setPhoto(undefined);
 			sessionPhoto = false;
 			render();
@@ -459,6 +610,7 @@ export function initializeAppearance() {
 			let photoCleared = true;
 			try {
 				await deletePhoto();
+				await deleteLocalVideo();
 			} catch {
 				photoCleared = false;
 			}
@@ -467,14 +619,20 @@ export function initializeAppearance() {
 				!preferencesCleared
 					? "当前页面已重置，浏览器未能清除原设置。"
 					: !photoCleared
-						? "已重置背景，图片缓存暂时未能清除。"
-						: "已恢复罗小黑动态壁纸。",
+						? "已重置背景，本地图片或视频缓存暂时未能清除。"
+						: "已恢复云下小憩静态壁纸。",
 			);
 		});
 	window.addEventListener("pagehide", (event) => {
-		if (!event.persisted && photoUrl) URL.revokeObjectURL(photoUrl);
+		if (!event.persisted) {
+			if (photoUrl) URL.revokeObjectURL(photoUrl);
+			if (localUrl) URL.revokeObjectURL(localUrl);
+			if (localPoster) URL.revokeObjectURL(localPoster);
+		}
 	});
 	render();
+	if (settings.mode === "video" && settings.video === "local")
+		void loadLocalVideo();
 	if (settings.mode === "image") {
 		if (settings.wallpaper) void selectBuiltin(settings.wallpaper, true);
 		else void loadPhoto();

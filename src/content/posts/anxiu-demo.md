@@ -5,6 +5,11 @@ description: 改键、宏、DPI 与本地配置管理的演示入口。
 category: 项目实践
 tags: [Anxiu, WebHID]
 comment: false
+readingGuide:
+  audience: 想了解键鼠配置界面，暂时没有相应硬件的访问者。
+  preparation:
+    - 打开演示网站，选择一个演示设备；无需硬件授权。
+  outcome: 了解改键、宏与配置管理的交互；真实设备通信仍需单独联调。
 ---
 Anxiu 是一个键鼠网页配置项目。为了方便展示和试用，项目提供了演示入口，可以在没有连接真实设备时了解配置界面和操作流程。
 

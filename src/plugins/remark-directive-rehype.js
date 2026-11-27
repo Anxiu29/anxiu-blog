@@ -1,3 +1,4 @@
+import { transformAuthoringDirectives } from "./remark-authoring.js";
 import { h } from "hastscript";
 import { visit } from "unist-util-visit";
 
@@ -31,8 +32,10 @@ const ADMONITION_TYPES = [
 ];
 
 export function parseDirectiveNode() {
-	return (tree) => {
+	return (tree, file) => {
+		transformAuthoringDirectives(tree, file);
 		visit(tree, (node) => {
+			if (node.data?.authoring) return;
 			if (
 				node.type === "containerDirective" ||
 				node.type === "leafDirective" ||

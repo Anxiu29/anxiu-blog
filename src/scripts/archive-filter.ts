@@ -1,3 +1,5 @@
+const initializedArchiveForms = new WeakSet<HTMLFormElement>();
+
 export function initializeArchiveFilter() {
 	const form = document.querySelector<HTMLFormElement>(".archive-filter");
 	const input = document.querySelector<HTMLInputElement>("#archive-query");
@@ -7,23 +9,35 @@ export function initializeArchiveFilter() {
 	const empty = document.querySelector<HTMLElement>("#archive-empty");
 	const clearTag =
 		document.querySelector<HTMLButtonElement>("#archive-clear-tag");
-	if (!form || !input || !category) return;
+	if (!form || !input || !category || initializedArchiveForms.has(form)) return;
+	initializedArchiveForms.add(form);
 	const rows = [...document.querySelectorAll<HTMLElement>("[data-post-row]")];
 	let tag = "";
-	let missingCategory = "";
-	function readURL() {
+	let composing = false;
+	const removeMissingCategory = () =>
+		category.querySelector("[data-archive-missing]")?.remove();
+	const readURL = () => {
 		const params = new URLSearchParams(location.search);
-		input!.value = params.get("q") || "";
+		input.value = params.get("q") || "";
 		tag = params.get("tag") || "";
 		const requested = params.get("category") || "";
-		category!.value = requested;
-		missingCategory =
-			requested && category!.value !== requested ? requested : "";
-	}
-	function filter(sync = true) {
-		const query = input!.value.trim();
+		removeMissingCategory();
+		if (
+			requested &&
+			!Array.from(category.options).some((option) => option.value === requested)
+		) {
+			const option = document.createElement("option");
+			option.value = requested;
+			option.textContent = `已失效的分类：${requested}`;
+			option.setAttribute("data-archive-missing", "");
+			category.append(option);
+		}
+		category.value = requested;
+	};
+	const filter = (mode: "push" | "replace" | false = "replace") => {
+		const query = input.value.trim();
 		const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
-		const selected = missingCategory || category!.value;
+		const selected = category.value;
 		let count = 0;
 		for (const row of rows) {
 			const matches =
@@ -45,40 +59,65 @@ export function initializeArchiveFilter() {
 			clearTag.hidden = !tag;
 			clearTag.textContent = `移除标签：${tag}`;
 		}
-		if (sync) {
-			const url = new URL(location.href);
-			for (const key of ["q", "category", "tag"]) url.searchParams.delete(key);
-			if (query) url.searchParams.set("q", query);
-			if (selected) url.searchParams.set("category", selected);
-			if (tag) url.searchParams.set("tag", tag);
-			history.replaceState(null, "", url);
+		if (!mode) return;
+		const url = new URL(location.href);
+		if (
+			(url.searchParams.get("q") || "") === query &&
+			(url.searchParams.get("category") || "") === selected &&
+			(url.searchParams.get("tag") || "") === tag
+		)
+			return;
+		for (const key of ["q", "category", "tag"]) url.searchParams.delete(key);
+		if (query) url.searchParams.set("q", query);
+		if (selected) url.searchParams.set("category", selected);
+		if (tag) url.searchParams.set("tag", tag);
+		if (url.href !== location.href) {
+			history[mode === "push" ? "pushState" : "replaceState"](
+				history.state,
+				"",
+				url.pathname + url.search + url.hash,
+			);
 		}
-	}
-	input.addEventListener("input", () => filter());
-	category.addEventListener("change", () => {
-		missingCategory = "";
+	};
+	input.addEventListener("compositionstart", () => {
+		composing = true;
+	});
+	input.addEventListener("compositionend", () => {
+		composing = false;
 		filter();
+	});
+	input.addEventListener("input", (event) => {
+		if (!composing && !(event as InputEvent).isComposing) filter();
+	});
+	category.addEventListener("change", () => {
+		removeMissingCategory();
+		filter("push");
 	});
 	clearTag?.addEventListener("click", () => {
 		tag = "";
-		filter();
+		filter("push");
+		input.focus({ preventScroll: true });
 	});
 	form.addEventListener("submit", (event) => {
 		event.preventDefault();
-		filter();
+		if (!composing) filter("push");
 	});
 	form.addEventListener("reset", (event) => {
 		event.preventDefault();
+		composing = false;
 		input.value = "";
+		removeMissingCategory();
 		category.value = "";
 		tag = "";
-		missingCategory = "";
-		filter();
+		filter("push");
 	});
-	window.addEventListener("popstate", () => {
+	const onPopstate = () => {
+		composing = false;
 		readURL();
 		filter(false);
-	});
+	};
+	window.addEventListener("popstate", onPopstate);
+	document.addEventListener("astro:before-swap", () => window.removeEventListener("popstate", onPopstate), { once: true });
 	readURL();
 	filter(false);
 }

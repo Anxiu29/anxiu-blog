@@ -27,6 +27,12 @@ const entries = ids
   {directory&&<><p class="tool-filter-status sr-only" role="status" aria-live="polite" data-tool-status></p><p class="empty-state" data-tool-empty hidden>没有匹配的工具，换个关键词或切换“全部”试试。</p></>}
 </div>
 <script>
+const initialized = new WeakSet<Element>();
+function initializePageControls() {
+ const owner = document.querySelector("[data-tool-collection].directory");
+ if (!owner || initialized.has(owner)) return;
+ initialized.add(owner);
+
 for(const root of document.querySelectorAll<HTMLElement>('[data-tool-collection].directory')){
   const buttons=[...root.querySelectorAll<HTMLButtonElement>('button[data-category]')];
   const input=root.querySelector<HTMLInputElement>('[data-tool-search]');
@@ -36,4 +42,8 @@ for(const root of document.querySelectorAll<HTMLElement>('[data-tool-collection]
   for(const button of buttons)button.addEventListener('click',()=>{category=button.dataset.category||'all';for(const b of buttons)b.setAttribute('aria-pressed',String(b===button));filter();});
   input?.addEventListener('input',filter);filter();
 }
+
+}
+initializePageControls();
+document.addEventListener('astro:page-load', initializePageControls);
 </script>

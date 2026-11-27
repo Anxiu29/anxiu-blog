@@ -6,17 +6,18 @@
     "dev": "astro dev",
     "start": "astro dev",
     "check": "astro check",
-    "build:hid": "pnpm --dir tools/readdevice install && pnpm --dir tools/readdevice run build",
-    "build": "pnpm run build:hid && node scripts/generate-icons.js && npx tsx scripts/generate-lqips.ts && astro build && npx tsx scripts/subset-fonts.ts && pagefind --site dist",
+    "build:hid": "pnpm --dir tools/readdevice install --frozen-lockfile && pnpm --dir tools/readdevice run build",
+    "build": "pnpm run build:hid && node scripts/generate-icons.js && tsx scripts/generate-lqips.ts && astro build && tsx scripts/subset-fonts.ts && node scripts/finalize-public-index.mjs dist && pagefind --site dist --root-selector \"[data-pagefind-body]\"",
     "preview": "astro preview",
     "astro": "astro",
     "type-check": "tsc --noEmit --isolatedDeclarations",
     "new-post": "node scripts/new-post.js",
     "format": "biome format --write ./src",
     "lint": "biome check --write ./src",
-    "preinstall": "npx only-allow pnpm",
+    "preinstall": "only-allow pnpm",
     "icons": "node scripts/generate-icons.js",
-    "lqips": "npx tsx scripts/generate-lqips.ts"
+    "lqips": "npx tsx scripts/generate-lqips.ts",
+    "check:journal": "node scripts/check-journal.cjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
@@ -87,10 +88,15 @@
     "@types/mdast": "^4.0.4",
     "@types/qrcode": "^1.5.6",
     "@types/sanitize-html": "^2.16.1",
+    "only-allow": "1.2.2",
     "postcss-import": "^16.2.0",
     "postcss-nesting": "^14.0.1",
     "subset-font": "^2.5.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "tsx": "4.23.15"
   },
-  "packageManager": "pnpm@9.14.4"
+  "packageManager": "pnpm@9.14.4",
+  "engines": {
+    "node": "22.x"
+  }
 }

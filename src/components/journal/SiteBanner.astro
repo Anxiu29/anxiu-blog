@@ -1,0 +1,16 @@
+---
+import Icon from './Icon.astro';
+import { dailyQuotes } from '@/data/daily-quotes';
+import '@/styles/daily-quote.css';
+interface Props { title?: string; description?: string; home?: boolean; article?: boolean; }
+const { title, description, home = false, article = false } = Astro.props;
+const Title = home || article ? 'h1' : 'p';
+---
+<section class:list={['site-banner',{'home-banner':home,'article-banner':article}]} aria-label="博客横幅">
+ <div class="banner-copy">
+  <Title class={home ? "sr-only" : "banner-title"}>{home?'安秀的开发手记':title || '技术、工具与记录'}</Title>
+  {home?<figure class="banner-quote" data-daily-quote aria-label="今日一言"><blockquote class="banner-description"><span class="sr-only" data-quote-accessible>{dailyQuotes[0].text}</span><span class="quote-typing" aria-hidden="true"><span data-quote-text>{dailyQuotes[0].text}</span></span></blockquote></figure>:<p class="banner-description">{description || '开发 · 工具 · 记录'}</p>}
+ </div>
+ {!home&&<button type="button" class="banner-change" data-open-wallpaper aria-label="更换博客壁纸"><Icon name="palette"/><span>更换壁纸</span></button>}
+ <svg class="banner-waves" viewBox="0 0 1440 64" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28Q240 70 500 23T960 28T1440 23V64H0Z" opacity=".35"/><path d="M0 41Q340 10 680 42T1440 38V64H0Z" opacity=".55"/><path d="M0 51Q290 32 620 52T1440 48V64H0Z"/></svg>
+</section>

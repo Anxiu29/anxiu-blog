@@ -1,4 +1,5 @@
 import type { SiteConfig } from "@/types/siteConfig";
+import { resolveSiteOrigin } from "../utils/site-origin";
 
 // 定义站点语言
 // 语言代码，例如：'zh_CN', 'zh_TW', 'en', 'ja', 'ru'。
@@ -12,7 +13,7 @@ export const siteConfig: SiteConfig = {
 	subtitle: "技术、工具与记录",
 
 	// 站点 URL（域名确定后请替换为正式地址）
-	site_url: "https://anxiu-blog.vercel.app",
+	site_url: resolveSiteOrigin(typeof process === "undefined" ? {} : process.env),
 
 	// 站点描述
 	description:
@@ -48,7 +49,7 @@ export const siteConfig: SiteConfig = {
 	favicon: [
 		{
 			// 图标文件路径
-			src: "/favicon/favicon.ico",
+			src: "/favicon/site-clover-192.png",
 			// 可选，指定主题 'light' | 'dark'
 			// theme: "light",
 			// 可选，图标大小
@@ -66,8 +67,8 @@ export const siteConfig: SiteConfig = {
 		// 4. 网络图片: { type: "url", value: "https://example.com/logo.png", alt: "Logo" }
 		logo: {
 			type: "image",
-			value: "assets/images/firefly.png",
-			alt: "安秀",
+			value: "/branding/site-clover.svg",
+			alt: "安秀的四叶草标志",
 		},
 		// 导航栏标题
 		title: "安秀",

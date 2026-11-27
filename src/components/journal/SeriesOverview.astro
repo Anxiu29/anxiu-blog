@@ -1,0 +1,10 @@
+---
+import { getSortedPosts } from '@/utils/content-utils';
+import { getSeriesEntries } from '@/utils/series-utils';
+import { getPostUrlBySlug } from '@/utils/url-utils';
+interface Props { entryId: string; }
+const { entryId }=Astro.props;
+const normalize=(id:string)=>id.replace(/\.(md|mdx)$/,'');
+const topic=getSeriesEntries(await getSortedPosts()).find(t=>t.entries.some(p=>normalize(p.id)===normalize(entryId)));
+---
+{topic&&<details class="article-series-overview"><summary>系列阅读 · {topic.title} · {topic.entries.length} 篇</summary><nav aria-label={`${topic.title}系列目录`}>{topic.entries.map((post,i)=><a href={getPostUrlBySlug(post.id)} aria-current={normalize(post.id)===normalize(entryId)?'page':undefined}><small>{String(i+1).padStart(2,'0')}</small><span>{post.data.title}</span></a>)}</nav></details>}

@@ -1,0 +1,60 @@
+.authoring-steps {
+	list-style: decimal;
+	padding-inline-start: 1.9rem;
+	margin-block: 1.5rem;
+}
+.authoring-steps > .authoring-step {
+	padding-inline-start: 0.5rem;
+	margin-block: 1.3rem;
+	min-width: 0;
+}
+.authoring-step::marker { font-weight: 700; color: var(--accent, currentColor); }
+.authoring-step-title, .authoring-tab-fallback-title { font-weight: 700; }
+.authoring-tabs {
+	min-width: 0;
+	max-width: 100%;
+	margin-block: 1.3rem;
+	border: 1px solid var(--line, #8885);
+	border-radius: 10px;
+	overflow: hidden;
+}
+.authoring-tab-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px;
+	border-bottom: 1px solid var(--line, #8885);
+	background: var(--soft, #8881);
+}
+.authoring-tablist { display: flex; flex: 1 1 auto; overflow-x: auto; min-width: 0; gap: 4px; }
+.authoring-tab-toolbar button {
+	min-height: 44px;
+	min-width: 44px;
+	padding: 8px 12px;
+	flex: 0 0 auto;
+	font: inherit;
+	font-size: 0.875rem;
+	color: inherit;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.authoring-tablist [aria-selected="true"] { background: var(--panel, #8882); color: var(--accent, currentColor); border-color: var(--line, #8885); font-weight: 700; }
+.authoring-tab-toolbar button:focus-visible, .authoring-tab-panel:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: -3px; }
+.authoring-tab-toolbar button:disabled { cursor: wait; opacity: 0.6; }
+.authoring-tab-panel { min-width: 0; padding: 0.75rem 1rem; }
+.authoring-tab-panel > :first-child { margin-top: 0; }
+.authoring-tab-panel > :last-child { margin-bottom: 0; }
+.authoring-tabs[data-enhanced="true"] > .authoring-tab-panel > .authoring-tab-fallback-title { display: none; }
+.authoring-tabs [hidden] { display: none !important; }
+.authoring-tabs[data-enhanced="true"][data-authoring-tabs="code"] > .authoring-tab-panel .expressive-code .copy { display: none; }
+.authoring-copy-status { font-size: 0.875rem; padding-inline: 1rem; }
+.authoring-copy-status:empty { display: none; }
+.authoring-copy-fallback { display: block; width: calc(100% - 2rem); margin: 1rem; padding: 0.75rem; min-height: 7rem; font: inherit; font-family: monospace; color: inherit; background: var(--panel, transparent); border: 1px solid var(--line, #8885); border-radius: 6px; }
+@media (max-width: 600px) {
+	.authoring-tab-panel { padding: 0.75rem; }
+	.authoring-tab-toolbar { align-items: stretch; }
+	.authoring-tablist { flex-basis: 100%; }
+}

@@ -9,28 +9,27 @@ export const BACKGROUND_IMAGE_IDS = [
 	"your-name",
 ] as const;
 export type BackgroundImageId = (typeof BACKGROUND_IMAGE_IDS)[number];
-export const BACKGROUND_VIDEO_IDS = ["luo-xiaohei", "night-cuddle"] as const;
-export type BackgroundVideoId = (typeof BACKGROUND_VIDEO_IDS)[number];
+export type BackgroundVideoId = "luo-xiaohei" | "local";
 export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 export interface BackgroundSettings {
 	version: 1;
 	mode: BackgroundMode;
+	video: BackgroundVideoId;
+	videoPaused: boolean;
 	color: string;
 	overlay: number;
 	blur: number;
 	wallpaper?: BackgroundImageId;
-	videoPaused: boolean;
-	video: BackgroundVideoId;
 }
 export const DEFAULT_BACKGROUND: BackgroundSettings = {
 	version: 1,
-	mode: "video",
+	mode: "image",
+	video: "luo-xiaohei",
+	videoPaused: false,
 	wallpaper: "cloud-pals",
 	color: "#9dcdf0",
 	overlay: 40,
 	blur: 0,
-	videoPaused: false,
-	video: "luo-xiaohei",
 };
 function bounded(value: unknown, fallback: number, min: number, max: number) {
 	return typeof value === "number" && Number.isFinite(value)
@@ -43,27 +42,27 @@ export function normalizeBackground(value: unknown): BackgroundSettings {
 	const v = value as Record<string, unknown>;
 	if (v.version !== 1 || !BACKGROUND_MODES.includes(v.mode as BackgroundMode))
 		return d;
-	const wallpaper = BACKGROUND_IMAGE_IDS.includes(
-		v.wallpaper as BackgroundImageId,
-	)
-		? (v.wallpaper as BackgroundImageId)
-		: v.wallpaper !== undefined
-			? d.wallpaper
-			: undefined;
+	const removedVideo =
+		v.mode === "video" && v.video !== "luo-xiaohei" && v.video !== "local";
+	const wallpaper = removedVideo
+		? d.wallpaper
+		: BACKGROUND_IMAGE_IDS.includes(v.wallpaper as BackgroundImageId)
+			? (v.wallpaper as BackgroundImageId)
+			: v.wallpaper !== undefined
+				? d.wallpaper
+				: undefined;
 	return {
 		version: 1,
-		mode: v.mode as BackgroundMode,
+		mode: (removedVideo ? "image" : v.mode) as BackgroundMode,
 		...(wallpaper ? { wallpaper } : {}),
+		video: v.video === "local" ? "local" : "luo-xiaohei",
+		videoPaused: v.videoPaused === true,
 		color:
 			typeof v.color === "string" && /^#[0-9a-f]{6}$/i.test(v.color)
 				? v.color.toLowerCase()
 				: d.color,
 		overlay: bounded(v.overlay, d.overlay, 20, 95),
 		blur: bounded(v.blur, d.blur, 0, 20),
-		videoPaused: v.videoPaused === true,
-		video: BACKGROUND_VIDEO_IDS.includes(v.video as BackgroundVideoId)
-			? (v.video as BackgroundVideoId)
-			: d.video,
 	};
 }
 export function readBackground(

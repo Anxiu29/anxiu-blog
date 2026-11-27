@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const repo=process.env.BLOG_REPO||path.resolve(__dirname,'..'),ts=require(path.join(repo,'node_modules/typescript')),api={},file=path.join(repo,'src/scripts/scroll-tools.ts');
+if(fs.existsSync(file))vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{target:99,module:1}}).outputText,{exports:api});
+assert.equal(typeof api.getPageScrollProgress,'function');
+assert.equal(api.getPageScrollProgress(0,2000,800),0);
+assert.equal(api.getPageScrollProgress(600,2000,800),50);
+assert.equal(api.getPageScrollProgress(2000,2000,800),100);
+assert.equal(api.getPageScrollProgress(-20,2000,800),0);
+assert.equal(api.getPageScrollProgress(0,700,800),0);
+assert.equal(api.getPageScrollProgress(NaN,2000,800),0);
+console.log('PASS: whole-page scroll progress handles short documents, overscroll and invalid geometry.');

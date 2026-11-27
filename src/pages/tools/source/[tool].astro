@@ -57,7 +57,7 @@ export function getStaticPaths() {
 }
 const { title, back, download, files } = Astro.props;
 ---
-<JournalLayout title={title+' · 源码'} active="工具" noindex>
+<JournalLayout title={title+' · 源码'} description={title+'的源码阅读页，支持切换文件、复制和下载。'} active="工具" noindex>
 <section class="page-intro source-intro"><a class="source-back" href={back}>← {title}</a><h1>查看源码</h1><p>切换文件阅读，或复制、下载后在编辑器中查看。</p></section>
 <section class="source-viewer" aria-label={title+'源码'} data-source-viewer data-files={JSON.stringify(files)}>
   <div class="source-toolbar"><strong data-source-name>{files[0].name}</strong><div><button class="button-link" type="button" data-source-copy>复制源码</button><button class="button-link" type="button" data-source-download>下载当前文件</button><a class="button-link" href={download} download>{files.length>1?'下载源码包':'下载脚本'}</a></div></div>
@@ -67,6 +67,12 @@ const { title, back, download, files } = Astro.props;
 </section>
 </JournalLayout>
 <script>
+const initialized = new WeakSet<Element>();
+function initializePageControls() {
+ const owner = document.querySelector("[data-source-viewer]");
+ if (!owner || initialized.has(owner)) return;
+ initialized.add(owner);
+
 for(const root of document.querySelectorAll<HTMLElement>('[data-source-viewer]')){
  const files:{name:string;content:string}[]=JSON.parse(root.dataset.files||'[]');let index=0;
  const code=root.querySelector<HTMLElement>('[data-source-code]');const status=root.querySelector<HTMLElement>('[data-source-status]');const buttons=[...root.querySelectorAll<HTMLButtonElement>('[data-file-index]')];
@@ -75,4 +81,8 @@ for(const root of document.querySelectorAll<HTMLElement>('[data-source-viewer]')
  root.querySelector('[data-source-copy]')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(files[index].content);message('已复制 '+files[index].name);}catch{message('无法自动复制，请选中代码后复制。');}});
  root.querySelector('[data-source-download]')?.addEventListener('click',()=>{const file=files[index];const url=URL.createObjectURL(new Blob([file.content],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('已下载 '+file.name);});
 }
+
+}
+initializePageControls();
+document.addEventListener('astro:page-load', initializePageControls);
 </script>

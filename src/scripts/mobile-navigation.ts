@@ -1,8 +1,11 @@
+const initialized = new WeakSet<HTMLDialogElement>();
+
 export function initializeMobileNavigation() {
 	const dialog =
 		document.querySelector<HTMLDialogElement>("#mobile-navigation");
 	const opener = document.querySelector<HTMLButtonElement>("#open-navigation");
-	if (!dialog || !opener) return;
+	if (!dialog || !opener || initialized.has(dialog)) return;
+	initialized.add(dialog);
 	const setClosed = () => {
 		opener.setAttribute("aria-expanded", "false");
 		document.documentElement.classList.remove("navigation-open");
@@ -15,6 +18,8 @@ export function initializeMobileNavigation() {
 		}
 		document.querySelector<HTMLDialogElement>("#search-dialog")?.close();
 		document.querySelector<HTMLDialogElement>("#appearance-dialog")?.close();
+		const music = document.querySelector<HTMLElement>("#music-panel");
+		if (music?.matches(":popover-open")) music.hidePopover();
 		dialog.showModal();
 		opener.setAttribute("aria-expanded", "true");
 		document.documentElement.classList.add("navigation-open");
@@ -38,7 +43,7 @@ export function initializeMobileNavigation() {
 		link.addEventListener("click", close);
 	});
 	window
-		.matchMedia("(min-width: 781px)")
+		.matchMedia("(min-width: 1051px)")
 		.addEventListener("change", (event) => {
 			if (event.matches && dialog.open) close();
 		});
