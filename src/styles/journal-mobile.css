@@ -28,6 +28,16 @@
  .music-pet[data-dragging=true] :is(.pet-hover-tools,.pet-lyrics-space) { visibility:hidden; pointer-events:none; }
  .hyde-shell:has(dialog[open]) .music-pet { visibility:hidden; }
  .hyde-shell :is(.mobile-navigation,.appearance-dialog,#search-dialog,.journal-music[data-mode=popover]) { overscroll-behavior:contain; }
+ /* Keep the primary play key on the transport's center axis. */
+ .hyde-shell .journal-music[data-mode] .music-controls { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:center; justify-content:stretch; column-gap:4px; row-gap:8px; width:100%; }
+ .hyde-shell .journal-music[data-mode] .music-controls > button { order:0; justify-self:center; margin-left:0; }
+ .hyde-shell .journal-music[data-mode] .music-controls > .music-repeat { grid-column:1; grid-row:1; }
+ .hyde-shell .journal-music[data-mode] .music-controls > [data-music-prev] { grid-column:2; grid-row:1; }
+ .hyde-shell .journal-music[data-mode] .music-controls > .music-play { grid-column:3; grid-row:1; }
+ .hyde-shell .journal-music[data-mode] .music-controls > [data-music-next] { grid-column:4; grid-row:1; }
+ .hyde-shell .journal-music[data-mode] .music-controls > .music-quick-queue { grid-column:5; grid-row:1; }
+ .hyde-shell .journal-music[data-mode] .music-controls > .music-page-stop { grid-column:1/-1; grid-row:2; }
+
 }
 @media (min-width:901px) { .pet-mobile-menu { display:none; } }
 @media (max-width:600px) {
